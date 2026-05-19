@@ -3,17 +3,53 @@
 @theme {
   --color-background: #0f1115;
   --color-foreground: #f8fafc;
-  
   --color-accent: #00e5ff;
   --color-accent-hover: #00b8cc;
-  
   --color-card: #1e2128;
   --color-card-hover: #262a33;
-  
   --color-border: #333a45;
   --color-muted: #8b95a5;
   --color-danger: #ef4444;
   --color-success: #10b981;
+}
+
+/* ── 화면 모드 ── */
+html[data-mode="dark"] {
+  --color-background: #0f1115;
+  --color-foreground: #f8fafc;
+  --color-card: #1e2128;
+  --color-card-hover: #262a33;
+  --color-border: #333a45;
+  --color-muted: #8b95a5;
+  color-scheme: dark;
+}
+
+html[data-mode="light"] {
+  --color-background: #f4f6f9;
+  --color-foreground: #0f1115;
+  --color-card: #ffffff;
+  --color-card-hover: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-muted: #64748b;
+  color-scheme: light;
+}
+
+/* ── 액센트 컬러 ── */
+html[data-accent="yellow"] {
+  --color-accent: #fede24;
+  --color-accent-hover: #d4b81e;
+}
+html[data-accent="cyan"] {
+  --color-accent: #00e5ff;
+  --color-accent-hover: #00b8cc;
+}
+html[data-accent="red"] {
+  --color-accent: #df1b3f;
+  --color-accent-hover: #b51532;
+}
+html[data-accent="green"] {
+  --color-accent: #a6ff00;
+  --color-accent-hover: #85cc00;
 }
 
 :root {
@@ -28,7 +64,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Hide scrollbar for carousel but keep functionality */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }

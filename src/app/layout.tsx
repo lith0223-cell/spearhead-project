@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
+import { ThemeProvider } from "@/providers/ThemeProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -31,12 +32,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className="h-full antialiased dark">
+    <html lang="ko" className="h-full antialiased" data-mode="dark" data-accent="cyan">
+      <head>
+        {/* 테마 깜빡임 방지: 첫 페인트 전 localStorage에서 테마 복원 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var a=localStorage.getItem('ph_accent')||'cyan';var m=localStorage.getItem('ph_mode')||'dark';document.documentElement.setAttribute('data-accent',a);document.documentElement.setAttribute('data-mode',m);}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className={`${inter.className} min-h-full flex flex-col bg-background text-foreground selection:bg-accent selection:text-black`}>
-        <div className="flex-1 max-w-md mx-auto w-full relative pb-16 pt-safe">
-          {children}
-        </div>
-        <BottomNavigation />
+        <ThemeProvider>
+          <div className="flex-1 max-w-md mx-auto w-full relative pb-16 pt-safe">
+            {children}
+          </div>
+          <BottomNavigation />
+        </ThemeProvider>
       </body>
     </html>
   );

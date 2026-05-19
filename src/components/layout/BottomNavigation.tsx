@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Dumbbell, Utensils } from "lucide-react";
+import { Home, Dumbbell, Utensils, Settings } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -14,21 +14,10 @@ export function BottomNavigation() {
   const pathname = usePathname();
 
   const navItems = [
-    {
-      label: "대시보드",
-      href: "/",
-      icon: Home,
-    },
-    {
-      label: "운동",
-      href: "/routines",
-      icon: Dumbbell,
-    },
-    {
-      label: "식단",
-      href: "/diet",
-      icon: Utensils,
-    },
+    { label: "대시보드", href: "/",         icon: Home     },
+    { label: "운동",     href: "/routines", icon: Dumbbell },
+    { label: "식단",     href: "/diet",     icon: Utensils },
+    { label: "설정",     href: "/settings", icon: Settings },
   ];
 
   // Do not show bottom nav on workout execution screen
