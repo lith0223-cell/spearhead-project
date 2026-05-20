@@ -11,20 +11,37 @@ export default function RoutinesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Form state
   const [routineName, setRoutineName] = useState("");
-  const [exercises, setExercises] = useState<string[]>([]);
-  const [exerciseInput, setExerciseInput] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [exercises, setExercises] = useState<string[]>([""]);
 
-  // 드래그앤드롭 상태
+  // 종목 리스트 ref (자동 포커스용)
+  const exerciseListRef = useRef<HTMLDivElement>(null);
+
+  // 루틴 카드 드래그앤드롭 상태
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const touchStartIndexRef = useRef<number | null>(null);
+
+  // 종목 드래그앤드롭 상태 (모달 내)
+  const [exDragIdx, setExDragIdx] = useState<number | null>(null);
+  const [exDragOverIdx, setExDragOverIdx] = useState<number | null>(null);
+  const exTouchRef = useRef<number | null>(null);
 
   useEffect(() => {
     setRoutines(getRoutines());
   }, []);
 
+  // 종목 추가 시 새 인풋 자동 포커스
+  useEffect(() => {
+    if (!isModalOpen) return;
+    if (exercises.length > 0 && exercises[exercises.length - 1] === "") {
+      const inputs = exerciseListRef.current?.querySelectorAll<HTMLInputElement>("input[type=text]");
+      if (inputs && inputs.length > 0) inputs[inputs.length - 1].focus();
+    }
+  }, [exercises.length, isModalOpen]);
+
+  // ── 루틴 카드 드래그앤드롭 ──
   const reorderRoutines = (from: number, to: number) => {
     if (from === to) return;
     const next = [...routines];
@@ -34,14 +51,12 @@ export default function RoutinesPage() {
     setRoutines(next);
   };
 
-  // ── HTML5 Drag (데스크톱) ──
   const handleDragStart = (e: React.DragEvent, idx: number) => {
     setDragIndex(idx);
     e.dataTransfer.effectAllowed = "move";
   };
   const handleDragOver = (e: React.DragEvent, idx: number) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
     if (dragOverIndex !== idx) setDragOverIndex(idx);
   };
   const handleDrop = (e: React.DragEvent, idx: number) => {
@@ -54,16 +69,13 @@ export default function RoutinesPage() {
     setDragIndex(null);
     setDragOverIndex(null);
   };
-
-  // ── Touch Drag (모바일) ──
   const handleTouchStart = (e: React.TouchEvent, idx: number) => {
     touchStartIndexRef.current = idx;
     setDragIndex(idx);
   };
   const handleTouchMove = (e: React.TouchEvent) => {
     const touch = e.touches[0];
-    const cards = Array.from(document.querySelectorAll("[data-ridx]"));
-    cards.forEach((card) => {
+    Array.from(document.querySelectorAll("[data-ridx]")).forEach((card) => {
       const rect = card.getBoundingClientRect();
       if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
         const over = parseInt(card.getAttribute("data-ridx") ?? "-1");
@@ -72,31 +84,96 @@ export default function RoutinesPage() {
     });
   };
   const handleTouchEnd = () => {
-    if (touchStartIndexRef.current !== null && dragOverIndex !== null) {
+    if (touchStartIndexRef.current !== null && dragOverIndex !== null)
       reorderRoutines(touchStartIndexRef.current, dragOverIndex);
-    }
     touchStartIndexRef.current = null;
     setDragIndex(null);
     setDragOverIndex(null);
   };
 
-  const openAddModal = () => {
-    if (routines.length >= 7) {
-      alert("루틴은 최대 7개까지만 생성 가능합니다.");
-      return;
+  // ── 종목 리스트 드래그앤드롭 (모달 내) ──
+  const reorderExercises = (from: number, to: number) => {
+    if (from === to) return;
+    const next = [...exercises];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setExercises(next);
+  };
+
+  const exDragStart = (idx: number) => (e: React.DragEvent) => {
+    setExDragIdx(idx);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const exDragOver = (idx: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    if (exDragOverIdx !== idx) setExDragOverIdx(idx);
+  };
+  const exDrop = (idx: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    if (exDragIdx !== null) reorderExercises(exDragIdx, idx);
+    setExDragIdx(null);
+    setExDragOverIdx(null);
+  };
+  const exDragEnd = () => {
+    setExDragIdx(null);
+    setExDragOverIdx(null);
+  };
+  const exTouchStart = (idx: number) => (e: React.TouchEvent) => {
+    exTouchRef.current = idx;
+    setExDragIdx(idx);
+  };
+  const exTouchMove = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const els = exerciseListRef.current?.querySelectorAll("[data-ex-idx]") ?? [];
+    els.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+        const over = parseInt(el.getAttribute("data-ex-idx") ?? "-1");
+        if (over >= 0 && over !== exDragOverIdx) setExDragOverIdx(over);
+      }
+    });
+  };
+  const exTouchEnd = () => {
+    if (exTouchRef.current !== null && exDragOverIdx !== null)
+      reorderExercises(exTouchRef.current, exDragOverIdx);
+    exTouchRef.current = null;
+    setExDragIdx(null);
+    setExDragOverIdx(null);
+  };
+
+  // ── 종목 CRUD ──
+  const updateExercise = (idx: number, value: string) =>
+    setExercises((prev) => prev.map((ex, i) => (i === idx ? value : ex)));
+
+  const addExercise = () => setExercises((prev) => [...prev, ""]);
+
+  const removeExercise = (idx: number) =>
+    setExercises((prev) => prev.filter((_, i) => i !== idx));
+
+  const handleExerciseKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (idx === exercises.length - 1) {
+      addExercise();
+    } else {
+      const inputs = exerciseListRef.current?.querySelectorAll<HTMLInputElement>("input[type=text]");
+      if (inputs?.[idx + 1]) inputs[idx + 1].focus();
     }
+  };
+
+  // ── 루틴 모달 ──
+  const openAddModal = () => {
+    if (routines.length >= 7) { alert("루틴은 최대 7개까지만 생성 가능합니다."); return; }
     setEditingId(null);
     setRoutineName("");
-    setExercises([]);
-    setExerciseInput("");
+    setExercises([""]);
     setIsModalOpen(true);
   };
 
   const openEditModal = (routine: Routine) => {
     setEditingId(routine.id);
     setRoutineName(routine.name);
-    setExercises([...routine.exercises]);
-    setExerciseInput("");
+    setExercises(routine.exercises.length > 0 ? [...routine.exercises] : [""]);
     setIsModalOpen(true);
   };
 
@@ -107,33 +184,15 @@ export default function RoutinesPage() {
     }
   };
 
-  const addExercise = () => {
-    const trimmed = exerciseInput.trim();
-    if (trimmed && !exercises.includes(trimmed)) {
-      setExercises((prev) => [...prev, trimmed]);
-      setExerciseInput("");
-      inputRef.current?.focus();
-    }
-  };
-
-  const removeExercise = (idx: number) => {
-    setExercises((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addExercise();
-    }
-  };
+  const validExercises = exercises.filter((ex) => ex.trim());
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!routineName.trim() || exercises.length === 0) return;
+    if (!routineName.trim() || validExercises.length === 0) return;
     const newRoutine: Routine = {
       id: editingId || crypto.randomUUID(),
       name: routineName,
-      exercises,
+      exercises: validExercises,
     };
     saveRoutine(newRoutine);
     setRoutines(getRoutines());
@@ -149,8 +208,8 @@ export default function RoutinesPage() {
         </div>
         <button
           onClick={openAddModal}
-          className="w-10 h-10 bg-foreground text-background rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-50"
           disabled={routines.length >= 7}
+          className="w-10 h-10 bg-foreground text-background rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-50"
         >
           <Plus size={24} />
         </button>
@@ -177,7 +236,6 @@ export default function RoutinesPage() {
             }`}
           >
             <div className="flex justify-between items-start mb-4">
-              {/* 드래그 핸들 */}
               <button
                 className="text-muted hover:text-foreground p-1 -ml-1 cursor-grab active:cursor-grabbing touch-none"
                 onTouchStart={(e) => handleTouchStart(e, idx)}
@@ -185,9 +243,7 @@ export default function RoutinesPage() {
               >
                 <GripVertical size={20} />
               </button>
-
               <h2 className="flex-1 text-xl font-bold ml-2">{routine.name}</h2>
-
               <div className="flex items-center gap-2">
                 <button onClick={() => openEditModal(routine)} className="text-muted hover:text-foreground p-1">
                   <Edit size={18} />
@@ -224,7 +280,7 @@ export default function RoutinesPage() {
         )}
       </div>
 
-      {/* Routine Modal */}
+      {/* 루틴 모달 */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in">
           <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border p-6 shadow-2xl animate-in slide-in-from-bottom-8 max-h-[90vh] overflow-y-auto">
@@ -234,7 +290,9 @@ export default function RoutinesPage() {
                 <X size={24} />
               </button>
             </div>
+
             <form onSubmit={handleSubmit} className="space-y-5">
+              {/* 루틴 이름 */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted">루틴 이름</label>
                 <input
@@ -247,48 +305,87 @@ export default function RoutinesPage() {
                 />
               </div>
 
+              {/* 운동 종목 — 번호 리스트 + 드래그 */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted">운동 종목</label>
-                {exercises.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {exercises.map((ex, i) => (
-                      <span key={i} className="flex items-center gap-1.5 bg-accent/15 text-accent px-3 py-1.5 text-sm font-medium rounded-full border border-accent/30">
-                        <span className="text-muted text-xs mr-0.5">{i + 1}</span>
-                        {ex}
-                        <button type="button" onClick={() => removeExercise(i)} className="hover:text-danger transition-colors ml-0.5">
-                          <X size={14} />
-                        </button>
+
+                <div ref={exerciseListRef} className="space-y-2">
+                  {exercises.map((ex, idx) => (
+                    <div
+                      key={idx}
+                      data-ex-idx={idx}
+                      draggable
+                      onDragStart={exDragStart(idx)}
+                      onDragOver={exDragOver(idx)}
+                      onDrop={exDrop(idx)}
+                      onDragEnd={exDragEnd}
+                      onTouchMove={exTouchMove}
+                      onTouchEnd={exTouchEnd}
+                      className={`flex items-center gap-2 transition-all ${
+                        exDragIdx === idx
+                          ? "opacity-40 scale-[0.97]"
+                          : exDragOverIdx === idx && exDragIdx !== idx
+                          ? "scale-[1.02]"
+                          : ""
+                      }`}
+                    >
+                      {/* 드래그 핸들 */}
+                      <button
+                        type="button"
+                        onTouchStart={exTouchStart(idx)}
+                        className="text-muted hover:text-foreground cursor-grab active:cursor-grabbing touch-none p-1 shrink-0"
+                        aria-label="순서 변경"
+                      >
+                        <GripVertical size={16} />
+                      </button>
+
+                      <span className="text-xs font-bold text-muted w-4 text-center shrink-0">
+                        {idx + 1}
                       </span>
-                    ))}
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={exerciseInput}
-                    onChange={(e) => setExerciseInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="종목명 입력 후 Enter 또는 추가"
-                    className="flex-1 bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={addExercise}
-                    disabled={!exerciseInput.trim()}
-                    className="px-4 bg-accent text-background rounded-xl font-bold text-sm active:scale-95 transition-transform disabled:opacity-30"
-                  >
-                    추가
-                  </button>
+
+                      <input
+                        type="text"
+                        value={ex}
+                        onChange={(e) => updateExercise(idx, e.target.value)}
+                        onKeyDown={(e) => handleExerciseKeyDown(e, idx)}
+                        placeholder={`종목 ${idx + 1}`}
+                        className="flex-1 bg-background border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent transition-colors"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => removeExercise(idx)}
+                        disabled={exercises.length <= 1}
+                        className="text-muted hover:text-danger disabled:opacity-20 p-1 shrink-0 transition-colors"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-[11px] text-muted">종목 이름을 입력하고 Enter 또는 추가 버튼을 눌러주세요.</p>
+
+                <button
+                  type="button"
+                  onClick={addExercise}
+                  className="w-full py-2.5 border-2 border-dashed border-border rounded-xl text-sm font-medium text-muted hover:text-foreground hover:border-muted transition-colors"
+                >
+                  + 운동 추가
+                </button>
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 font-bold text-muted hover:text-foreground transition-colors">
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 py-4 font-bold text-muted hover:text-foreground transition-colors"
+                >
                   취소
                 </button>
-                <button type="submit" disabled={exercises.length === 0} className="flex-1 bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform disabled:opacity-30">
+                <button
+                  type="submit"
+                  disabled={validExercises.length === 0}
+                  className="flex-1 bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform disabled:opacity-30"
+                >
                   저장
                 </button>
               </div>

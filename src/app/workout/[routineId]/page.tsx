@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, use } from "react";
+import { useState, useEffect, useMemo, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Minus, Pencil, Plus, Square, Timer, Trash2 } from "lucide-react";
 import {
   getRoutines,
   getLastSessionByExercise,
+  getRecentSessionsByExercise,
   calculate1RM,
   saveWorkoutSession,
 } from "@/utils/storage";
@@ -283,8 +284,24 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   const currentExercise = exercisesData[currentExIndex];
   const lastSession = getLastSessionByExercise(currentExercise.name);
   const lastEx = lastSession?.exercises.find((e) => e.name === currentExercise.name);
-  const lastInputSet = [...currentExercise.sets].reverse().find((s) => !s.isCompleted && s.weight > 0 && s.reps > 0);
-  const lastInputSetIdx = lastInputSet ? currentExercise.sets.findIndex((s) => s.id === lastInputSet.id) : -1;
+  // 금일 기록 — 완료된 세트 기준
+  const todayStats = useMemo(() => {
+    const done = currentExercise.sets.filter((s) => s.isCompleted && s.weight > 0 && s.reps > 0);
+    if (done.length === 0) return null;
+    const toUnit = (w: number) => unit === "lb" ? Math.round(w * KG_TO_LB) : w;
+    return {
+      maxRM:      Math.max(...done.map((s) => calculate1RM(toUnit(s.weight), s.reps))),
+      maxWeight:  Math.max(...done.map((s) => toUnit(s.weight))),
+      totalVolume: done.reduce((sum, s) => sum + toUnit(s.weight) * s.reps, 0),
+    };
+  }, [currentExercise.sets, unit]);
+
+  // 최근 기록 — 지난 7회 세션
+  const recentSessions = useMemo(
+    () => getRecentSessionsByExercise(currentExercise.name, 7),
+    [currentExercise.name]
+  );
+
   const formatRestTime = (sec: number) => `${sec}초`;
 
   return (
@@ -435,12 +452,61 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
           + 세트 추가
         </button>
 
-        {lastInputSet && (
-          <div className="mt-4 p-3 bg-accent/10 border border-accent/30 rounded-2xl text-center">
-            <span className="text-xs text-muted font-medium">예상 1RM (세트 {lastInputSetIdx + 1} 기준)</span>
-            <p className="text-2xl font-extrabold text-accent mt-1">
-              {calculate1RM(lastInputSet.weight, lastInputSet.reps)} {unit}
-            </p>
+        {/* 금일 기록 */}
+        {todayStats && (
+          <div className="mt-4 p-4 bg-accent/10 border border-accent/20 rounded-2xl animate-in fade-in duration-300">
+            <p className="text-xs font-semibold text-muted mb-3">금일 기록</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-[11px] text-muted mb-0.5">예상 1RM</p>
+                <p className="text-xl font-extrabold text-accent">{todayStats.maxRM}{unit}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted mb-0.5">최대 무게</p>
+                <p className="text-xl font-extrabold">{todayStats.maxWeight}{unit}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted mb-0.5">총 볼륨</p>
+                <p className="text-xl font-extrabold">{todayStats.totalVolume}{unit}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 최근 기록 */}
+        {recentSessions.length > 0 && (
+          <div className="mt-4 bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-border">
+              <p className="text-xs font-semibold text-muted">최근 기록</p>
+            </div>
+            <div className="divide-y divide-border">
+              {recentSessions.map((session) => {
+                const ex = session.exercises.find((e) => e.name === currentExercise.name);
+                if (!ex) return null;
+                const done = ex.sets.filter((s) => s.isCompleted);
+                if (done.length === 0) return null;
+                const d = new Date(session.date);
+                const dateStr = `${d.getMonth() + 1}/${d.getDate()} (${["일","월","화","수","목","금","토"][d.getDay()]})`;
+                return (
+                  <div key={session.id} className="px-4 py-3">
+                    <p className="text-xs font-bold text-accent mb-2">{dateStr}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {done.map((s, i) => {
+                        const w = unit === "lb" ? Math.round(s.weight * KG_TO_LB) : s.weight;
+                        return (
+                          <span key={s.id} className="text-xs text-muted">
+                            {i + 1}세트{" "}
+                            <span className="text-foreground font-semibold">
+                              {w}{unit}×{s.reps}회
+                            </span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </main>

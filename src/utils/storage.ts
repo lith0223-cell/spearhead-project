@@ -66,6 +66,14 @@ export const saveWorkoutSession = (session: WorkoutSession) => {
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
 };
 
+export const getRecentSessionsByExercise = (exerciseName: string, limit = 7): WorkoutSession[] => {
+  const sessions = getWorkoutSessions();
+  sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return sessions
+    .filter(s => s.exercises.some(e => e.name === exerciseName && e.sets.some(set => set.isCompleted)))
+    .slice(0, limit);
+};
+
 export const getLastSessionByExercise = (exerciseName: string): WorkoutSession | null => {
   const sessions = getWorkoutSessions();
   // Sort by date desc
