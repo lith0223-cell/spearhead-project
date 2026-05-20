@@ -87,6 +87,12 @@ export const getLastSessionByExercise = (exerciseName: string): WorkoutSession |
 };
 
 // --- Diet ---
+export const getAllDietRecords = (): DietRecord[] => {
+  if (typeof window === "undefined") return [];
+  const data = localStorage.getItem(STORAGE_KEYS.DIETS);
+  return data ? JSON.parse(data) : [];
+};
+
 export const getDietRecordsByDate = (dateString: string): DietRecord[] => {
   if (typeof window === "undefined") return [];
   const data = localStorage.getItem(STORAGE_KEYS.DIETS);

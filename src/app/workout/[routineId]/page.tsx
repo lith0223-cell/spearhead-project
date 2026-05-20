@@ -279,14 +279,10 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
     router.push("/");
   };
 
-  if (!routine || exercisesData.length === 0) return null;
-
-  const currentExercise = exercisesData[currentExIndex];
-  const lastSession = getLastSessionByExercise(currentExercise.name);
-  const lastEx = lastSession?.exercises.find((e) => e.name === currentExercise.name);
-  // 금일 기록 — 완료된 세트 기준
   const todayStats = useMemo(() => {
-    const done = currentExercise.sets.filter((s) => s.isCompleted && s.weight > 0 && s.reps > 0);
+    const ex = exercisesData[currentExIndex];
+    if (!ex) return null;
+    const done = ex.sets.filter((s) => s.isCompleted && s.weight > 0 && s.reps > 0);
     if (done.length === 0) return null;
     const toUnit = (w: number) => unit === "lb" ? Math.round(w * KG_TO_LB) : w;
     return {
@@ -294,13 +290,19 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
       maxWeight:  Math.max(...done.map((s) => toUnit(s.weight))),
       totalVolume: done.reduce((sum, s) => sum + toUnit(s.weight) * s.reps, 0),
     };
-  }, [currentExercise.sets, unit]);
+  }, [exercisesData, currentExIndex, unit]);
 
-  // 최근 기록 — 지난 7회 세션
-  const recentSessions = useMemo(
-    () => getRecentSessionsByExercise(currentExercise.name, 7),
-    [currentExercise.name]
-  );
+  const recentSessions = useMemo(() => {
+    const ex = exercisesData[currentExIndex];
+    if (!ex) return [];
+    return getRecentSessionsByExercise(ex.name, 7);
+  }, [exercisesData, currentExIndex]);
+
+  if (!routine || exercisesData.length === 0) return null;
+
+  const currentExercise = exercisesData[currentExIndex];
+  const lastSession = getLastSessionByExercise(currentExercise.name);
+  const lastEx = lastSession?.exercises.find((e) => e.name === currentExercise.name);
 
   const formatRestTime = (sec: number) => `${sec}초`;
 
