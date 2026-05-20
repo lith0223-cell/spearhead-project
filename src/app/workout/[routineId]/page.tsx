@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, use } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, Minus, Plus, Square, Timer, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Minus, Pencil, Plus, Square, Timer, Trash2 } from "lucide-react";
 import {
   getRoutines,
   getLastSessionByExercise,
@@ -26,6 +26,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   const [currentExIndex, setCurrentExIndex] = useState(0);
   const [exercisesData, setExercisesData] = useState<ExerciseRecord[]>([]);
   const [unit, setUnit] = useState<"kg" | "lb">("kg");
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerInitial, setTimerInitial] = useState(0);
@@ -325,17 +326,34 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
 
         {/* Sets */}
         <div className="space-y-3">
-          <div className="flex text-xs font-medium text-muted px-2 mb-2">
+          <div className="flex text-xs font-medium text-muted px-2 mb-2 items-center">
             <span className="w-8 text-center">세트</span>
             <span className="flex-1 text-center">무게 ({unit})</span>
             <span className="flex-1 text-center">횟수</span>
             <span className="w-24 text-center">휴식</span>
             <span className="w-10 text-center">완료</span>
-            <span className="w-8" />
+            <button
+              onClick={() => setIsEditMode((p) => !p)}
+              title={isEditMode ? "편집 완료" : "세트 편집 (삭제 활성화)"}
+              className={`w-8 flex items-center justify-center rounded transition-colors ${
+                isEditMode ? "text-danger" : "text-muted hover:text-foreground"
+              }`}
+            >
+              <Pencil size={13} />
+            </button>
           </div>
 
           {currentExercise.sets.map((set, sIdx) => (
             <div key={set.id}>
+              {lastEx?.sets[sIdx] && (
+                <p className="text-xs text-muted px-3 mb-1">
+                  지난번:{" "}
+                  {unit === "lb"
+                    ? Math.round(lastEx.sets[sIdx].weight * KG_TO_LB)
+                    : lastEx.sets[sIdx].weight}
+                  {unit} × {lastEx.sets[sIdx].reps}회
+                </p>
+              )}
               <div className={`flex items-center p-2.5 rounded-2xl border transition-all ${set.isCompleted ? "bg-success/10 border-success/30" : "bg-card border-border"}`}>
                 <span className={`w-8 text-center font-bold text-sm ${set.isCompleted ? "text-success" : "text-muted"}`}>
                   {sIdx + 1}
@@ -394,13 +412,17 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
                   {set.isCompleted ? <Check strokeWidth={3} size={18} /> : null}
                 </button>
 
-                <button
-                  onClick={() => deleteSet(currentExIndex, sIdx)}
-                  disabled={currentExercise.sets.length <= 1 || set.isCompleted}
-                  className="w-8 flex items-center justify-center text-muted hover:text-danger disabled:opacity-20 transition-colors"
-                >
-                  <Trash2 size={14} />
-                </button>
+                {isEditMode ? (
+                  <button
+                    onClick={() => deleteSet(currentExIndex, sIdx)}
+                    disabled={currentExercise.sets.length <= 1 || set.isCompleted}
+                    className="w-8 flex items-center justify-center text-danger disabled:opacity-20 transition-colors animate-in fade-in duration-150"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                ) : (
+                  <div className="w-8" />
+                )}
               </div>
             </div>
           ))}
