@@ -14,10 +14,22 @@ export interface ExerciseRecord {
   sets: SetRecord[];
 }
 
+export interface RoutineSetTemplate {
+  weight: number;
+  reps: number;
+  restTime: number;
+}
+
+export interface RoutineExerciseConfig {
+  name: string;
+  sets: RoutineSetTemplate[];
+}
+
 export interface Routine {
   id: string;
   name: string;
-  exercises: string[]; // 종목 이름 목록
+  exercises: string[];
+  exerciseConfigs?: RoutineExerciseConfig[];
 }
 
 export interface WorkoutSession {

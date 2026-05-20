@@ -2,9 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Plus, Play, Trash2, Edit, X, GripVertical } from "lucide-react";
+import { Plus, Play, Trash2, Edit, X, GripVertical, Minus } from "lucide-react";
 import { getRoutines, saveRoutine, deleteRoutine, saveRoutinesOrder } from "@/utils/storage";
-import { Routine } from "@/types";
+import { Routine, RoutineExerciseConfig } from "@/types";
+
+const DEFAULT_REST = 60;
+const MAX_REST = 240;
+const REST_STEP = 30;
 
 export default function RoutinesPage() {
   const [routines, setRoutines] = useState<Routine[]>([]);
@@ -13,7 +17,10 @@ export default function RoutinesPage() {
 
   // Form state
   const [routineName, setRoutineName] = useState("");
-  const [exercises, setExercises] = useState<string[]>([""]);
+  const [exerciseConfigs, setExerciseConfigs] = useState<RoutineExerciseConfig[]>([{ name: "", sets: [] }]);
+
+  // 세트 설정 서브 모달
+  const [configExIdx, setConfigExIdx] = useState<number | null>(null);
 
   // 종목 리스트 ref (자동 포커스용)
   const exerciseListRef = useRef<HTMLDivElement>(null);
@@ -35,11 +42,11 @@ export default function RoutinesPage() {
   // 종목 추가 시 새 인풋 자동 포커스
   useEffect(() => {
     if (!isModalOpen) return;
-    if (exercises.length > 0 && exercises[exercises.length - 1] === "") {
+    if (exerciseConfigs.length > 0 && exerciseConfigs[exerciseConfigs.length - 1].name === "") {
       const inputs = exerciseListRef.current?.querySelectorAll<HTMLInputElement>("input[type=text]");
       if (inputs && inputs.length > 0) inputs[inputs.length - 1].focus();
     }
-  }, [exercises.length, isModalOpen]);
+  }, [exerciseConfigs.length, isModalOpen]);
 
   // ── 루틴 카드 드래그앤드롭 ──
   const reorderRoutines = (from: number, to: number) => {
@@ -94,10 +101,10 @@ export default function RoutinesPage() {
   // ── 종목 리스트 드래그앤드롭 (모달 내) ──
   const reorderExercises = (from: number, to: number) => {
     if (from === to) return;
-    const next = [...exercises];
+    const next = [...exerciseConfigs];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
-    setExercises(next);
+    setExerciseConfigs(next);
   };
 
   const exDragStart = (idx: number) => (e: React.DragEvent) => {
@@ -143,17 +150,17 @@ export default function RoutinesPage() {
 
   // ── 종목 CRUD ──
   const updateExercise = (idx: number, value: string) =>
-    setExercises((prev) => prev.map((ex, i) => (i === idx ? value : ex)));
+    setExerciseConfigs((prev) => prev.map((c, i) => (i === idx ? { ...c, name: value } : c)));
 
-  const addExercise = () => setExercises((prev) => [...prev, ""]);
+  const addExercise = () => setExerciseConfigs((prev) => [...prev, { name: "", sets: [] }]);
 
   const removeExercise = (idx: number) =>
-    setExercises((prev) => prev.filter((_, i) => i !== idx));
+    setExerciseConfigs((prev) => prev.filter((_, i) => i !== idx));
 
   const handleExerciseKeyDown = (e: React.KeyboardEvent, idx: number) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    if (idx === exercises.length - 1) {
+    if (idx === exerciseConfigs.length - 1) {
       addExercise();
     } else {
       const inputs = exerciseListRef.current?.querySelectorAll<HTMLInputElement>("input[type=text]");
@@ -161,19 +168,66 @@ export default function RoutinesPage() {
     }
   };
 
+  // ── 세트 설정 CRUD ──
+  const updateConfigSet = (
+    exIdx: number,
+    setIdx: number,
+    field: "weight" | "reps" | "restTime",
+    value: number
+  ) => {
+    setExerciseConfigs((prev) =>
+      prev.map((c, i) =>
+        i !== exIdx
+          ? c
+          : { ...c, sets: c.sets.map((s, si) => (si !== setIdx ? s : { ...s, [field]: value })) }
+      )
+    );
+  };
+
+  const addConfigSet = (exIdx: number) => {
+    setExerciseConfigs((prev) =>
+      prev.map((c, i) => {
+        if (i !== exIdx) return c;
+        const last = c.sets[c.sets.length - 1];
+        return {
+          ...c,
+          sets: [
+            ...c.sets,
+            {
+              weight: last?.weight ?? 0,
+              reps: last?.reps ?? 0,
+              restTime: last?.restTime ?? DEFAULT_REST,
+            },
+          ],
+        };
+      })
+    );
+  };
+
+  const removeConfigSet = (exIdx: number, setIdx: number) => {
+    setExerciseConfigs((prev) =>
+      prev.map((c, i) =>
+        i !== exIdx ? c : { ...c, sets: c.sets.filter((_, si) => si !== setIdx) }
+      )
+    );
+  };
+
   // ── 루틴 모달 ──
   const openAddModal = () => {
     if (routines.length >= 7) { alert("루틴은 최대 7개까지만 생성 가능합니다."); return; }
     setEditingId(null);
     setRoutineName("");
-    setExercises([""]);
+    setExerciseConfigs([{ name: "", sets: [] }]);
     setIsModalOpen(true);
   };
 
   const openEditModal = (routine: Routine) => {
     setEditingId(routine.id);
     setRoutineName(routine.name);
-    setExercises(routine.exercises.length > 0 ? [...routine.exercises] : [""]);
+    const configs = routine.exerciseConfigs
+      ? [...routine.exerciseConfigs]
+      : routine.exercises.map((name) => ({ name, sets: [] }));
+    setExerciseConfigs(configs.length > 0 ? configs : [{ name: "", sets: [] }]);
     setIsModalOpen(true);
   };
 
@@ -184,7 +238,7 @@ export default function RoutinesPage() {
     }
   };
 
-  const validExercises = exercises.filter((ex) => ex.trim());
+  const validExercises = exerciseConfigs.filter((c) => c.name.trim());
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,7 +246,8 @@ export default function RoutinesPage() {
     const newRoutine: Routine = {
       id: editingId || crypto.randomUUID(),
       name: routineName,
-      exercises: validExercises,
+      exercises: validExercises.map((c) => c.name),
+      exerciseConfigs: validExercises,
     };
     saveRoutine(newRoutine);
     setRoutines(getRoutines());
@@ -255,11 +310,20 @@ export default function RoutinesPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 mb-6">
-              {routine.exercises.map((ex, i) => (
-                <span key={i} className="bg-background px-3 py-1 text-xs font-medium rounded-full text-muted border border-border">
-                  {ex}
-                </span>
-              ))}
+              {routine.exercises.map((ex, i) => {
+                const config = routine.exerciseConfigs?.find((c) => c.name === ex);
+                return (
+                  <span
+                    key={i}
+                    className="bg-background px-3 py-1 text-xs font-medium rounded-full text-muted border border-border flex items-center gap-1.5"
+                  >
+                    {ex}
+                    {config && config.sets.length > 0 && (
+                      <span className="text-accent font-bold">{config.sets.length}세트</span>
+                    )}
+                  </span>
+                );
+              })}
             </div>
 
             <Link
@@ -305,12 +369,12 @@ export default function RoutinesPage() {
                 />
               </div>
 
-              {/* 운동 종목 — 번호 리스트 + 드래그 */}
+              {/* 운동 종목 */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted">운동 종목</label>
 
                 <div ref={exerciseListRef} className="space-y-2">
-                  {exercises.map((ex, idx) => (
+                  {exerciseConfigs.map((config, idx) => (
                     <div
                       key={idx}
                       data-ex-idx={idx}
@@ -329,7 +393,6 @@ export default function RoutinesPage() {
                           : ""
                       }`}
                     >
-                      {/* 드래그 핸들 */}
                       <button
                         type="button"
                         onTouchStart={exTouchStart(idx)}
@@ -345,17 +408,31 @@ export default function RoutinesPage() {
 
                       <input
                         type="text"
-                        value={ex}
+                        value={config.name}
                         onChange={(e) => updateExercise(idx, e.target.value)}
                         onKeyDown={(e) => handleExerciseKeyDown(e, idx)}
                         placeholder={`종목 ${idx + 1}`}
                         className="flex-1 bg-background border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent transition-colors"
                       />
 
+                      {/* 세트 설정 버튼 */}
+                      <button
+                        type="button"
+                        onClick={() => config.name.trim() && setConfigExIdx(idx)}
+                        disabled={!config.name.trim()}
+                        className={`text-xs px-2 py-1.5 rounded-lg font-medium shrink-0 transition-colors ${
+                          config.sets.length > 0
+                            ? "bg-accent/20 text-accent"
+                            : "bg-background border border-border text-muted hover:border-accent hover:text-accent"
+                        } disabled:opacity-30`}
+                      >
+                        {config.sets.length > 0 ? `${config.sets.length}세트` : "설정"}
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => removeExercise(idx)}
-                        disabled={exercises.length <= 1}
+                        disabled={exerciseConfigs.length <= 1}
                         className="text-muted hover:text-danger disabled:opacity-20 p-1 shrink-0 transition-colors"
                       >
                         <X size={16} />
@@ -390,6 +467,128 @@ export default function RoutinesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 세트 설정 서브 모달 */}
+      {configExIdx !== null && exerciseConfigs[configExIdx] && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[70] flex items-end justify-center animate-in fade-in">
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border p-6 shadow-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom-8">
+            <div className="flex justify-between items-center mb-1">
+              <h3 className="text-lg font-bold">{exerciseConfigs[configExIdx].name}</h3>
+              <button
+                type="button"
+                onClick={() => setConfigExIdx(null)}
+                className="p-2 -mr-2 text-muted hover:text-foreground"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <p className="text-xs text-muted mb-4">
+              기본 세트를 설정하면 운동 시작 시 자동으로 적용됩니다.
+            </p>
+
+            {/* 세트 목록 */}
+            <div className="space-y-2 mb-3">
+              {exerciseConfigs[configExIdx].sets.map((set, sIdx) => (
+                <div
+                  key={sIdx}
+                  className="flex items-center gap-2 p-3 bg-background rounded-xl border border-border"
+                >
+                  <span className="text-xs font-bold text-muted w-8 text-center shrink-0">
+                    {sIdx + 1}
+                  </span>
+
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <input
+                      type="number"
+                      value={set.weight || ""}
+                      onChange={(e) => updateConfigSet(configExIdx, sIdx, "weight", Number(e.target.value))}
+                      onFocus={(e) => e.target.select()}
+                      placeholder="0"
+                      className="w-14 text-center bg-card border border-border rounded-lg px-1 py-1.5 text-sm font-bold focus:outline-none focus:border-accent"
+                    />
+                    <span className="text-xs text-muted">kg</span>
+                    <span className="text-muted">×</span>
+                    <input
+                      type="number"
+                      value={set.reps || ""}
+                      onChange={(e) => updateConfigSet(configExIdx, sIdx, "reps", Number(e.target.value))}
+                      onFocus={(e) => e.target.select()}
+                      placeholder="0"
+                      className="w-14 text-center bg-card border border-border rounded-lg px-1 py-1.5 text-sm font-bold focus:outline-none focus:border-accent"
+                    />
+                    <span className="text-xs text-muted">회</span>
+                  </div>
+
+                  {/* 휴식 시간 */}
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateConfigSet(
+                          configExIdx,
+                          sIdx,
+                          "restTime",
+                          Math.max(REST_STEP, (set.restTime || DEFAULT_REST) - REST_STEP)
+                        )
+                      }
+                      className="w-6 h-6 flex items-center justify-center text-muted hover:text-foreground"
+                    >
+                      <Minus size={11} />
+                    </button>
+                    <span className="text-xs text-muted w-9 text-center">
+                      {set.restTime || DEFAULT_REST}초
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateConfigSet(
+                          configExIdx,
+                          sIdx,
+                          "restTime",
+                          Math.min(MAX_REST, (set.restTime || DEFAULT_REST) + REST_STEP)
+                        )
+                      }
+                      className="w-6 h-6 flex items-center justify-center text-muted hover:text-foreground"
+                    >
+                      <Plus size={11} />
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => removeConfigSet(configExIdx, sIdx)}
+                    className="text-muted hover:text-danger p-1 shrink-0 transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+
+              {exerciseConfigs[configExIdx].sets.length === 0 && (
+                <p className="text-center text-xs text-muted py-6">
+                  아래 버튼으로 세트를 추가해주세요.
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => addConfigSet(configExIdx)}
+              className="w-full py-2.5 border-2 border-dashed border-border rounded-xl text-sm font-medium text-muted hover:text-foreground hover:border-muted transition-colors mb-4"
+            >
+              + 세트 추가
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setConfigExIdx(null)}
+              className="w-full py-4 bg-foreground text-background font-bold rounded-xl active:scale-95 transition-transform"
+            >
+              완료
+            </button>
           </div>
         </div>
       )}

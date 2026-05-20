@@ -101,16 +101,28 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
     requestWakeLock();
 
     const initialData: ExerciseRecord[] = found.exercises.map((name) => {
+      const routineConfig = found.exerciseConfigs?.find((c) => c.name === name);
       const lastSession = getLastSessionByExercise(name);
       const lastEx = lastSession?.exercises.find((e) => e.name === name);
-      let sets: SetRecord[] = [{ id: crypto.randomUUID(), weight: 0, reps: 0, isCompleted: false, restTime: DEFAULT_REST }];
-      if (lastEx && lastEx.sets.length > 0) {
+
+      let sets: SetRecord[];
+      if (routineConfig && routineConfig.sets.length > 0) {
+        sets = routineConfig.sets.map((s) => ({
+          id: crypto.randomUUID(),
+          weight: s.weight,
+          reps: s.reps,
+          isCompleted: false,
+          restTime: s.restTime,
+        }));
+      } else if (lastEx && lastEx.sets.length > 0) {
         sets = lastEx.sets.map((s) => ({
           ...s,
           id: crypto.randomUUID(),
           isCompleted: false,
           restTime: s.restTime || DEFAULT_REST,
         }));
+      } else {
+        sets = [{ id: crypto.randomUUID(), weight: 0, reps: 0, isCompleted: false, restTime: DEFAULT_REST }];
       }
       return { id: name, name, sets };
     });
