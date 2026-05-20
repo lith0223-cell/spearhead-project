@@ -14,7 +14,7 @@ export function BottomNavigation() {
   const pathname = usePathname();
 
   const navItems = [
-    { label: "대시보드", href: "/",         icon: Home        },
+    { label: "홈",       href: "/",         icon: Home        },
     { label: "운동",     href: "/routines", icon: Dumbbell    },
     { label: "식단",     href: "/diet",     icon: Utensils    },
     { label: "기록",     href: "/history",  icon: CalendarDays},

@@ -201,23 +201,30 @@ export default function DietPage() {
               {calorieGoal > 0 ? Math.round((totalCalories / calorieGoal) * 100) : 0}%{isOverGoal && " (초과)"}
             </span>
           </div>
-          {/* 탄/단/지 비율 */}
-          <div className="flex justify-between text-xs font-medium mt-1">
-            <span className="text-muted">탄 {totalCarbs}g <span className="text-accent font-bold">({carbsPercent}%)</span></span>
-            <span className="text-muted">단 {totalProtein}g <span className="text-accent font-bold">({proteinPercent}%)</span></span>
-            <span className="text-muted">지 {totalFat}g <span className="text-accent font-bold">({fatPercent}%)</span></span>
-          </div>
-          {totalCalories > 0 && (
-            <div className="flex w-full h-2 rounded-full overflow-hidden mt-1 gap-0.5">
-              <div className="bg-blue-400 rounded-l-full transition-all" style={{ width: `${carbsPercent}%` }} />
-              <div className="bg-emerald-400 transition-all" style={{ width: `${proteinPercent}%` }} />
-              <div className="bg-amber-400 rounded-r-full transition-all" style={{ width: `${fatPercent}%` }} />
-            </div>
-          )}
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
+        {/* 탄단지 비율 카드 */}
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-2">
+          <div className="flex justify-between text-xs font-medium">
+            <span className="text-muted">탄 {totalCarbs}g <span className="text-accent font-bold">({carbsPercent}%)</span></span>
+            <span className="text-muted">단 {totalProtein}g <span className="text-accent font-bold">({proteinPercent}%)</span></span>
+            <span className="text-muted">지 {totalFat}g <span className="text-accent font-bold">({fatPercent}%)</span></span>
+          </div>
+          <div className="flex w-full h-2 rounded-full overflow-hidden gap-0.5">
+            {totalCalories > 0 ? (
+              <>
+                <div className="bg-blue-400 rounded-l-full transition-all" style={{ width: `${carbsPercent}%` }} />
+                <div className="bg-emerald-400 transition-all" style={{ width: `${proteinPercent}%` }} />
+                <div className="bg-amber-400 rounded-r-full transition-all" style={{ width: `${fatPercent}%` }} />
+              </>
+            ) : (
+              <div className="w-full bg-background rounded-full" />
+            )}
+          </div>
+        </div>
+
         {["아침", "점심", "저녁", "간식"].map((type) => {
           const mealRecords = records.filter(r => r.mealType === type);
           if (mealRecords.length === 0) return null;

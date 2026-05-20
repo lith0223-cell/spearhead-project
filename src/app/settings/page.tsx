@@ -135,7 +135,7 @@ export default function SettingsPage() {
       </div>
 
       {/* 저장 버튼 - 하단 고정 */}
-      <div className="fixed bottom-16 left-0 right-0 max-w-md mx-auto px-6 pb-4 pt-3 bg-gradient-to-t from-background via-background to-transparent">
+      <div className="fixed bottom-20 left-0 right-0 max-w-md mx-auto px-6 pb-4 pt-3 bg-gradient-to-t from-background via-background to-transparent">
         <button
           onClick={handleSave}
           disabled={!hasChanges && !justSaved}

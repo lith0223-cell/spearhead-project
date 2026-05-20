@@ -12,6 +12,7 @@ import {
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
+  const [calorieGoal, setCalorieGoal] = useState(2000);
   const [stats, setStats] = useState({
     calories: 0,
     carbs: 0,
@@ -44,6 +45,9 @@ export default function Home() {
       protein: totalProtein,
       fat: totalFat,
     });
+
+    const savedGoal = parseInt(localStorage.getItem("ph_calorie_goal") || "2000");
+    setCalorieGoal(savedGoal);
 
     setMounted(true);
   }, []);
@@ -79,37 +83,41 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2 bg-card p-4 rounded-2xl border border-border shadow-lg">
+        <div className="space-y-3">
+          <div className="bg-card p-4 rounded-2xl border border-border shadow-lg">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-danger/20 rounded-full">
                 <Flame size={20} className="text-danger" />
               </div>
               <h3 className="font-semibold text-muted">총 섭취 칼로리</h3>
             </div>
-            <p className="text-3xl font-bold">
-              {stats.calories} <span className="text-base font-normal text-muted">kcal</span>
-            </p>
-            {/* 임시 프로그레스 바 (목표 2500kcal 가정) */}
-            <div className="w-full h-2 bg-background rounded-full mt-4 overflow-hidden">
+            <div className="flex items-baseline justify-between">
+              <p className="text-3xl font-bold">
+                {stats.calories} <span className="text-base font-normal text-muted">kcal</span>
+              </p>
+              <span className="text-xs text-muted">목표 {calorieGoal}kcal</span>
+            </div>
+            <div className="w-full h-2 bg-background rounded-full mt-3 overflow-hidden">
               <div
-                className="h-full bg-accent transition-all duration-1000"
-                style={{ width: `${Math.min((stats.calories / 2500) * 100, 100)}%` }}
+                className={`h-full transition-all duration-1000 rounded-full ${stats.calories > calorieGoal ? "bg-danger" : "bg-accent"}`}
+                style={{ width: `${Math.min((stats.calories / calorieGoal) * 100, 100)}%` }}
               />
             </div>
           </div>
 
-          <div className="bg-card p-4 rounded-2xl border border-border flex flex-col gap-1 shadow-md">
-            <span className="text-xs text-muted font-medium">탄수화물</span>
-            <span className="text-xl font-bold">{stats.carbs}g</span>
-          </div>
-          <div className="bg-card p-4 rounded-2xl border border-border flex flex-col gap-1 shadow-md">
-            <span className="text-xs text-muted font-medium">단백질</span>
-            <span className="text-xl font-bold">{stats.protein}g</span>
-          </div>
-          <div className="col-span-2 bg-card p-4 rounded-2xl border border-border flex flex-col gap-1 shadow-md">
-            <span className="text-xs text-muted font-medium">지방</span>
-            <span className="text-xl font-bold">{stats.fat}g</span>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-card p-4 rounded-2xl border border-border flex flex-col gap-1 shadow-md">
+              <span className="text-xs text-muted font-medium">탄수화물</span>
+              <span className="text-xl font-bold">{stats.carbs}g</span>
+            </div>
+            <div className="bg-card p-4 rounded-2xl border border-border flex flex-col gap-1 shadow-md">
+              <span className="text-xs text-muted font-medium">단백질</span>
+              <span className="text-xl font-bold">{stats.protein}g</span>
+            </div>
+            <div className="bg-card p-4 rounded-2xl border border-border flex flex-col gap-1 shadow-md">
+              <span className="text-xs text-muted font-medium">지방</span>
+              <span className="text-xl font-bold">{stats.fat}g</span>
+            </div>
           </div>
         </div>
       </section>
