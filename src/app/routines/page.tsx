@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Plus, Play, Trash2, Edit, X } from "lucide-react";
-import { getRoutines, saveRoutine, deleteRoutine } from "@/utils/storage";
+import { Plus, Play, Trash2, Edit, X, GripVertical } from "lucide-react";
+import { getRoutines, saveRoutine, deleteRoutine, saveRoutinesOrder } from "@/utils/storage";
 import { Routine } from "@/types";
 
 export default function RoutinesPage() {
@@ -11,15 +11,74 @@ export default function RoutinesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Form State
   const [routineName, setRoutineName] = useState("");
   const [exercises, setExercises] = useState<string[]>([]);
   const [exerciseInput, setExerciseInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // 드래그앤드롭 상태
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const touchStartIndexRef = useRef<number | null>(null);
+
   useEffect(() => {
     setRoutines(getRoutines());
   }, []);
+
+  const reorderRoutines = (from: number, to: number) => {
+    if (from === to) return;
+    const next = [...routines];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    saveRoutinesOrder(next);
+    setRoutines(next);
+  };
+
+  // ── HTML5 Drag (데스크톱) ──
+  const handleDragStart = (e: React.DragEvent, idx: number) => {
+    setDragIndex(idx);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverIndex !== idx) setDragOverIndex(idx);
+  };
+  const handleDrop = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (dragIndex !== null) reorderRoutines(dragIndex, idx);
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // ── Touch Drag (모바일) ──
+  const handleTouchStart = (e: React.TouchEvent, idx: number) => {
+    touchStartIndexRef.current = idx;
+    setDragIndex(idx);
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const cards = Array.from(document.querySelectorAll("[data-ridx]"));
+    cards.forEach((card) => {
+      const rect = card.getBoundingClientRect();
+      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+        const over = parseInt(card.getAttribute("data-ridx") ?? "-1");
+        if (over >= 0 && over !== dragOverIndex) setDragOverIndex(over);
+      }
+    });
+  };
+  const handleTouchEnd = () => {
+    if (touchStartIndexRef.current !== null && dragOverIndex !== null) {
+      reorderRoutines(touchStartIndexRef.current, dragOverIndex);
+    }
+    touchStartIndexRef.current = null;
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
 
   const openAddModal = () => {
     if (routines.length >= 7) {
@@ -51,14 +110,14 @@ export default function RoutinesPage() {
   const addExercise = () => {
     const trimmed = exerciseInput.trim();
     if (trimmed && !exercises.includes(trimmed)) {
-      setExercises(prev => [...prev, trimmed]);
+      setExercises((prev) => [...prev, trimmed]);
       setExerciseInput("");
       inputRef.current?.focus();
     }
   };
 
   const removeExercise = (idx: number) => {
-    setExercises(prev => prev.filter((_, i) => i !== idx));
+    setExercises((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -71,13 +130,11 @@ export default function RoutinesPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!routineName.trim() || exercises.length === 0) return;
-
     const newRoutine: Routine = {
       id: editingId || crypto.randomUUID(),
       name: routineName,
       exercises,
     };
-
     saveRoutine(newRoutine);
     setRoutines(getRoutines());
     setIsModalOpen(false);
@@ -100,10 +157,37 @@ export default function RoutinesPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-24">
-        {routines.map((routine) => (
-          <div key={routine.id} className="bg-card border border-border rounded-2xl p-5 shadow-sm group relative overflow-hidden">
+        {routines.map((routine, idx) => (
+          <div
+            key={routine.id}
+            data-ridx={idx}
+            draggable
+            onDragStart={(e) => handleDragStart(e, idx)}
+            onDragOver={(e) => handleDragOver(e, idx)}
+            onDrop={(e) => handleDrop(e, idx)}
+            onDragEnd={handleDragEnd}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className={`bg-card border rounded-2xl p-5 shadow-sm transition-all select-none ${
+              dragIndex === idx
+                ? "opacity-40 scale-[0.97] border-border"
+                : dragOverIndex === idx && dragIndex !== idx
+                ? "border-accent scale-[1.02] shadow-lg shadow-accent/10"
+                : "border-border"
+            }`}
+          >
             <div className="flex justify-between items-start mb-4">
-              <h2 className="text-xl font-bold">{routine.name}</h2>
+              {/* 드래그 핸들 */}
+              <button
+                className="text-muted hover:text-foreground p-1 -ml-1 cursor-grab active:cursor-grabbing touch-none"
+                onTouchStart={(e) => handleTouchStart(e, idx)}
+                aria-label="순서 변경"
+              >
+                <GripVertical size={20} />
+              </button>
+
+              <h2 className="flex-1 text-xl font-bold ml-2">{routine.name}</h2>
+
               <div className="flex items-center gap-2">
                 <button onClick={() => openEditModal(routine)} className="text-muted hover:text-foreground p-1">
                   <Edit size={18} />
@@ -115,8 +199,8 @@ export default function RoutinesPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 mb-6">
-              {routine.exercises.map((ex, idx) => (
-                <span key={idx} className="bg-background px-3 py-1 text-xs font-medium rounded-full text-muted border border-border">
+              {routine.exercises.map((ex, i) => (
+                <span key={i} className="bg-background px-3 py-1 text-xs font-medium rounded-full text-muted border border-border">
                   {ex}
                 </span>
               ))}
@@ -163,33 +247,21 @@ export default function RoutinesPage() {
                 />
               </div>
 
-              {/* #8: 태그 기반 종목 입력 UI */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted">운동 종목</label>
-                
-                {/* 등록된 종목 태그 */}
                 {exercises.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {exercises.map((ex, idx) => (
-                      <span
-                        key={idx}
-                        className="flex items-center gap-1.5 bg-accent/15 text-accent px-3 py-1.5 text-sm font-medium rounded-full border border-accent/30"
-                      >
-                        <span className="text-muted text-xs mr-0.5">{idx + 1}</span>
+                    {exercises.map((ex, i) => (
+                      <span key={i} className="flex items-center gap-1.5 bg-accent/15 text-accent px-3 py-1.5 text-sm font-medium rounded-full border border-accent/30">
+                        <span className="text-muted text-xs mr-0.5">{i + 1}</span>
                         {ex}
-                        <button
-                          type="button"
-                          onClick={() => removeExercise(idx)}
-                          className="hover:text-danger transition-colors ml-0.5"
-                        >
+                        <button type="button" onClick={() => removeExercise(i)} className="hover:text-danger transition-colors ml-0.5">
                           <X size={14} />
                         </button>
                       </span>
                     ))}
                   </div>
                 )}
-
-                {/* 입력 필드 + 추가 버튼 */}
                 <div className="flex gap-2">
                   <input
                     ref={inputRef}
@@ -213,18 +285,10 @@ export default function RoutinesPage() {
               </div>
 
               <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-4 font-bold text-muted hover:text-foreground transition-colors"
-                >
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 font-bold text-muted hover:text-foreground transition-colors">
                   취소
                 </button>
-                <button
-                  type="submit"
-                  disabled={exercises.length === 0}
-                  className="flex-1 bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform disabled:opacity-30"
-                >
+                <button type="submit" disabled={exercises.length === 0} className="flex-1 bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform disabled:opacity-30">
                   저장
                 </button>
               </div>

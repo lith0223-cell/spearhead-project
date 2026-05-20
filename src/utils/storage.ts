@@ -47,6 +47,11 @@ export const deleteRoutine = (id: string) => {
   localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(routines));
 };
 
+export const saveRoutinesOrder = (orderedRoutines: Routine[]) => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(orderedRoutines));
+};
+
 // --- Workout Sessions ---
 export const getWorkoutSessions = (): WorkoutSession[] => {
   if (typeof window === "undefined") return [];
