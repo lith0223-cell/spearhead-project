@@ -3,9 +3,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Dumbbell, Utensils } from "lucide-react";
 import { getWorkoutSessions, getAllDietRecords, calculateCalories } from "@/utils/storage";
-import { WorkoutSession, DietRecord } from "@/types";
+import { WorkoutSession, DietRecord, MealType } from "@/types";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const MEAL_TYPES: MealType[] = ["아침", "점심", "저녁", "간식"];
 
 function toDateStr(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -72,7 +73,11 @@ export default function HistoryPage() {
       protein += item.protein;
       fat += item.fat;
     }));
-    return { carbs, protein, fat, calories: calculateCalories(carbs, protein, fat) };
+    const calories = calculateCalories(carbs, protein, fat);
+    const carbsPercent = calories > 0 ? Math.round((carbs * 4 / calories) * 100) : 0;
+    const proteinPercent = calories > 0 ? Math.round((protein * 4 / calories) * 100) : 0;
+    const fatPercent = calories > 0 ? 100 - carbsPercent - proteinPercent : 0;
+    return { carbs, protein, fat, calories, carbsPercent, proteinPercent, fatPercent };
   }, [selectedDiets]);
 
   return (
@@ -218,81 +223,61 @@ export default function HistoryPage() {
             {/* 식단 기록 */}
             {selectedDiets.length > 0 ? (
               <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-                  <Utensils size={14} className="text-success" />
-                  <p className="text-xs font-semibold text-muted">식단 기록</p>
-                </div>
-                <div className="px-4 py-3 space-y-3">
-                  {/* 영양 요약 */}
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <div className="bg-background rounded-xl py-2.5">
-                      <p className="text-[10px] text-muted mb-0.5">칼로리</p>
-                      <p className="text-base font-extrabold">{totalNutrition.calories}</p>
-                      <p className="text-[10px] text-muted">kcal</p>
-                    </div>
-                    <div className="bg-background rounded-xl py-2.5">
-                      <p className="text-[10px] text-muted mb-0.5">탄수화물</p>
-                      <p className="text-base font-extrabold">{totalNutrition.carbs}g</p>
-                      {totalNutrition.calories > 0 && (
-                        <p className="text-[10px] text-muted">
-                          {Math.round((totalNutrition.carbs * 4 / totalNutrition.calories) * 100)}%
-                        </p>
-                      )}
-                    </div>
-                    <div className="bg-background rounded-xl py-2.5">
-                      <p className="text-[10px] text-muted mb-0.5">단백질</p>
-                      <p className="text-base font-extrabold">{totalNutrition.protein}g</p>
-                      {totalNutrition.calories > 0 && (
-                        <p className="text-[10px] text-muted">
-                          {Math.round((totalNutrition.protein * 4 / totalNutrition.calories) * 100)}%
-                        </p>
-                      )}
-                    </div>
-                    <div className="bg-background rounded-xl py-2.5">
-                      <p className="text-[10px] text-muted mb-0.5">지방</p>
-                      <p className="text-base font-extrabold">{totalNutrition.fat}g</p>
-                      {totalNutrition.calories > 0 && (
-                        <p className="text-[10px] text-muted">
-                          {Math.round((totalNutrition.fat * 9 / totalNutrition.calories) * 100)}%
-                        </p>
-                      )}
-                    </div>
+                {/* 헤더 — 식단 탭과 동일한 스타일 */}
+                <div className="px-4 pt-4 pb-3 border-b border-border space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Utensils size={14} className="text-success" />
+                    <p className="text-xs font-semibold text-muted">식단 기록</p>
                   </div>
-
-                  {/* 영양소 비율 바 */}
+                  <div className="flex justify-between items-end">
+                    <span className="text-sm text-muted">총 섭취 칼로리</span>
+                    <span className="text-2xl font-extrabold text-accent">
+                      {totalNutrition.calories}{" "}
+                      <span className="text-sm font-normal text-muted">kcal</span>
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs font-medium">
+                    <span className="text-muted">탄 {totalNutrition.carbs}g <span className="text-accent font-bold">({totalNutrition.carbsPercent}%)</span></span>
+                    <span className="text-muted">단 {totalNutrition.protein}g <span className="text-accent font-bold">({totalNutrition.proteinPercent}%)</span></span>
+                    <span className="text-muted">지 {totalNutrition.fat}g <span className="text-accent font-bold">({totalNutrition.fatPercent}%)</span></span>
+                  </div>
                   {totalNutrition.calories > 0 && (
-                    <div className="h-2 rounded-full overflow-hidden flex gap-px">
-                      <div
-                        style={{ width: `${Math.round((totalNutrition.carbs * 4 / totalNutrition.calories) * 100)}%` }}
-                        className="bg-yellow-400 h-full rounded-l-full"
-                      />
-                      <div
-                        style={{ width: `${Math.round((totalNutrition.protein * 4 / totalNutrition.calories) * 100)}%` }}
-                        className="bg-accent h-full"
-                      />
-                      <div
-                        style={{ width: `${Math.round((totalNutrition.fat * 9 / totalNutrition.calories) * 100)}%` }}
-                        className="bg-orange-400 h-full rounded-r-full"
-                      />
+                    <div className="flex w-full h-2 rounded-full overflow-hidden gap-0.5">
+                      <div className="bg-blue-400 rounded-l-full transition-all" style={{ width: `${totalNutrition.carbsPercent}%` }} />
+                      <div className="bg-emerald-400 transition-all" style={{ width: `${totalNutrition.proteinPercent}%` }} />
+                      <div className="bg-amber-400 rounded-r-full transition-all" style={{ width: `${totalNutrition.fatPercent}%` }} />
                     </div>
                   )}
+                </div>
 
-                  {/* 식품 목록 */}
-                  <div className="divide-y divide-border">
-                    {selectedDiets.map((record) =>
-                      record.items.map((item) => (
-                        <div key={item.id} className="flex justify-between items-center py-2.5">
-                          <div>
-                            <span className="text-sm font-medium">{item.name}</span>
-                            <span className="text-xs text-muted ml-2">{record.mealType}</span>
-                          </div>
-                          <span className="text-xs text-muted shrink-0 ml-2">
-                            {calculateCalories(item.carbs, item.protein, item.fat)}kcal
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                {/* 끼니별 목록 */}
+                <div className="divide-y divide-border px-4">
+                  {MEAL_TYPES.map((type) => {
+                    const mealsOfType = selectedDiets.filter((r) => r.mealType === type);
+                    if (mealsOfType.length === 0) return null;
+                    return (
+                      <div key={type} className="py-3 space-y-2">
+                        <h4 className="font-bold text-sm border-l-4 border-accent pl-2">{type}</h4>
+                        {mealsOfType.map((record) =>
+                          record.items.map((item) => (
+                            <div key={item.id} className="bg-background rounded-xl px-3 py-2.5">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="text-sm font-medium">{item.name}</p>
+                                  <p className="text-xs text-muted mt-0.5">
+                                    탄 {item.carbs}g • 단 {item.protein}g • 지 {item.fat}g
+                                  </p>
+                                </div>
+                                <span className="text-sm font-bold text-accent shrink-0 ml-2">
+                                  {calculateCalories(item.carbs, item.protein, item.fat)}kcal
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : (

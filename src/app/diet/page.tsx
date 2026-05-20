@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, X, Trash2, Edit } from "lucide-react";
+import { Plus, X, Trash2, Edit, Pencil } from "lucide-react";
 import { getDietRecordsByDate, saveDietRecord, calculateCalories, deleteDietItem, updateDietItem } from "@/utils/storage";
 import { DietRecord, MealItem, MealType } from "@/types";
 
@@ -20,15 +20,29 @@ export default function DietPage() {
   // Edit state
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [calorieGoal, setCalorieGoal] = useState(2000);
+  const [isGoalEditing, setIsGoalEditing] = useState(false);
+  const [goalDraft, setGoalDraft] = useState("2000");
 
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
     setTodayStr(today);
     setRecords(getDietRecordsByDate(today));
+    const savedGoal = parseInt(localStorage.getItem("ph_calorie_goal") || "2000");
+    setCalorieGoal(savedGoal);
+    setGoalDraft(String(savedGoal));
   }, []);
 
   const refreshRecords = () => {
     setRecords(getDietRecordsByDate(todayStr));
+  };
+
+  const commitGoal = () => {
+    const val = Math.max(500, Math.min(9999, parseInt(goalDraft) || 2000));
+    setCalorieGoal(val);
+    setGoalDraft(String(val));
+    localStorage.setItem("ph_calorie_goal", String(val));
+    setIsGoalEditing(false);
   };
 
   let totalCarbs = 0;
@@ -44,6 +58,8 @@ export default function DietPage() {
   });
 
   const totalCalories = calculateCalories(totalCarbs, totalProtein, totalFat);
+  const goalPercent = calorieGoal > 0 ? Math.min((totalCalories / calorieGoal) * 100, 100) : 0;
+  const isOverGoal = calorieGoal > 0 && totalCalories > calorieGoal;
 
   // 비율 계산
   const carbsCal = totalCarbs * 4;
@@ -142,20 +158,55 @@ export default function DietPage() {
       <header className="px-6 py-6 border-b border-border bg-card sticky top-0 z-10">
         <h1 className="text-2xl font-bold mb-4">오늘의 식단</h1>
         <div className="flex flex-col gap-2">
-          <div className="flex justify-between items-end">
-            <span className="text-sm text-muted">총 섭취 칼로리</span>
-            <span className="text-3xl font-extrabold text-accent">{totalCalories} <span className="text-sm font-normal text-muted">kcal</span></span>
+          {/* 섭취 / 목표 칼로리 */}
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-muted">오늘 섭취</span>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-3xl font-extrabold ${isOverGoal ? "text-danger" : "text-accent"}`}>
+                {totalCalories}
+              </span>
+              <span className="text-sm text-muted mx-1">/</span>
+              {isGoalEditing ? (
+                <input
+                  type="number"
+                  value={goalDraft}
+                  onChange={(e) => setGoalDraft(e.target.value)}
+                  onBlur={commitGoal}
+                  onKeyDown={(e) => e.key === "Enter" && commitGoal()}
+                  autoFocus
+                  className="w-20 bg-background border border-accent rounded-lg px-2 py-0.5 text-sm text-center focus:outline-none"
+                />
+              ) : (
+                <button
+                  onClick={() => setIsGoalEditing(true)}
+                  className="flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors"
+                >
+                  {calorieGoal}
+                  <Pencil size={11} className="opacity-40" />
+                </button>
+              )}
+              <span className="text-sm text-muted">kcal</span>
+            </div>
           </div>
-          <div className="w-full h-3 bg-background rounded-full overflow-hidden mt-1">
-             <div className="h-full bg-accent transition-all duration-500" style={{ width: `${Math.min((totalCalories / 2500) * 100, 100)}%` }} />
+          {/* 목표 달성 게이지 */}
+          <div className="w-full h-3 bg-background rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-500 rounded-full ${isOverGoal ? "bg-danger" : "bg-accent"}`}
+              style={{ width: `${goalPercent}%` }}
+            />
           </div>
-          {/* 탄/단/지 비율 표기 */}
-          <div className="flex justify-between text-xs font-medium mt-2">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted">목표 달성률</span>
+            <span className={`font-bold ${isOverGoal ? "text-danger" : "text-accent"}`}>
+              {calorieGoal > 0 ? Math.round((totalCalories / calorieGoal) * 100) : 0}%{isOverGoal && " (초과)"}
+            </span>
+          </div>
+          {/* 탄/단/지 비율 */}
+          <div className="flex justify-between text-xs font-medium mt-1">
             <span className="text-muted">탄 {totalCarbs}g <span className="text-accent font-bold">({carbsPercent}%)</span></span>
             <span className="text-muted">단 {totalProtein}g <span className="text-accent font-bold">({proteinPercent}%)</span></span>
             <span className="text-muted">지 {totalFat}g <span className="text-accent font-bold">({fatPercent}%)</span></span>
           </div>
-          {/* 비율 바 */}
           {totalCalories > 0 && (
             <div className="flex w-full h-2 rounded-full overflow-hidden mt-1 gap-0.5">
               <div className="bg-blue-400 rounded-l-full transition-all" style={{ width: `${carbsPercent}%` }} />
