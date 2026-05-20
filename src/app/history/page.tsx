@@ -1,9 +1,17 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Dumbbell, Utensils } from "lucide-react";
-import { getWorkoutSessions, getAllDietRecords, calculateCalories } from "@/utils/storage";
-import { WorkoutSession, DietRecord, MealType } from "@/types";
+import { ChevronLeft, ChevronRight, Dumbbell, Utensils, Trash2, Pencil, Plus, X } from "lucide-react";
+import {
+  getWorkoutSessions,
+  getAllDietRecords,
+  calculateCalories,
+  deleteWorkoutSession,
+  updateWorkoutSession,
+  saveWorkoutSession,
+  getRoutines,
+} from "@/utils/storage";
+import { WorkoutSession, DietRecord, MealType, Routine, ExerciseRecord } from "@/types";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MEAL_TYPES: MealType[] = ["아침", "점심", "저녁", "간식"];
@@ -19,10 +27,27 @@ export default function HistoryPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [dietRecords, setDietRecords] = useState<DietRecord[]>([]);
+  const [routines, setRoutines] = useState<Routine[]>([]);
 
-  useEffect(() => {
+  // 수정 모달
+  const [editDraft, setEditDraft] = useState<WorkoutSession | null>(null);
+
+  // 추가 모달
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addStep, setAddStep] = useState<1 | 2>(1);
+  const [addRoutineId, setAddRoutineId] = useState<string>("");
+  const [addExData, setAddExData] = useState<
+    { name: string; sets: { id: string; weight: string; reps: string }[] }[]
+  >([]);
+
+  const refreshData = () => {
     setSessions(getWorkoutSessions());
     setDietRecords(getAllDietRecords());
+  };
+
+  useEffect(() => {
+    refreshData();
+    setRoutines(getRoutines());
   }, []);
 
   const sessionByDate = useMemo(() => {
@@ -79,6 +104,147 @@ export default function HistoryPage() {
     const fatPercent = calories > 0 ? 100 - carbsPercent - proteinPercent : 0;
     return { carbs, protein, fat, calories, carbsPercent, proteinPercent, fatPercent };
   }, [selectedDiets]);
+
+  const getRoutineName = (routineId: string) =>
+    routines.find((r) => r.id === routineId)?.name ?? "기록된 운동";
+
+  // --- 삭제 ---
+  const handleDeleteSession = (sessionId: string) => {
+    if (!confirm("이 운동 기록을 삭제하시겠습니까?")) return;
+    deleteWorkoutSession(sessionId);
+    refreshData();
+  };
+
+  // --- 수정 ---
+  const openEditModal = (session: WorkoutSession) => {
+    setEditDraft(JSON.parse(JSON.stringify(session)));
+  };
+
+  const handleEditSetChange = (
+    exIdx: number,
+    setIdx: number,
+    field: "weight" | "reps",
+    value: string
+  ) => {
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      const next = JSON.parse(JSON.stringify(prev)) as WorkoutSession;
+      next.exercises[exIdx].sets[setIdx][field] = value === "" ? 0 : Number(value);
+      return next;
+    });
+  };
+
+  const addEditSet = (exIdx: number) => {
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      const next = JSON.parse(JSON.stringify(prev)) as WorkoutSession;
+      const ex = next.exercises[exIdx];
+      const last = ex.sets[ex.sets.length - 1];
+      ex.sets.push({
+        id: crypto.randomUUID(),
+        weight: last?.weight ?? 0,
+        reps: last?.reps ?? 0,
+        isCompleted: true,
+      });
+      return next;
+    });
+  };
+
+  const removeEditSet = (exIdx: number, setIdx: number) => {
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      const next = JSON.parse(JSON.stringify(prev)) as WorkoutSession;
+      next.exercises[exIdx].sets.splice(setIdx, 1);
+      return next;
+    });
+  };
+
+  const handleEditSave = () => {
+    if (!editDraft) return;
+    updateWorkoutSession(editDraft);
+    refreshData();
+    setEditDraft(null);
+  };
+
+  // --- 추가 ---
+  const openAddModal = () => {
+    setAddStep(1);
+    setAddRoutineId("");
+    setAddExData([]);
+    setIsAddOpen(true);
+  };
+
+  const selectRoutineForAdd = (routineId: string) => {
+    const routine = routines.find((r) => r.id === routineId);
+    if (!routine) return;
+    setAddRoutineId(routineId);
+    setAddExData(
+      routine.exercises.map((name) => ({
+        name,
+        sets: [{ id: crypto.randomUUID(), weight: "", reps: "" }],
+      }))
+    );
+    setAddStep(2);
+  };
+
+  const addAddSet = (exIdx: number) => {
+    setAddExData((prev) => {
+      const next = [...prev];
+      const ex = { ...next[exIdx], sets: [...next[exIdx].sets] };
+      const last = ex.sets[ex.sets.length - 1];
+      ex.sets = [...ex.sets, { id: crypto.randomUUID(), weight: last?.weight ?? "", reps: last?.reps ?? "" }];
+      next[exIdx] = ex;
+      return next;
+    });
+  };
+
+  const removeAddSet = (exIdx: number, setIdx: number) => {
+    setAddExData((prev) => {
+      const next = [...prev];
+      next[exIdx] = { ...next[exIdx], sets: next[exIdx].sets.filter((_, i) => i !== setIdx) };
+      return next;
+    });
+  };
+
+  const updateAddSet = (exIdx: number, setIdx: number, field: "weight" | "reps", value: string) => {
+    setAddExData((prev) => {
+      const next = [...prev];
+      const sets = [...next[exIdx].sets];
+      sets[setIdx] = { ...sets[setIdx], [field]: value };
+      next[exIdx] = { ...next[exIdx], sets };
+      return next;
+    });
+  };
+
+  const handleAddSave = () => {
+    if (!selectedDate) return;
+    const exercises: ExerciseRecord[] = addExData
+      .map((ex) => ({
+        id: ex.name,
+        name: ex.name,
+        sets: ex.sets
+          .filter((s) => s.weight !== "" && s.reps !== "")
+          .map((s) => ({
+            id: s.id,
+            weight: Number(s.weight),
+            reps: Number(s.reps),
+            isCompleted: true,
+          })),
+      }))
+      .filter((ex) => ex.sets.length > 0);
+
+    if (exercises.length === 0) return;
+
+    const session: WorkoutSession = {
+      id: crypto.randomUUID(),
+      routineId: addRoutineId,
+      date: `${selectedDate}T12:00:00.000Z`,
+      exercises,
+    };
+    saveWorkoutSession(session);
+    refreshData();
+    setIsAddOpen(false);
+  };
 
   return (
     <main className="flex flex-col h-full animate-in fade-in duration-300">
@@ -181,17 +347,51 @@ export default function HistoryPage() {
             </h3>
 
             {/* 운동 기록 */}
-            {selectedSessions.length > 0 ? (
-              <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <div className="flex items-center gap-2">
                   <Dumbbell size={14} className="text-accent" />
                   <p className="text-xs font-semibold text-muted">운동 기록</p>
                 </div>
-                <div className="divide-y divide-border">
-                  {selectedSessions.map((session) => (
-                    <div key={session.id} className="px-4 py-3 space-y-2">
+                <button
+                  onClick={openAddModal}
+                  className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors"
+                >
+                  <Plus size={14} />
+                  추가
+                </button>
+              </div>
+
+              {selectedSessions.length > 0 ? (
+                <div>
+                  {selectedSessions.map((session, sIdx) => (
+                    <div
+                      key={session.id}
+                      className={`px-4 py-3 space-y-2 ${sIdx > 0 ? "border-t border-border" : ""}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground">
+                          {getRoutineName(session.routineId)}
+                        </span>
+                        <div className="flex items-center">
+                          <button
+                            onClick={() => openEditModal(session)}
+                            className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors px-2 py-1"
+                          >
+                            <Pencil size={12} />
+                            수정
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSession(session.id)}
+                            className="flex items-center gap-1 text-xs text-muted hover:text-danger transition-colors px-2 py-1"
+                          >
+                            <Trash2 size={12} />
+                            삭제
+                          </button>
+                        </div>
+                      </div>
                       {session.exercises.map((ex) => {
-                        const done = ex.sets.filter((s) => s.isCompleted);
+                        const done = ex.sets.filter((s) => s.isCompleted && (s.weight > 0 || s.reps > 0));
                         if (done.length === 0) return null;
                         return (
                           <div key={ex.id} className="bg-background rounded-xl px-3 py-2.5">
@@ -212,18 +412,17 @@ export default function HistoryPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : (
-              <div className="bg-card border border-border rounded-2xl px-4 py-6 flex flex-col items-center gap-2">
-                <Dumbbell size={20} className="text-muted" />
-                <p className="text-xs text-muted">운동 기록 없음</p>
-              </div>
-            )}
+              ) : (
+                <div className="px-4 py-6 flex flex-col items-center gap-2">
+                  <Dumbbell size={20} className="text-muted" />
+                  <p className="text-xs text-muted">운동 기록 없음</p>
+                </div>
+              )}
+            </div>
 
             {/* 식단 기록 */}
             {selectedDiets.length > 0 ? (
               <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                {/* 헤더 — 식단 탭과 동일한 스타일 */}
                 <div className="px-4 pt-4 pb-3 border-b border-border space-y-2">
                   <div className="flex items-center gap-2">
                     <Utensils size={14} className="text-success" />
@@ -250,13 +449,12 @@ export default function HistoryPage() {
                   )}
                 </div>
 
-                {/* 끼니별 목록 */}
-                <div className="divide-y divide-border px-4">
-                  {MEAL_TYPES.map((type) => {
+                <div className="px-4">
+                  {MEAL_TYPES.map((type, typeIdx) => {
                     const mealsOfType = selectedDiets.filter((r) => r.mealType === type);
                     if (mealsOfType.length === 0) return null;
                     return (
-                      <div key={type} className="py-3 space-y-2">
+                      <div key={type} className={`py-3 space-y-2 ${typeIdx > 0 ? "border-t border-border" : ""}`}>
                         <h4 className="font-bold text-sm border-l-4 border-accent pl-2">{type}</h4>
                         {mealsOfType.map((record) =>
                           record.items.map((item) => (
@@ -289,6 +487,161 @@ export default function HistoryPage() {
           </div>
         )}
       </div>
+
+      {/* 수정 모달 */}
+      {editDraft && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in">
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col max-h-[85vh]">
+            <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-border shrink-0">
+              <h2 className="text-xl font-bold">운동 기록 수정</h2>
+              <button onClick={() => setEditDraft(null)} className="p-2 -mr-2 text-muted hover:text-foreground">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {editDraft.exercises.map((ex, exIdx) => (
+                <div key={ex.id} className="space-y-2">
+                  <p className="text-sm font-bold">{ex.name}</p>
+                  {ex.sets.map((set, setIdx) => (
+                    <div key={set.id} className="flex items-center gap-2">
+                      <span className="text-xs text-muted w-10 shrink-0 text-center">{setIdx + 1}세트</span>
+                      <input
+                        type="number"
+                        value={set.weight}
+                        onChange={(e) => handleEditSetChange(exIdx, setIdx, "weight", e.target.value)}
+                        placeholder="kg"
+                        className="flex-1 bg-background border border-border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-accent transition-colors"
+                      />
+                      <span className="text-xs text-muted">×</span>
+                      <input
+                        type="number"
+                        value={set.reps}
+                        onChange={(e) => handleEditSetChange(exIdx, setIdx, "reps", e.target.value)}
+                        placeholder="회"
+                        className="flex-1 bg-background border border-border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-accent transition-colors"
+                      />
+                      <button
+                        onClick={() => removeEditSet(exIdx, setIdx)}
+                        disabled={ex.sets.length <= 1}
+                        className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-30"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => addEditSet(exIdx)}
+                    className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors"
+                  >
+                    <Plus size={12} />
+                    세트 추가
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="px-6 pb-6 pt-2 shrink-0">
+              <button
+                onClick={handleEditSave}
+                className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform"
+              >
+                저장하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 추가 모달 */}
+      {isAddOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in">
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col max-h-[85vh]">
+            <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-border shrink-0">
+              <h2 className="text-xl font-bold">운동 기록 추가</h2>
+              <button onClick={() => setIsAddOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground">
+                <X size={24} />
+              </button>
+            </div>
+
+            {addStep === 1 ? (
+              <div className="flex-1 overflow-y-auto p-6 space-y-3">
+                <p className="text-sm text-muted">루틴을 선택하세요</p>
+                {routines.length === 0 ? (
+                  <p className="text-xs text-muted text-center py-8">등록된 루틴이 없습니다</p>
+                ) : (
+                  routines.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => selectRoutineForAdd(r.id)}
+                      className="w-full text-left bg-background border border-border rounded-xl px-4 py-3 hover:border-accent transition-colors active:scale-[0.98]"
+                    >
+                      <p className="font-semibold text-sm">{r.name}</p>
+                      <p className="text-xs text-muted mt-0.5">{r.exercises.join(" · ")}</p>
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                  {addExData.map((ex, exIdx) => (
+                    <div key={ex.name} className="space-y-2">
+                      <p className="text-sm font-bold">{ex.name}</p>
+                      {ex.sets.map((set, setIdx) => (
+                        <div key={set.id} className="flex items-center gap-2">
+                          <span className="text-xs text-muted w-10 shrink-0 text-center">{setIdx + 1}세트</span>
+                          <input
+                            type="number"
+                            value={set.weight}
+                            onChange={(e) => updateAddSet(exIdx, setIdx, "weight", e.target.value)}
+                            placeholder="kg"
+                            className="flex-1 bg-background border border-border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-accent transition-colors"
+                          />
+                          <span className="text-xs text-muted">×</span>
+                          <input
+                            type="number"
+                            value={set.reps}
+                            onChange={(e) => updateAddSet(exIdx, setIdx, "reps", e.target.value)}
+                            placeholder="회"
+                            className="flex-1 bg-background border border-border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-accent transition-colors"
+                          />
+                          <button
+                            onClick={() => removeAddSet(exIdx, setIdx)}
+                            disabled={ex.sets.length <= 1}
+                            className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-30"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => addAddSet(exIdx)}
+                        className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors"
+                      >
+                        <Plus size={12} />
+                        세트 추가
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-6 pb-6 pt-2 shrink-0 space-y-2">
+                  <button
+                    onClick={() => setAddStep(1)}
+                    className="w-full text-sm text-muted hover:text-foreground py-2 transition-colors"
+                  >
+                    ← 루틴 다시 선택
+                  </button>
+                  <button
+                    onClick={handleAddSave}
+                    className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform"
+                  >
+                    기록 추가
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

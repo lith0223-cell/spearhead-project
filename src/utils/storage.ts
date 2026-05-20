@@ -66,6 +66,20 @@ export const saveWorkoutSession = (session: WorkoutSession) => {
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
 };
 
+export const deleteWorkoutSession = (sessionId: string) => {
+  if (typeof window === "undefined") return;
+  const sessions = getWorkoutSessions().filter((s) => s.id !== sessionId);
+  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+};
+
+export const updateWorkoutSession = (session: WorkoutSession) => {
+  if (typeof window === "undefined") return;
+  const sessions = getWorkoutSessions();
+  const idx = sessions.findIndex((s) => s.id === session.id);
+  if (idx >= 0) sessions[idx] = session;
+  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+};
+
 export const getRecentSessionsByExercise = (exerciseName: string, limit = 7): WorkoutSession[] => {
   const sessions = getWorkoutSessions();
   sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

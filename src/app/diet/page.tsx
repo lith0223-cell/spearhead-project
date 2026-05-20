@@ -201,13 +201,8 @@ export default function DietPage() {
               {calorieGoal > 0 ? Math.round((totalCalories / calorieGoal) * 100) : 0}%{isOverGoal && " (초과)"}
             </span>
           </div>
-        </div>
-      </header>
-
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
-        {/* 탄단지 비율 카드 */}
-        <div className="bg-card border border-border rounded-2xl p-4 space-y-2">
-          <div className="flex justify-between text-xs font-medium">
+          {/* 탄단지 비율 */}
+          <div className="flex justify-between text-xs font-medium pt-1">
             <span className="text-muted">탄 {totalCarbs}g <span className="text-accent font-bold">({carbsPercent}%)</span></span>
             <span className="text-muted">단 {totalProtein}g <span className="text-accent font-bold">({proteinPercent}%)</span></span>
             <span className="text-muted">지 {totalFat}g <span className="text-accent font-bold">({fatPercent}%)</span></span>
@@ -224,7 +219,9 @@ export default function DietPage() {
             )}
           </div>
         </div>
+      </header>
 
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
         {["아침", "점심", "저녁", "간식"].map((type) => {
           const mealRecords = records.filter(r => r.mealType === type);
           if (mealRecords.length === 0) return null;
