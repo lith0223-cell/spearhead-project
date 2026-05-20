@@ -24,7 +24,7 @@ export default function HistoryPage() {
   const [today] = useState(new Date());
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => toDateStr(new Date()));
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [dietRecords, setDietRecords] = useState<DietRecord[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
@@ -450,11 +450,14 @@ export default function HistoryPage() {
                 </div>
 
                 <div className="px-4">
-                  {MEAL_TYPES.map((type, typeIdx) => {
-                    const mealsOfType = selectedDiets.filter((r) => r.mealType === type);
-                    if (mealsOfType.length === 0) return null;
-                    return (
-                      <div key={type} className={`py-3 space-y-2 ${typeIdx > 0 ? "border-t border-border" : ""}`}>
+                  {(() => {
+                    let mealCount = 0;
+                    return MEAL_TYPES.map((type) => {
+                      const mealsOfType = selectedDiets.filter((r) => r.mealType === type);
+                      if (mealsOfType.length === 0) return null;
+                      const isFirstMeal = mealCount++ === 0;
+                      return (
+                        <div key={type} className={`py-3 space-y-2 ${isFirstMeal ? "" : "border-t border-border"}`}>
                         <h4 className="font-bold text-sm border-l-4 border-accent pl-2">{type}</h4>
                         {mealsOfType.map((record) =>
                           record.items.map((item) => (
@@ -475,7 +478,8 @@ export default function HistoryPage() {
                         )}
                       </div>
                     );
-                  })}
+                    })
+                  })()}
                 </div>
               </div>
             ) : (

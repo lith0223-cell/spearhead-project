@@ -185,21 +185,19 @@ export default function DietPage() {
                   <Pencil size={11} className="opacity-40" />
                 </button>
               )}
-              <span className="text-sm text-muted">kcal</span>
+              <span className="text-xs text-muted">kcal</span>
+              <span className={`text-xs font-bold ml-1 ${isOverGoal ? "text-danger" : "text-accent"}`}>
+                {calorieGoal > 0 ? `${Math.round((totalCalories / calorieGoal) * 100)}%` : "0%"}
+                {isOverGoal && " ↑"}
+              </span>
             </div>
           </div>
           {/* 목표 달성 게이지 */}
-          <div className="w-full h-3 bg-background rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-background rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-500 rounded-full ${isOverGoal ? "bg-danger" : "bg-accent"}`}
               style={{ width: `${goalPercent}%` }}
             />
-          </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-muted">목표 달성률</span>
-            <span className={`font-bold ${isOverGoal ? "text-danger" : "text-accent"}`}>
-              {calorieGoal > 0 ? Math.round((totalCalories / calorieGoal) * 100) : 0}%{isOverGoal && " (초과)"}
-            </span>
           </div>
           {/* 탄단지 비율 */}
           <div className="flex justify-between text-xs font-medium pt-1">
@@ -284,61 +282,63 @@ export default function DietPage() {
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in">
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border p-6 shadow-2xl animate-in slide-in-from-bottom-8">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center shrink-0 px-6 pt-6 pb-4">
               <h2 className="text-xl font-bold">{editingItemId ? "식단 수정" : "식단 추가"}</h2>
               <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground">
                 <X size={24} />
               </button>
             </div>
-            
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted">식사 종류</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {(["아침", "점심", "저녁", "간식"] as MealType[]).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setMealType(t)}
-                      disabled={!!editingItemId}
-                      className={`py-2 rounded-xl text-sm font-medium transition-colors ${mealType === t ? 'bg-accent text-background' : 'bg-background text-foreground border border-border'} disabled:opacity-50`}
-                    >
-                      {t}
-                    </button>
-                  ))}
+
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 space-y-5 pb-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted">식사 종류</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {(["아침", "점심", "저녁", "간식"] as MealType[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setMealType(t)}
+                        disabled={!!editingItemId}
+                        className={`py-2 rounded-xl text-sm font-medium transition-colors ${mealType === t ? 'bg-accent text-background' : 'bg-background text-foreground border border-border'} disabled:opacity-50`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted">메뉴명</label>
+                  <input
+                    type="text"
+                    required
+                    value={foodName}
+                    onChange={(e) => setFoodName(e.target.value)}
+                    placeholder="예: 닭가슴살 샐러드"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted">탄수화물 (g)</label>
+                    <input type="number" required value={carbs} onChange={(e) => setCarbs(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted">단백질 (g)</label>
+                    <input type="number" required value={protein} onChange={(e) => setProtein(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted">지방 (g)</label>
+                    <input type="number" required value={fat} onChange={(e) => setFat(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted">메뉴명</label>
-                <input
-                  type="text"
-                  required
-                  value={foodName}
-                  onChange={(e) => setFoodName(e.target.value)}
-                  placeholder="예: 닭가슴살 샐러드"
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted">탄수화물 (g)</label>
-                  <input type="number" required value={carbs} onChange={(e) => setCarbs(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted">단백질 (g)</label>
-                  <input type="number" required value={protein} onChange={(e) => setProtein(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted">지방 (g)</label>
-                  <input type="number" required value={fat} onChange={(e) => setFat(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
-                </div>
-              </div>
-
-              <div className="pt-4">
-                <div className="flex justify-between items-center mb-4 px-2">
+              <div className="shrink-0 px-6 pb-6 pt-4 border-t border-border">
+                <div className="flex justify-between items-center mb-4">
                   <span className="text-sm font-medium text-muted">예상 칼로리</span>
                   <span className="text-lg font-bold">
                     {calculateCalories(Number(carbs) || 0, Number(protein) || 0, Number(fat) || 0)} kcal

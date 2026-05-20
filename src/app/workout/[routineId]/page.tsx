@@ -493,33 +493,37 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
             <div className="px-4 py-3 border-b border-border">
               <p className="text-xs font-semibold text-muted">최근 기록</p>
             </div>
-            <div className="divide-y divide-border">
-              {recentSessions.map((session) => {
-                const ex = session.exercises.find((e) => e.name === currentExercise.name);
-                if (!ex) return null;
-                const done = ex.sets.filter((s) => s.isCompleted);
-                if (done.length === 0) return null;
-                const d = new Date(session.date);
-                const dateStr = `${d.getMonth() + 1}/${d.getDate()} (${["일","월","화","수","목","금","토"][d.getDay()]})`;
-                return (
-                  <div key={session.id} className="px-4 py-3">
-                    <p className="text-xs font-bold text-accent mb-2">{dateStr}</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1">
-                      {done.map((s, i) => {
-                        const w = unit === "lb" ? Math.round(s.weight * KG_TO_LB) : s.weight;
-                        return (
-                          <span key={s.id} className="text-xs text-muted">
-                            {i + 1}세트{" "}
-                            <span className="text-foreground font-semibold">
-                              {w}{unit}×{s.reps}회
+            <div>
+              {(() => {
+                let renderCount = 0;
+                return recentSessions.map((session) => {
+                  const ex = session.exercises.find((e) => e.name === currentExercise.name);
+                  if (!ex) return null;
+                  const done = ex.sets.filter((s) => s.isCompleted);
+                  if (done.length === 0) return null;
+                  const isFirst = renderCount++ === 0;
+                  const d = new Date(session.date);
+                  const dateStr = `${d.getMonth() + 1}/${d.getDate()} (${["일","월","화","수","목","금","토"][d.getDay()]})`;
+                  return (
+                    <div key={session.id} className={`px-4 py-3 ${isFirst ? "" : "border-t border-border"}`}>
+                      <p className="text-xs font-bold text-accent mb-2">{dateStr}</p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        {done.map((s, i) => {
+                          const w = unit === "lb" ? Math.round(s.weight * KG_TO_LB) : s.weight;
+                          return (
+                            <span key={s.id} className="text-xs text-muted">
+                              {i + 1}세트{" "}
+                              <span className="text-foreground font-semibold">
+                                {w}{unit}×{s.reps}회
+                              </span>
                             </span>
-                          </span>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
         )}
