@@ -11,6 +11,7 @@ import {
   saveWorkoutSession,
 } from "@/utils/storage";
 import { requestWakeLock, releaseWakeLock } from "@/utils/wakeLock";
+import { playBeep, resumeAudioContext, type BeepType } from "@/utils/audio";
 import { ExerciseRecord, Routine, SetRecord, WorkoutSession } from "@/types";
 
 const KG_TO_LB = 2.20462;
@@ -36,22 +37,8 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   const timerEndTimeRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const playBeep = () => {
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      oscillator.type = "sine";
-      oscillator.frequency.value = 800;
-      gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-      oscillator.start(audioCtx.currentTime);
-      oscillator.stop(audioCtx.currentTime + 1);
-    } catch (e) {
-      console.log("Audio play failed", e);
-    }
-  };
+  // 비프음 설정 — stale closure 없이 최신값 보장
+  const beepSettingsRef = useRef<{ type: BeepType; volume: number }>({ type: "single", volume: 0.7 });
 
   // 타이머 tick — ref 기반이므로 stale closure 없음
   const tick = () => {
@@ -62,7 +49,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
       setIsTimerRunning(false);
       timerEndTimeRef.current = null;
       localStorage.removeItem(TIMER_STORAGE_KEY);
-      playBeep();
+      playBeep(beepSettingsRef.current.type, beepSettingsRef.current.volume);
     }
   };
 
@@ -99,6 +86,11 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
 
     setRoutine(found);
     requestWakeLock();
+
+    // 비프음 설정 로드
+    const beepType = (localStorage.getItem("ph_beep_type") as BeepType) || "single";
+    const beepVolume = parseFloat(localStorage.getItem("ph_beep_volume") || "0.7");
+    beepSettingsRef.current = { type: beepType, volume: beepVolume };
 
     const initialData: ExerciseRecord[] = found.exercises.map((name) => {
       const routineConfig = found.exerciseConfigs?.find((c) => c.name === name);
@@ -204,6 +196,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   };
 
   const handleSetToggle = (exIdx: number, setIdx: number) => {
+    resumeAudioContext(); // iOS: 사용자 터치 시점에 AudioContext 잠금 해제
     setExercisesData((prev) => {
       const next = prev.map((ex, ei) => {
         if (ei !== exIdx) return ex;
