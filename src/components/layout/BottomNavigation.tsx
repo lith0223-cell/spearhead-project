@@ -50,11 +50,8 @@ export function BottomNavigation() {
   }
 
   return (
-    <div
-      className="fixed bottom-0 left-0 right-0 z-50"
-      style={{ transform: "translateZ(0)" }}
-    >
-      {/* 이어하기 배너 — 네비 높이 건드리지 않고 위에 floating */}
+    <div className="relative z-50 shrink-0">
+      {/* 이어하기 배너 — 네비 위에 absolute floating, 네비 높이 불변 */}
       {activeWorkout && (
         <div className="absolute bottom-full left-0 right-0 pb-2 pointer-events-none">
           <div className="max-w-md mx-auto px-4 pointer-events-auto">

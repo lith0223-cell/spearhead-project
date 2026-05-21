@@ -42,10 +42,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-full flex flex-col bg-background text-foreground selection:bg-accent selection:text-black`}>
+      <body className={`${inter.className} h-dvh flex flex-col overflow-hidden bg-background text-foreground selection:bg-accent selection:text-black`}>
         <ThemeProvider>
           <SwRegister />
-          <div className="flex-1 max-w-md mx-auto w-full relative pb-16 pt-safe">
+          <div className="flex-1 min-h-0 max-w-md mx-auto w-full relative pt-safe">
             {children}
           </div>
           <BottomNavigation />

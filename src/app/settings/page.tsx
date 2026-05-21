@@ -66,7 +66,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">설정</h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-44">
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-8">
 
         {/* 컬러 테마 */}
         <section className="space-y-4">

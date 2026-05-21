@@ -266,7 +266,7 @@ export default function HistoryPage() {
         <h1 className="text-2xl font-bold">기록</h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto pb-44">
+      <div className="flex-1 overflow-y-auto pb-8">
         {/* 캘린더 */}
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
