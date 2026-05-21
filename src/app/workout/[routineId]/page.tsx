@@ -608,27 +608,37 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
 
       {/* 이전 운동 복원 프롬프트 */}
       {showResumePrompt && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" style={{ maxWidth: "448px", left: "50%", transform: "translateX(-50%)", right: "auto", width: "100%" }}>
-          <div className="w-full bg-card border-t border-border rounded-t-3xl p-6 pb-safe">
-            <div className="w-12 h-1 bg-border rounded-full mx-auto mb-6" />
-            <h2 className="text-xl font-extrabold mb-2">진행 중인 운동이 있어요</h2>
-            <p className="text-sm text-muted mb-6">이전에 진행하던 운동 기록을 이어서 하시겠어요?</p>
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={handleResume}
-                className="w-full py-4 bg-accent text-background rounded-2xl font-extrabold text-base active:scale-95 transition-transform"
-              >
-                이어서 하기
-              </button>
-              <button
-                onClick={handleFresh}
-                className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
-              >
-                새로 시작하기
-              </button>
+        <>
+          {/* 배경 탭 시 이전 페이지로 이동 */}
+          <div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            onClick={() => router.back()}
+          />
+          <div className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto">
+            <div
+              className="w-full bg-card border-t border-border rounded-t-3xl p-6 pb-safe"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-12 h-1 bg-border rounded-full mx-auto mb-6" />
+              <h2 className="text-xl font-extrabold mb-2">진행 중인 운동이 있어요</h2>
+              <p className="text-sm text-muted mb-6">이전에 진행하던 운동 기록을 이어서 하시겠어요?</p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleResume}
+                  className="w-full py-4 bg-accent text-background rounded-2xl font-extrabold text-base active:scale-95 transition-transform"
+                >
+                  이어서 하기
+                </button>
+                <button
+                  onClick={handleFresh}
+                  className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
+                >
+                  새로 시작하기
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Bottom Fixed Area */}

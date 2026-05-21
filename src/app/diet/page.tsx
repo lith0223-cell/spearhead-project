@@ -23,6 +23,7 @@ export default function DietPage() {
   const [calorieGoal, setCalorieGoal] = useState(2000);
   const [isGoalEditing, setIsGoalEditing] = useState(false);
   const [goalDraft, setGoalDraft] = useState("2000");
+  const [hasActiveWorkout, setHasActiveWorkout] = useState(false);
 
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -31,6 +32,17 @@ export default function DietPage() {
     const savedGoal = parseInt(localStorage.getItem("ph_calorie_goal") || "2000");
     setCalorieGoal(savedGoal);
     setGoalDraft(String(savedGoal));
+
+    try {
+      const saved = localStorage.getItem("ph_active_workout");
+      if (saved) {
+        const data = JSON.parse(saved);
+        const hasProgress = data.exercisesData?.some((ex: { sets: { isCompleted: boolean }[] }) =>
+          ex.sets.some((s) => s.isCompleted)
+        );
+        setHasActiveWorkout(!!(data.routineId && hasProgress));
+      }
+    } catch {}
   }, []);
 
   const refreshRecords = () => {
@@ -274,7 +286,7 @@ export default function DietPage() {
       {/* FAB */}
       <button
         onClick={openAddModal}
-        className="fixed bottom-28 right-6 w-14 h-14 bg-accent text-background rounded-full flex items-center justify-center shadow-lg shadow-accent/30 hover:scale-105 active:scale-95 transition-transform"
+        className={`fixed right-6 w-14 h-14 bg-accent text-background rounded-full flex items-center justify-center shadow-lg shadow-accent/30 hover:scale-105 active:scale-95 transition-all duration-200 ${hasActiveWorkout ? "bottom-36" : "bottom-28"}`}
       >
         <Plus size={28} strokeWidth={3} />
       </button>
