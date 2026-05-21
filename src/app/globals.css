@@ -72,12 +72,16 @@ body {
   scrollbar-width: none;
 }
 
-/* ── 로고 컬러 — 다크: 액센트, 라이트: 포그라운드(검정) ── */
-:root {
-  --logo-color: var(--color-accent);
+/* ── 로고 PNG 색상 처리
+   라이트모드: multiply → 흰 배경 제거, 검정 로고 유지
+   다크모드:   invert(1) + screen → 흰 배경 제거, 로고 화이트로 반전
+── */
+.logo-img {
+  mix-blend-mode: multiply;
 }
-html[data-mode="light"] {
-  --logo-color: var(--color-foreground);
+html[data-mode="dark"] .logo-img {
+  filter: invert(1);
+  mix-blend-mode: screen;
 }
 
 /* Safe area inset utilities for PWA */
