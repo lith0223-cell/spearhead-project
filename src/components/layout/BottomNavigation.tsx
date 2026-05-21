@@ -54,12 +54,12 @@ export function BottomNavigation() {
       className="fixed bottom-0 left-0 right-0 z-50"
       style={{ transform: "translateZ(0)" }}
     >
-      {/* 이어하기 배너 — 내비 위에 자연스럽게 스택 */}
+      {/* 이어하기 배너 — 네비 높이 건드리지 않고 위에 floating */}
       {activeWorkout && (
-        <div className="bg-card">
-          <div className="max-w-md mx-auto px-3 pt-2 pb-2">
+        <div className="absolute bottom-full left-0 right-0 pb-2 pointer-events-none">
+          <div className="max-w-md mx-auto px-4 pointer-events-auto">
             <Link href={`/workout/${activeWorkout.routineId}?resume=true`}>
-              <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-3">
+              <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-3 shadow-lg shadow-black/20">
                 <span className="relative flex h-2.5 w-2.5 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
@@ -71,7 +71,7 @@ export function BottomNavigation() {
           </div>
         </div>
       )}
-      {/* 내비게이션 */}
+      {/* 내비게이션 — 높이 항상 고정 */}
       <div className="bg-card border-t border-border pb-safe">
         <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
           {navItems.map((item) => {
