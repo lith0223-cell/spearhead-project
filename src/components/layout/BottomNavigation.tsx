@@ -54,9 +54,9 @@ export function BottomNavigation() {
       {activeWorkout && (
         <div
           className="fixed left-0 right-0 z-40 max-w-md mx-auto px-3"
-          style={{ bottom: "calc(4rem + env(safe-area-inset-bottom))" }}
+          style={{ bottom: "calc(4rem + 0.625rem + env(safe-area-inset-bottom))" }}
         >
-          <Link href={`/workout/${activeWorkout.routineId}`}>
+          <Link href={`/workout/${activeWorkout.routineId}?resume=true`}>
             <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-3 shadow-lg shadow-accent/30">
               <span className="relative flex h-2.5 w-2.5 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />

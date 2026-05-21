@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, use } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Minus, Pencil, Plus, Square, Timer, Trash2 } from "lucide-react";
 import {
   getRoutines,
@@ -28,7 +28,9 @@ const ACTIVE_WORKOUT_KEY = "ph_active_workout";
 
 export default function WorkoutPage({ params }: { params: Promise<{ routineId: string }> }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { routineId } = use(params);
+  const shouldAutoResume = searchParams.get("resume") === "true";
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [currentExIndex, setCurrentExIndex] = useState(0);
@@ -136,10 +138,9 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
       }
       return { id: name, name, sets };
     });
-    setExercisesData(initialData);
-
     // 이전 세션 복원 확인
     const savedSession = localStorage.getItem(ACTIVE_WORKOUT_KEY);
+    let resumedFromSave = false;
     if (savedSession) {
       try {
         const parsed = JSON.parse(savedSession);
@@ -150,10 +151,20 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
           if (hasProgress) {
             savedExDataRef.current = parsed.exercisesData;
             savedExIndexRef.current = parsed.currentExIndex ?? 0;
-            setShowResumePrompt(true);
+            if (shouldAutoResume) {
+              // 배너에서 진입 시 프롬프트 없이 즉시 복원
+              setExercisesData(parsed.exercisesData);
+              setCurrentExIndex(parsed.currentExIndex ?? 0);
+              resumedFromSave = true;
+            } else {
+              setShowResumePrompt(true);
+            }
           }
         }
       } catch {}
+    }
+    if (!resumedFromSave) {
+      setExercisesData(initialData);
     }
 
     // 이전에 실행 중이던 타이머 복원 (화면 이탈 후 복귀 시)
@@ -176,7 +187,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
       releaseWakeLock();
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [routineId, router]);
+  }, [routineId, router, shouldAutoResume]);
 
   // 진행 중 운동 세션 자동 저장
   useEffect(() => {

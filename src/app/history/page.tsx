@@ -434,29 +434,27 @@ export default function HistoryPage() {
                             <h4 className="font-bold text-sm border-l-4 border-accent pl-2">{type}</h4>
                             {mealsOfType.map((record) =>
                               record.items.map((item) => (
-                                <div key={item.id} className="bg-background rounded-xl px-3 py-2.5">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium truncate">{item.name}</p>
-                                      <p className="text-xs text-muted mt-0.5">탄 {item.carbs}g • 단 {item.protein}g • 지 {item.fat}g</p>
-                                    </div>
-                                    <div className="flex items-center gap-0.5 shrink-0">
-                                      <span className="text-sm font-bold text-accent mr-1">
-                                        {calculateCalories(item.carbs, item.protein, item.fat)}kcal
-                                      </span>
-                                      <button
-                                        onClick={() => openDietEditModal(record, item)}
-                                        className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors px-2 py-1"
-                                      >
-                                        <Pencil size={12} />수정
-                                      </button>
-                                      <button
-                                        onClick={() => handleDietDelete(record.id, item.id)}
-                                        className="flex items-center gap-1 text-xs text-muted hover:text-danger transition-colors px-2 py-1"
-                                      >
-                                        <Trash2 size={12} />삭제
-                                      </button>
-                                    </div>
+                                <div key={item.id} className="bg-background rounded-xl px-3 py-2.5 space-y-1.5">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-sm font-medium flex-1 min-w-0 truncate">{item.name}</p>
+                                    <span className="text-sm font-bold text-accent shrink-0">
+                                      {calculateCalories(item.carbs, item.protein, item.fat)}kcal
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-muted">탄 {item.carbs}g • 단 {item.protein}g • 지 {item.fat}g</p>
+                                  <div className="flex justify-end gap-1">
+                                    <button
+                                      onClick={() => openDietEditModal(record, item)}
+                                      className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors px-2 py-1"
+                                    >
+                                      <Pencil size={12} />수정
+                                    </button>
+                                    <button
+                                      onClick={() => handleDietDelete(record.id, item.id)}
+                                      className="flex items-center gap-1 text-xs text-muted hover:text-danger transition-colors px-2 py-1"
+                                    >
+                                      <Trash2 size={12} />삭제
+                                    </button>
                                   </div>
                                 </div>
                               ))
