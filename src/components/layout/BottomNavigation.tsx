@@ -56,10 +56,10 @@ export function BottomNavigation() {
     >
       {/* 이어하기 배너 — 내비 위에 자연스럽게 스택 */}
       {activeWorkout && (
-        <div className="bg-background">
-          <div className="max-w-md mx-auto px-3 pt-1 pb-2">
+        <div className="bg-card">
+          <div className="max-w-md mx-auto px-3 pt-2 pb-2">
             <Link href={`/workout/${activeWorkout.routineId}?resume=true`}>
-              <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-3 shadow-lg shadow-accent/30">
+              <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-3">
                 <span className="relative flex h-2.5 w-2.5 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />

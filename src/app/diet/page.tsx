@@ -286,8 +286,11 @@ export default function DietPage() {
       {/* FAB */}
       <button
         onClick={openAddModal}
-        style={hasActiveWorkout ? { bottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))" } : undefined}
-        className={`fixed right-6 w-14 h-14 bg-accent text-background rounded-full flex items-center justify-center shadow-lg shadow-accent/30 hover:scale-105 active:scale-95 transition-all duration-200 ${!hasActiveWorkout ? "bottom-28" : ""}`}
+        style={{ bottom: hasActiveWorkout
+          ? "calc(8rem + env(safe-area-inset-bottom, 0px))"
+          : "calc(4.5rem + env(safe-area-inset-bottom, 0px))"
+        }}
+        className="fixed right-6 w-14 h-14 bg-accent text-background rounded-full flex items-center justify-center shadow-lg shadow-accent/30 hover:scale-105 active:scale-95 transition-all duration-200"
       >
         <Plus size={28} strokeWidth={3} />
       </button>
