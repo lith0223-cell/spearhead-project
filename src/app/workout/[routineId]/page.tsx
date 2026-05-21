@@ -375,17 +375,8 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
           </div>
 
           {currentExercise.sets.map((set, sIdx) => (
-            <div key={set.id}>
-              {lastEx?.sets[sIdx] && (
-                <p className="text-xs text-muted px-3 mb-1">
-                  지난번:{" "}
-                  {unit === "lb"
-                    ? Math.round(lastEx.sets[sIdx].weight * KG_TO_LB)
-                    : lastEx.sets[sIdx].weight}
-                  {unit} × {lastEx.sets[sIdx].reps}회
-                </p>
-              )}
-              <div className={`flex items-center p-2.5 rounded-2xl border transition-all ${set.isCompleted ? "bg-success/10 border-success/30" : "bg-card border-border"}`}>
+            <div key={set.id} className={`rounded-2xl border transition-all ${set.isCompleted ? "bg-success/10 border-success/30" : "bg-card border-border"}`}>
+              <div className="flex items-center p-2.5">
                 <span className={`w-8 text-center font-bold text-sm ${set.isCompleted ? "text-success" : "text-muted"}`}>
                   {sIdx + 1}
                 </span>
@@ -455,6 +446,15 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
                   <div className="w-8" />
                 )}
               </div>
+              {lastEx?.sets[sIdx] && (
+                <p className="text-xs text-muted px-3 pb-2 text-right">
+                  지난번:{" "}
+                  {unit === "lb"
+                    ? Math.round(lastEx.sets[sIdx].weight * KG_TO_LB)
+                    : lastEx.sets[sIdx].weight}
+                  {unit} × {lastEx.sets[sIdx].reps}회
+                </p>
+              )}
             </div>
           ))}
         </div>

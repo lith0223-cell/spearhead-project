@@ -272,9 +272,9 @@ export default function DietPage() {
       </div>
 
       {/* FAB */}
-      <button 
+      <button
         onClick={openAddModal}
-        className="fixed bottom-20 right-6 w-14 h-14 bg-accent text-background rounded-full flex items-center justify-center shadow-lg shadow-accent/30 hover:scale-105 active:scale-95 transition-transform"
+        className="fixed bottom-28 right-6 w-14 h-14 bg-accent text-background rounded-full flex items-center justify-center shadow-lg shadow-accent/30 hover:scale-105 active:scale-95 transition-transform"
       >
         <Plus size={28} strokeWidth={3} />
       </button>

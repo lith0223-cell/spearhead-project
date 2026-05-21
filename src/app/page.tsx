@@ -2,128 +2,120 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Dumbbell, Flame, TrendingUp } from "lucide-react";
+import { Dumbbell, Utensils } from "lucide-react";
 import {
   initializeDummyData,
   getDietRecordsByDate,
   calculateCalories,
-  getRoutines,
 } from "@/utils/storage";
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [calorieGoal, setCalorieGoal] = useState(2000);
-  const [stats, setStats] = useState({
-    calories: 0,
-    carbs: 0,
-    protein: 0,
-    fat: 0,
-  });
+  const [stats, setStats] = useState({ calories: 0, carbs: 0, protein: 0, fat: 0 });
 
   useEffect(() => {
     initializeDummyData();
-
-    // Load today's diet stats
     const today = new Date().toISOString().split("T")[0];
     const diets = getDietRecordsByDate(today);
-
-    let totalCarbs = 0;
-    let totalProtein = 0;
-    let totalFat = 0;
-
-    diets.forEach((record) => {
-      record.items.forEach((item) => {
-        totalCarbs += item.carbs;
-        totalProtein += item.protein;
-        totalFat += item.fat;
-      });
-    });
-
+    let totalCarbs = 0, totalProtein = 0, totalFat = 0;
+    diets.forEach((r) => r.items.forEach((item) => {
+      totalCarbs += item.carbs;
+      totalProtein += item.protein;
+      totalFat += item.fat;
+    }));
     setStats({
       calories: calculateCalories(totalCarbs, totalProtein, totalFat),
       carbs: totalCarbs,
       protein: totalProtein,
       fat: totalFat,
     });
-
-    const savedGoal = parseInt(localStorage.getItem("ph_calorie_goal") || "2000");
-    setCalorieGoal(savedGoal);
-
+    setCalorieGoal(parseInt(localStorage.getItem("ph_calorie_goal") || "2000"));
     setMounted(true);
   }, []);
 
   if (!mounted) return null;
 
   const todayStr = new Intl.DateTimeFormat("ko-KR", {
-    month: "long",
-    day: "numeric",
-    weekday: "long",
+    month: "long", day: "numeric", weekday: "long",
   }).format(new Date());
 
+  const isOverGoal = calorieGoal > 0 && stats.calories > calorieGoal;
+  const goalPercent = calorieGoal > 0 ? Math.min((stats.calories / calorieGoal) * 100, 100) : 0;
+  const carbsPercent = stats.calories > 0 ? Math.round((stats.carbs * 4 / stats.calories) * 100) : 0;
+  const proteinPercent = stats.calories > 0 ? Math.round((stats.protein * 4 / stats.calories) * 100) : 0;
+  const fatPercent = stats.calories > 0 ? 100 - carbsPercent - proteinPercent : 0;
+
   return (
-    <main className="flex flex-col h-full p-6 space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <header className="space-y-2">
-        <h1 className="text-3xl font-extrabold tracking-tight">
-          반가워요, <br />
-          <span className="text-accent">오늘도 득근합시다!</span>
-        </h1>
-        <p className="text-muted text-sm">{todayStr}</p>
+    <main className="flex flex-col h-full animate-in fade-in duration-300">
+      <header className="px-6 py-6 border-b border-border bg-card sticky top-0 z-10">
+        <h1 className="text-2xl font-bold">반가워요!</h1>
+        <p className="text-sm font-semibold text-accent mt-0.5">오늘도 득근합시다</p>
+        <p className="text-xs text-muted mt-1">{todayStr}</p>
       </header>
 
-      {/* Stats Cards */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <TrendingUp size={20} className="text-accent" />
-            오늘의 영양 상태
-          </h2>
-          <Link href="/diet" className="text-xs text-muted hover:text-accent transition-colors">
-            상세보기 &rarr;
-          </Link>
-        </div>
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-24">
+        {/* 오늘의 식단 카드 */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Utensils size={14} className="text-success" />
+              <p className="text-xs font-semibold text-muted">오늘의 식단</p>
+            </div>
+            <Link href="/diet" className="text-xs text-accent hover:text-accent/70 transition-colors">
+              상세보기 →
+            </Link>
+          </div>
 
-        <div className="space-y-3">
-          <div className="bg-card p-4 rounded-2xl border border-border shadow-lg">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-danger/20 rounded-full">
-                <Flame size={20} className="text-danger" />
+          <div className="px-4 py-4 space-y-3">
+            {/* 칼로리 행 */}
+            <div className="flex justify-between items-baseline">
+              <span className="text-sm text-muted">오늘 섭취</span>
+              <div className="flex items-baseline gap-1">
+                <span className={`text-3xl font-extrabold ${isOverGoal ? "text-danger" : "text-accent"}`}>
+                  {stats.calories}
+                </span>
+                <span className="text-sm text-muted mx-1">/</span>
+                <span className="text-sm text-muted">{calorieGoal}</span>
+                <span className="text-xs text-muted">kcal</span>
+                <span className={`text-xs font-bold ml-1 ${isOverGoal ? "text-danger" : "text-accent"}`}>
+                  {calorieGoal > 0 ? `${Math.round((stats.calories / calorieGoal) * 100)}%` : "0%"}
+                  {isOverGoal && " ↑"}
+                </span>
               </div>
-              <h3 className="font-semibold text-muted">총 섭취 칼로리</h3>
             </div>
-            <div className="flex items-baseline justify-between">
-              <p className="text-3xl font-bold">
-                {stats.calories} <span className="text-base font-normal text-muted">kcal</span>
-              </p>
-              <span className="text-xs text-muted">목표 {calorieGoal}kcal</span>
-            </div>
-            <div className="w-full h-2 bg-background rounded-full mt-3 overflow-hidden">
+
+            {/* 칼로리 게이지 */}
+            <div className="w-full h-2 bg-background rounded-full overflow-hidden">
               <div
-                className={`h-full transition-all duration-1000 rounded-full ${stats.calories > calorieGoal ? "bg-danger" : "bg-accent"}`}
-                style={{ width: `${Math.min((stats.calories / calorieGoal) * 100, 100)}%` }}
+                className={`h-full transition-all duration-700 rounded-full ${isOverGoal ? "bg-danger" : "bg-accent"}`}
+                style={{ width: `${goalPercent}%` }}
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-card p-4 rounded-2xl border border-border flex flex-col gap-1 shadow-md">
-              <span className="text-xs text-muted font-medium">탄수화물</span>
-              <span className="text-xl font-bold">{stats.carbs}g</span>
+            {/* 탄단지 비율 텍스트 */}
+            <div className="flex justify-between text-xs font-medium pt-1">
+              <span className="text-muted">탄 {stats.carbs}g <span className="text-blue-400 font-bold">({carbsPercent}%)</span></span>
+              <span className="text-muted">단 {stats.protein}g <span className="text-emerald-400 font-bold">({proteinPercent}%)</span></span>
+              <span className="text-muted">지 {stats.fat}g <span className="text-amber-400 font-bold">({fatPercent}%)</span></span>
             </div>
-            <div className="bg-card p-4 rounded-2xl border border-border flex flex-col gap-1 shadow-md">
-              <span className="text-xs text-muted font-medium">단백질</span>
-              <span className="text-xl font-bold">{stats.protein}g</span>
-            </div>
-            <div className="bg-card p-4 rounded-2xl border border-border flex flex-col gap-1 shadow-md">
-              <span className="text-xs text-muted font-medium">지방</span>
-              <span className="text-xl font-bold">{stats.fat}g</span>
+
+            {/* 탄단지 누적 바 */}
+            <div className="flex w-full h-2 rounded-full overflow-hidden gap-0.5">
+              {stats.calories > 0 ? (
+                <>
+                  <div className="bg-blue-400 rounded-l-full transition-all" style={{ width: `${carbsPercent}%` }} />
+                  <div className="bg-emerald-400 transition-all" style={{ width: `${proteinPercent}%` }} />
+                  <div className="bg-amber-400 rounded-r-full transition-all" style={{ width: `${fatPercent}%` }} />
+                </>
+              ) : (
+                <div className="w-full bg-background rounded-full" />
+              )}
             </div>
           </div>
         </div>
-      </section>
 
-      {/* Action Button */}
-      <div className="flex-1 flex flex-col justify-end pb-8">
+        {/* 운동 시작 CTA */}
         <Link
           href="/routines"
           className="group relative flex items-center justify-center gap-3 w-full bg-foreground text-background py-5 rounded-2xl font-bold text-lg overflow-hidden shadow-xl hover:shadow-accent/20 transition-all active:scale-95"

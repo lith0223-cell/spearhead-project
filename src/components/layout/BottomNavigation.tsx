@@ -27,7 +27,7 @@ export function BottomNavigation() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-safe" style={{ transform: "translateZ(0)" }}>
       <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -42,12 +42,13 @@ export function BottomNavigation() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
+                "flex flex-col items-center justify-center w-full h-full gap-0.5 transition-colors relative",
                 isActive ? "text-accent" : "text-muted hover:text-foreground"
               )}
             >
-              <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+              <Icon size={24} strokeWidth={2} />
               <span className="text-[10px] font-medium">{item.label}</span>
+              <span className={cn("w-1 h-1 rounded-full mt-0.5 transition-colors", isActive ? "bg-accent" : "bg-transparent")} />
             </Link>
           );
         })}

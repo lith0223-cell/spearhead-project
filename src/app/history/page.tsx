@@ -508,28 +508,29 @@ export default function HistoryPage() {
                   <p className="text-sm font-bold">{ex.name}</p>
                   {ex.sets.map((set, setIdx) => (
                     <div key={set.id} className="flex items-center gap-2">
-                      <span className="text-xs text-muted w-10 shrink-0 text-center">{setIdx + 1}세트</span>
+                      <span className="text-sm font-bold text-muted w-5 text-center shrink-0">{setIdx + 1}</span>
                       <input
                         type="number"
                         value={set.weight}
                         onChange={(e) => handleEditSetChange(exIdx, setIdx, "weight", e.target.value)}
-                        placeholder="kg"
-                        className="flex-1 bg-background border border-border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-accent transition-colors"
+                        placeholder="0"
+                        className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors"
                       />
-                      <span className="text-xs text-muted">×</span>
+                      <span className="text-xs text-muted shrink-0">kg ×</span>
                       <input
                         type="number"
                         value={set.reps}
                         onChange={(e) => handleEditSetChange(exIdx, setIdx, "reps", e.target.value)}
-                        placeholder="회"
-                        className="flex-1 bg-background border border-border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-accent transition-colors"
+                        placeholder="0"
+                        className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors"
                       />
+                      <span className="text-xs text-muted shrink-0">회</span>
                       <button
                         onClick={() => removeEditSet(exIdx, setIdx)}
                         disabled={ex.sets.length <= 1}
-                        className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-30"
+                        className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-20 shrink-0"
                       >
-                        <X size={14} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   ))}
@@ -592,28 +593,29 @@ export default function HistoryPage() {
                       <p className="text-sm font-bold">{ex.name}</p>
                       {ex.sets.map((set, setIdx) => (
                         <div key={set.id} className="flex items-center gap-2">
-                          <span className="text-xs text-muted w-10 shrink-0 text-center">{setIdx + 1}세트</span>
+                          <span className="text-sm font-bold text-muted w-5 text-center shrink-0">{setIdx + 1}</span>
                           <input
                             type="number"
                             value={set.weight}
                             onChange={(e) => updateAddSet(exIdx, setIdx, "weight", e.target.value)}
-                            placeholder="kg"
-                            className="flex-1 bg-background border border-border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-accent transition-colors"
+                            placeholder="0"
+                            className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors"
                           />
-                          <span className="text-xs text-muted">×</span>
+                          <span className="text-xs text-muted shrink-0">kg ×</span>
                           <input
                             type="number"
                             value={set.reps}
                             onChange={(e) => updateAddSet(exIdx, setIdx, "reps", e.target.value)}
-                            placeholder="회"
-                            className="flex-1 bg-background border border-border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-accent transition-colors"
+                            placeholder="0"
+                            className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors"
                           />
+                          <span className="text-xs text-muted shrink-0">회</span>
                           <button
                             onClick={() => removeAddSet(exIdx, setIdx)}
                             disabled={ex.sets.length <= 1}
-                            className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-30"
+                            className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-20 shrink-0"
                           >
-                            <X size={14} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       ))}

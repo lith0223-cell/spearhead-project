@@ -290,7 +290,7 @@ export default function RoutinesPage() {
                 : "border-border"
             }`}
           >
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-start mb-1">
               <button
                 className="text-muted hover:text-foreground p-1 -ml-1 cursor-grab active:cursor-grabbing touch-none"
                 onTouchStart={(e) => handleTouchStart(e, idx)}
@@ -308,23 +308,17 @@ export default function RoutinesPage() {
                 </button>
               </div>
             </div>
-
-            <div className="flex flex-wrap gap-2 mb-6">
-              {routine.exercises.map((ex, i) => {
-                const config = routine.exerciseConfigs?.find((c) => c.name === ex);
-                return (
-                  <span
-                    key={i}
-                    className="bg-background px-3 py-1 text-xs font-medium rounded-full text-muted border border-border flex items-center gap-1.5"
-                  >
-                    {ex}
-                    {config && config.sets.length > 0 && (
-                      <span className="text-accent font-bold">{config.sets.length}세트</span>
-                    )}
-                  </span>
-                );
-              })}
-            </div>
+            {(() => {
+              const tSets = routine.exerciseConfigs?.reduce((s, c) => s + c.sets.length, 0) ?? 0;
+              const tVol = routine.exerciseConfigs?.reduce((s, c) =>
+                s + c.sets.reduce((v, set) => v + set.weight * set.reps, 0), 0) ?? 0;
+              const info = [
+                `${routine.exercises.length}종목`,
+                ...(tSets > 0 ? [`${tSets}세트`] : []),
+                ...(tVol > 0 ? [`${tVol.toLocaleString()}kg 볼륨`] : []),
+              ].join(" · ");
+              return <p className="text-xs text-muted mb-4 ml-7">{info}</p>;
+            })()}
 
             <Link
               href={`/workout/${routine.id}`}
@@ -385,7 +379,7 @@ export default function RoutinesPage() {
                       onDragEnd={exDragEnd}
                       onTouchMove={exTouchMove}
                       onTouchEnd={exTouchEnd}
-                      className={`flex items-center gap-2 transition-all ${
+                      className={`flex items-center gap-1.5 transition-all ${
                         exDragIdx === idx
                           ? "opacity-40 scale-[0.97]"
                           : exDragOverIdx === idx && exDragIdx !== idx
@@ -399,12 +393,8 @@ export default function RoutinesPage() {
                         className="text-muted hover:text-foreground cursor-grab active:cursor-grabbing touch-none p-1 shrink-0"
                         aria-label="순서 변경"
                       >
-                        <GripVertical size={16} />
+                        <GripVertical size={14} />
                       </button>
-
-                      <span className="text-xs font-bold text-muted w-4 text-center shrink-0">
-                        {idx + 1}
-                      </span>
 
                       <input
                         type="text"
@@ -412,7 +402,7 @@ export default function RoutinesPage() {
                         onChange={(e) => updateExercise(idx, e.target.value)}
                         onKeyDown={(e) => handleExerciseKeyDown(e, idx)}
                         placeholder={`종목 ${idx + 1}`}
-                        className="flex-1 bg-background border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent transition-colors"
+                        className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-accent transition-colors"
                       />
 
                       {/* 세트 설정 버튼 */}
@@ -420,7 +410,7 @@ export default function RoutinesPage() {
                         type="button"
                         onClick={() => config.name.trim() && setConfigExIdx(idx)}
                         disabled={!config.name.trim()}
-                        className={`text-xs px-2 py-1.5 rounded-lg font-medium shrink-0 transition-colors ${
+                        className={`text-xs px-2 py-1 rounded-lg font-medium shrink-0 transition-colors ${
                           config.sets.length > 0
                             ? "bg-accent/20 text-accent"
                             : "bg-background border border-border text-muted hover:border-accent hover:text-accent"
@@ -435,7 +425,7 @@ export default function RoutinesPage() {
                         disabled={exerciseConfigs.length <= 1}
                         className="text-muted hover:text-danger disabled:opacity-20 p-1 shrink-0 transition-colors"
                       >
-                        <X size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   ))}
@@ -492,78 +482,57 @@ export default function RoutinesPage() {
             {/* 세트 목록 */}
             <div className="space-y-2 mb-3">
               {exerciseConfigs[configExIdx].sets.map((set, sIdx) => (
-                <div
-                  key={sIdx}
-                  className="flex items-center gap-2 p-3 bg-background rounded-xl border border-border"
-                >
-                  <span className="text-xs font-bold text-muted w-8 text-center shrink-0">
-                    {sIdx + 1}
-                  </span>
-
-                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                <div key={sIdx} className="p-3 bg-background rounded-xl border border-border space-y-2">
+                  {/* Row 1: 세트번호 + 무게/횟수 + 삭제 */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-muted w-5 text-center shrink-0">{sIdx + 1}</span>
                     <input
                       type="number"
                       value={set.weight || ""}
                       onChange={(e) => updateConfigSet(configExIdx, sIdx, "weight", Number(e.target.value))}
                       onFocus={(e) => e.target.select()}
                       placeholder="0"
-                      className="w-14 text-center bg-card border border-border rounded-lg px-1 py-1.5 text-sm font-bold focus:outline-none focus:border-accent"
+                      className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent"
                     />
-                    <span className="text-xs text-muted">kg</span>
-                    <span className="text-muted">×</span>
+                    <span className="text-xs text-muted shrink-0">kg ×</span>
                     <input
                       type="number"
                       value={set.reps || ""}
                       onChange={(e) => updateConfigSet(configExIdx, sIdx, "reps", Number(e.target.value))}
                       onFocus={(e) => e.target.select()}
                       placeholder="0"
-                      className="w-14 text-center bg-card border border-border rounded-lg px-1 py-1.5 text-sm font-bold focus:outline-none focus:border-accent"
+                      className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent"
                     />
-                    <span className="text-xs text-muted">회</span>
-                  </div>
-
-                  {/* 휴식 시간 */}
-                  <div className="flex items-center gap-0.5 shrink-0">
+                    <span className="text-xs text-muted shrink-0">회</span>
                     <button
                       type="button"
-                      onClick={() =>
-                        updateConfigSet(
-                          configExIdx,
-                          sIdx,
-                          "restTime",
-                          Math.max(REST_STEP, (set.restTime || DEFAULT_REST) - REST_STEP)
-                        )
-                      }
-                      className="w-6 h-6 flex items-center justify-center text-muted hover:text-foreground"
+                      onClick={() => removeConfigSet(configExIdx, sIdx)}
+                      className="text-muted hover:text-danger p-1 shrink-0 transition-colors"
                     >
-                      <Minus size={11} />
-                    </button>
-                    <span className="text-xs text-muted w-9 text-center">
-                      {set.restTime || DEFAULT_REST}초
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateConfigSet(
-                          configExIdx,
-                          sIdx,
-                          "restTime",
-                          Math.min(MAX_REST, (set.restTime || DEFAULT_REST) + REST_STEP)
-                        )
-                      }
-                      className="w-6 h-6 flex items-center justify-center text-muted hover:text-foreground"
-                    >
-                      <Plus size={11} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => removeConfigSet(configExIdx, sIdx)}
-                    className="text-muted hover:text-danger p-1 shrink-0 transition-colors"
-                  >
-                    <X size={14} />
-                  </button>
+                  {/* Row 2: 휴식 시간 */}
+                  <div className="flex items-center justify-between pl-6">
+                    <span className="text-xs text-muted">휴식</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateConfigSet(configExIdx, sIdx, "restTime", Math.max(REST_STEP, (set.restTime || DEFAULT_REST) - REST_STEP))}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-card border border-border text-muted hover:text-foreground active:scale-90 transition-all"
+                      >
+                        <Minus size={13} />
+                      </button>
+                      <span className="text-sm font-bold w-12 text-center">{set.restTime || DEFAULT_REST}초</span>
+                      <button
+                        type="button"
+                        onClick={() => updateConfigSet(configExIdx, sIdx, "restTime", Math.min(MAX_REST, (set.restTime || DEFAULT_REST) + REST_STEP))}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-card border border-border text-muted hover:text-foreground active:scale-90 transition-all"
+                      >
+                        <Plus size={13} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
 

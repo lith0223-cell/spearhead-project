@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme, type AccentColor, type ColorMode } from "@/providers/ThemeProvider";
-import { Sun, Moon, Check, Save } from "lucide-react";
+import { Sun, Moon, Check } from "lucide-react";
 
 const ACCENT_COLORS: { id: AccentColor; hex: string; label: string }[] = [
   { id: "yellow", hex: "#fede24", label: "옐로우" },
@@ -19,55 +19,25 @@ const COLOR_MODES: { id: ColorMode; label: string; Icon: typeof Sun }[] = [
 export default function SettingsPage() {
   const { setAccent, setMode } = useTheme();
 
-  const [draftAccent, setDraftAccent] = useState<AccentColor>("cyan");
-  const [draftMode, setDraftMode] = useState<ColorMode>("dark");
-  const [justSaved, setJustSaved] = useState(false);
+  const [currentAccent, setCurrentAccent] = useState<AccentColor>("cyan");
+  const [currentMode, setCurrentMode] = useState<ColorMode>("dark");
 
-  // 저장된 값 추적 (hasChanges 비교 기준)
-  const savedRef = useRef<{ accent: AccentColor; mode: ColorMode }>({
-    accent: "cyan",
-    mode: "dark",
-  });
-
-  // localStorage에서 초기값 로드
   useEffect(() => {
     const a = (localStorage.getItem("ph_accent") as AccentColor) || "cyan";
     const m = (localStorage.getItem("ph_mode") as ColorMode) || "dark";
-    setDraftAccent(a);
-    setDraftMode(m);
-    savedRef.current = { accent: a, mode: m };
-  }, []);
-
-  // 페이지 이탈 시 저장 안 된 변경사항 DOM 되돌리기
-  useEffect(() => {
-    return () => {
-      document.documentElement.setAttribute("data-accent", savedRef.current.accent);
-      document.documentElement.setAttribute("data-mode", savedRef.current.mode);
-    };
+    setCurrentAccent(a);
+    setCurrentMode(m);
   }, []);
 
   const handleAccentChange = (a: AccentColor) => {
-    setDraftAccent(a);
-    document.documentElement.setAttribute("data-accent", a);
-    setJustSaved(false);
+    setCurrentAccent(a);
+    setAccent(a);
   };
 
   const handleModeChange = (m: ColorMode) => {
-    setDraftMode(m);
-    document.documentElement.setAttribute("data-mode", m);
-    setJustSaved(false);
+    setCurrentMode(m);
+    setMode(m);
   };
-
-  const handleSave = () => {
-    setAccent(draftAccent);
-    setMode(draftMode);
-    savedRef.current = { accent: draftAccent, mode: draftMode };
-    setJustSaved(true);
-  };
-
-  const hasChanges =
-    draftAccent !== savedRef.current.accent ||
-    draftMode !== savedRef.current.mode;
 
   return (
     <main className="flex flex-col h-full animate-in fade-in duration-300">
@@ -82,7 +52,7 @@ export default function SettingsPage() {
           <h2 className="text-xs font-semibold text-muted uppercase tracking-widest">컬러 테마</h2>
           <div className="grid grid-cols-2 gap-3">
             {ACCENT_COLORS.map(({ id, hex, label }) => {
-              const active = draftAccent === id;
+              const active = currentAccent === id;
               return (
                 <button
                   key={id}
@@ -112,7 +82,7 @@ export default function SettingsPage() {
           <h2 className="text-xs font-semibold text-muted uppercase tracking-widest">화면 모드</h2>
           <div className="grid grid-cols-2 gap-3">
             {COLOR_MODES.map(({ id, label, Icon }) => {
-              const active = draftMode === id;
+              const active = currentMode === id;
               return (
                 <button
                   key={id}
@@ -132,33 +102,6 @@ export default function SettingsPage() {
           </div>
         </section>
 
-      </div>
-
-      {/* 저장 버튼 - 하단 고정 */}
-      <div className="fixed bottom-20 left-0 right-0 max-w-md mx-auto px-6 pb-4 pt-3 bg-gradient-to-t from-background via-background to-transparent">
-        <button
-          onClick={handleSave}
-          disabled={!hasChanges && !justSaved}
-          className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
-            justSaved
-              ? "bg-success/20 text-success border-2 border-success/40"
-              : hasChanges
-              ? "bg-foreground text-background shadow-lg"
-              : "bg-card text-muted border-2 border-border"
-          }`}
-        >
-          {justSaved ? (
-            <>
-              <Check size={18} strokeWidth={3} />
-              저장됨
-            </>
-          ) : (
-            <>
-              <Save size={18} />
-              저장하기
-            </>
-          )}
-        </button>
       </div>
     </main>
   );
