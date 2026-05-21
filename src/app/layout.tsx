@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { ThemeProvider } from "@/providers/ThemeProvider";
+import { SwRegister } from "@/components/SwRegister";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -43,6 +44,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} min-h-full flex flex-col bg-background text-foreground selection:bg-accent selection:text-black`}>
         <ThemeProvider>
+          <SwRegister />
           <div className="flex-1 max-w-md mx-auto w-full relative pb-16 pt-safe">
             {children}
           </div>

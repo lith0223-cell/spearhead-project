@@ -12,6 +12,11 @@ import {
 } from "@/utils/storage";
 import { requestWakeLock, releaseWakeLock } from "@/utils/wakeLock";
 import { playBeep, resumeAudioContext, type BeepType } from "@/utils/audio";
+import {
+  scheduleRestNotification,
+  cancelRestNotification,
+  requestNotificationPermission,
+} from "@/utils/notifications";
 import { ExerciseRecord, Routine, SetRecord, WorkoutSession } from "@/types";
 
 const KG_TO_LB = 2.20462;
@@ -40,6 +45,11 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   // 비프음 설정 — stale closure 없이 최신값 보장
   const beepSettingsRef = useRef<{ type: BeepType; volume: number }>({ type: "single", volume: 0.7 });
 
+  // 현재 운동명 ref (알림 메시지용)
+  const currentExNameRef = useRef<string>("");
+  // 알림 권한 요청 여부 (세션 내 중복 요청 방지)
+  const notifPermAskedRef = useRef(false);
+
   // 타이머 tick — ref 기반이므로 stale closure 없음
   const tick = () => {
     if (timerEndTimeRef.current === null) return;
@@ -49,6 +59,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
       setIsTimerRunning(false);
       timerEndTimeRef.current = null;
       localStorage.removeItem(TIMER_STORAGE_KEY);
+      cancelRestNotification(); // 앱이 포그라운드이므로 SW 알림 취소 후 비프음으로 대체
       playBeep(beepSettingsRef.current.type, beepSettingsRef.current.volume);
     }
   };
@@ -92,6 +103,9 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
     const beepVolume = parseFloat(localStorage.getItem("ph_beep_volume") || "0.7");
     beepSettingsRef.current = { type: beepType, volume: beepVolume };
 
+    // 현재 운동명 초기화
+    currentExNameRef.current = found.exercises[0] ?? "";
+
     const initialData: ExerciseRecord[] = found.exercises.map((name) => {
       const routineConfig = found.exerciseConfigs?.find((c) => c.name === name);
       const lastSession = getLastSessionByExercise(name);
@@ -130,6 +144,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
         setTimerSeconds(remaining);
         setTimerInitial(remaining);
         setIsTimerRunning(true);
+        scheduleRestNotification(endTime, found.exercises[0] ?? "운동");
       } else {
         localStorage.removeItem(TIMER_STORAGE_KEY);
       }
@@ -141,7 +156,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
     };
   }, [routineId, router]);
 
-  const startTimer = (seconds: number) => {
+  const startTimer = (seconds: number, exerciseName?: string) => {
     const clamped = Math.min(seconds, MAX_REST_SECONDS);
     const endTime = Date.now() + clamped * 1000;
     timerEndTimeRef.current = endTime;
@@ -149,6 +164,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
     setTimerSeconds(clamped);
     setTimerInitial(clamped);
     setIsTimerRunning(true);
+    scheduleRestNotification(endTime, exerciseName ?? currentExNameRef.current);
   };
 
   const adjustTimer = (delta: number) => {
@@ -160,6 +176,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
     localStorage.setItem(TIMER_STORAGE_KEY, String(newEndTime));
     setTimerSeconds(remaining);
     if (remaining > timerInitial) setTimerInitial(remaining);
+    scheduleRestNotification(newEndTime, currentExNameRef.current);
   };
 
   const stopTimer = () => {
@@ -167,6 +184,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
     setTimerSeconds(0);
     timerEndTimeRef.current = null;
     localStorage.removeItem(TIMER_STORAGE_KEY);
+    cancelRestNotification();
   };
 
   const toggleUnit = () => {
@@ -196,7 +214,11 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   };
 
   const handleSetToggle = (exIdx: number, setIdx: number) => {
-    resumeAudioContext(); // iOS: 사용자 터치 시점에 AudioContext 잠금 해제
+    resumeAudioContext(); // iOS: AudioContext 잠금 해제
+    if (!notifPermAskedRef.current) {
+      notifPermAskedRef.current = true;
+      requestNotificationPermission(); // 첫 세트 완료 시 알림 권한 요청
+    }
     setExercisesData((prev) => {
       const next = prev.map((ex, ei) => {
         if (ei !== exIdx) return ex;
@@ -205,7 +227,10 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
           sets: ex.sets.map((s, si) => {
             if (si !== setIdx) return s;
             const toggled = { ...s, isCompleted: !s.isCompleted };
-            if (toggled.isCompleted) startTimer(toggled.restTime || DEFAULT_REST);
+            if (toggled.isCompleted) {
+              currentExNameRef.current = ex.name;
+              startTimer(toggled.restTime || DEFAULT_REST, ex.name);
+            }
             return toggled;
           }),
         };
@@ -213,7 +238,10 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
 
       const allCompleted = next[exIdx].sets.every((s) => s.isCompleted);
       if (allCompleted && !prev[exIdx].sets[setIdx].isCompleted && exIdx < prev.length - 1) {
-        setTimeout(() => setCurrentExIndex(exIdx + 1), 500);
+        setTimeout(() => {
+          setCurrentExIndex(exIdx + 1);
+          currentExNameRef.current = next[exIdx + 1]?.name ?? "";
+        }, 500);
       }
       return next;
     });
