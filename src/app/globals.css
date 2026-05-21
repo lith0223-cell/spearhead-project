@@ -72,6 +72,14 @@ body {
   scrollbar-width: none;
 }
 
+/* ── 로고 컬러 — 다크: 액센트, 라이트: 포그라운드(검정) ── */
+:root {
+  --logo-color: var(--color-accent);
+}
+html[data-mode="light"] {
+  --logo-color: var(--color-foreground);
+}
+
 /* Safe area inset utilities for PWA */
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
