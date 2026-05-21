@@ -4,6 +4,7 @@ import "./globals.css";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { SwRegister } from "@/components/SwRegister";
+import { SplashScreen } from "@/components/SplashScreen";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -44,6 +45,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} h-dvh flex flex-col overflow-hidden bg-background text-foreground selection:bg-accent selection:text-black`}>
         <ThemeProvider>
+          <SplashScreen />
           <SwRegister />
           <div className="flex-1 min-h-0 max-w-md mx-auto w-full relative pt-safe">
             {children}
