@@ -10,8 +10,11 @@ import {
   updateWorkoutSession,
   saveWorkoutSession,
   getRoutines,
+  deleteDietItem,
+  updateDietItem,
+  addItemToDietRecord,
 } from "@/utils/storage";
-import { WorkoutSession, DietRecord, MealType, Routine, ExerciseRecord } from "@/types";
+import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord } from "@/types";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MEAL_TYPES: MealType[] = ["아침", "점심", "저녁", "간식"];
@@ -19,6 +22,17 @@ const MEAL_TYPES: MealType[] = ["아침", "점심", "저녁", "간식"];
 function toDateStr(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
+
+type DietModal = {
+  mode: "add" | "edit";
+  recordId?: string;
+  itemId?: string;
+  mealType: MealType;
+  foodName: string;
+  carbs: string;
+  protein: string;
+  fat: string;
+};
 
 export default function HistoryPage() {
   const [today] = useState(new Date());
@@ -29,16 +43,18 @@ export default function HistoryPage() {
   const [dietRecords, setDietRecords] = useState<DietRecord[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
 
-  // 수정 모달
+  // 운동 수정 모달
   const [editDraft, setEditDraft] = useState<WorkoutSession | null>(null);
-
-  // 추가 모달
+  // 운동 추가 모달
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addStep, setAddStep] = useState<1 | 2>(1);
   const [addRoutineId, setAddRoutineId] = useState<string>("");
   const [addExData, setAddExData] = useState<
     { name: string; sets: { id: string; weight: string; reps: string }[] }[]
   >([]);
+
+  // 식단 추가/수정 모달
+  const [dietModal, setDietModal] = useState<DietModal | null>(null);
 
   const refreshData = () => {
     setSessions(getWorkoutSessions());
@@ -94,9 +110,7 @@ export default function HistoryPage() {
   const totalNutrition = useMemo(() => {
     let carbs = 0, protein = 0, fat = 0;
     selectedDiets.forEach((r) => r.items.forEach((item) => {
-      carbs += item.carbs;
-      protein += item.protein;
-      fat += item.fat;
+      carbs += item.carbs; protein += item.protein; fat += item.fat;
     }));
     const calories = calculateCalories(carbs, protein, fat);
     const carbsPercent = calories > 0 ? Math.round((carbs * 4 / calories) * 100) : 0;
@@ -108,24 +122,16 @@ export default function HistoryPage() {
   const getRoutineName = (routineId: string) =>
     routines.find((r) => r.id === routineId)?.name ?? "기록된 운동";
 
-  // --- 삭제 ---
+  // ── 운동 CRUD ──
   const handleDeleteSession = (sessionId: string) => {
     if (!confirm("이 운동 기록을 삭제하시겠습니까?")) return;
     deleteWorkoutSession(sessionId);
     refreshData();
   };
 
-  // --- 수정 ---
-  const openEditModal = (session: WorkoutSession) => {
-    setEditDraft(JSON.parse(JSON.stringify(session)));
-  };
+  const openEditModal = (session: WorkoutSession) => setEditDraft(JSON.parse(JSON.stringify(session)));
 
-  const handleEditSetChange = (
-    exIdx: number,
-    setIdx: number,
-    field: "weight" | "reps",
-    value: string
-  ) => {
+  const handleEditSetChange = (exIdx: number, setIdx: number, field: "weight" | "reps", value: string) => {
     setEditDraft((prev) => {
       if (!prev) return prev;
       const next = JSON.parse(JSON.stringify(prev)) as WorkoutSession;
@@ -140,12 +146,7 @@ export default function HistoryPage() {
       const next = JSON.parse(JSON.stringify(prev)) as WorkoutSession;
       const ex = next.exercises[exIdx];
       const last = ex.sets[ex.sets.length - 1];
-      ex.sets.push({
-        id: crypto.randomUUID(),
-        weight: last?.weight ?? 0,
-        reps: last?.reps ?? 0,
-        isCompleted: true,
-      });
+      ex.sets.push({ id: crypto.randomUUID(), weight: last?.weight ?? 0, reps: last?.reps ?? 0, isCompleted: true });
       return next;
     });
   };
@@ -166,24 +167,13 @@ export default function HistoryPage() {
     setEditDraft(null);
   };
 
-  // --- 추가 ---
-  const openAddModal = () => {
-    setAddStep(1);
-    setAddRoutineId("");
-    setAddExData([]);
-    setIsAddOpen(true);
-  };
+  const openAddModal = () => { setAddStep(1); setAddRoutineId(""); setAddExData([]); setIsAddOpen(true); };
 
   const selectRoutineForAdd = (routineId: string) => {
     const routine = routines.find((r) => r.id === routineId);
     if (!routine) return;
     setAddRoutineId(routineId);
-    setAddExData(
-      routine.exercises.map((name) => ({
-        name,
-        sets: [{ id: crypto.randomUUID(), weight: "", reps: "" }],
-      }))
-    );
+    setAddExData(routine.exercises.map((name) => ({ name, sets: [{ id: crypto.randomUUID(), weight: "", reps: "" }] })));
     setAddStep(2);
   };
 
@@ -220,31 +210,55 @@ export default function HistoryPage() {
     if (!selectedDate) return;
     const exercises: ExerciseRecord[] = addExData
       .map((ex) => ({
-        id: ex.name,
-        name: ex.name,
-        sets: ex.sets
-          .filter((s) => s.weight !== "" && s.reps !== "")
-          .map((s) => ({
-            id: s.id,
-            weight: Number(s.weight),
-            reps: Number(s.reps),
-            isCompleted: true,
-          })),
+        id: ex.name, name: ex.name,
+        sets: ex.sets.filter((s) => s.weight !== "" && s.reps !== "")
+          .map((s) => ({ id: s.id, weight: Number(s.weight), reps: Number(s.reps), isCompleted: true })),
       }))
       .filter((ex) => ex.sets.length > 0);
-
     if (exercises.length === 0) return;
-
-    const session: WorkoutSession = {
-      id: crypto.randomUUID(),
-      routineId: addRoutineId,
-      date: `${selectedDate}T12:00:00.000Z`,
-      exercises,
-    };
-    saveWorkoutSession(session);
+    saveWorkoutSession({ id: crypto.randomUUID(), routineId: addRoutineId, date: `${selectedDate}T12:00:00.000Z`, exercises });
     refreshData();
     setIsAddOpen(false);
   };
+
+  // ── 식단 CRUD ──
+  const openDietAddModal = () => {
+    setDietModal({ mode: "add", mealType: "점심", foodName: "", carbs: "", protein: "", fat: "" });
+  };
+
+  const openDietEditModal = (record: DietRecord, item: MealItem) => {
+    setDietModal({
+      mode: "edit", recordId: record.id, itemId: item.id,
+      mealType: record.mealType, foodName: item.name,
+      carbs: String(item.carbs), protein: String(item.protein), fat: String(item.fat),
+    });
+  };
+
+  const handleDietDelete = (recordId: string, itemId: string) => {
+    if (!confirm("이 식단을 삭제하시겠습니까?")) return;
+    deleteDietItem(recordId, itemId);
+    refreshData();
+  };
+
+  const handleDietSubmit = () => {
+    if (!selectedDate || !dietModal) return;
+    const { mode, recordId, itemId, mealType, foodName, carbs, protein, fat } = dietModal;
+    if (!foodName || !carbs || !protein || !fat) return;
+
+    if (mode === "edit" && recordId && itemId) {
+      updateDietItem(recordId, { id: itemId, name: foodName, carbs: Number(carbs), protein: Number(protein), fat: Number(fat) });
+    } else {
+      addItemToDietRecord(selectedDate, mealType, {
+        id: crypto.randomUUID(), name: foodName, carbs: Number(carbs), protein: Number(protein), fat: Number(fat),
+      });
+    }
+    refreshData();
+    setDietModal(null);
+  };
+
+  const dietCalPreview = dietModal
+    ? calculateCalories(Number(dietModal.carbs) || 0, Number(dietModal.protein) || 0, Number(dietModal.fat) || 0)
+    : 0;
 
   return (
     <main className="flex flex-col h-full animate-in fade-in duration-300">
@@ -252,7 +266,7 @@ export default function HistoryPage() {
         <h1 className="text-2xl font-bold">기록</h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div className="flex-1 overflow-y-auto pb-32">
         {/* 캘린더 */}
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
@@ -267,12 +281,7 @@ export default function HistoryPage() {
 
           <div className="grid grid-cols-7 mb-1">
             {DAYS.map((d, i) => (
-              <div
-                key={d}
-                className={`text-center text-xs font-semibold py-1 ${
-                  i === 0 ? "text-danger" : i === 6 ? "text-accent/80" : "text-muted"
-                }`}
-              >
+              <div key={d} className={`text-center text-xs font-semibold py-1 ${i === 0 ? "text-danger" : i === 6 ? "text-accent/80" : "text-muted"}`}>
                 {d}
               </div>
             ))}
@@ -287,32 +296,17 @@ export default function HistoryPage() {
               const isToday = ds === todayStr;
               const isSelected = ds === selectedDate;
               const dow = date.getDay();
-
               return (
                 <button
                   key={ds}
                   onClick={() => setSelectedDate(ds === selectedDate ? null : ds)}
                   className={`relative flex flex-col items-center py-2 rounded-xl transition-all active:scale-95 ${
-                    isSelected
-                      ? "bg-accent/20 border border-accent"
-                      : isToday
-                      ? "bg-card border border-border"
-                      : "hover:bg-card"
+                    isSelected ? "bg-accent/20 border border-accent" : isToday ? "bg-card border border-border" : "hover:bg-card"
                   }`}
                 >
-                  <span
-                    className={`text-sm font-medium leading-none mb-1.5 ${
-                      isSelected
-                        ? "text-accent font-bold"
-                        : isToday
-                        ? "text-foreground font-bold"
-                        : dow === 0
-                        ? "text-danger"
-                        : dow === 6
-                        ? "text-accent/70"
-                        : "text-foreground"
-                    }`}
-                  >
+                  <span className={`text-sm font-medium leading-none mb-1.5 ${
+                    isSelected ? "text-accent font-bold" : isToday ? "text-foreground font-bold" : dow === 0 ? "text-danger" : dow === 6 ? "text-accent/70" : "text-foreground"
+                  }`}>
                     {date.getDate()}
                   </span>
                   <div className="flex gap-0.5 h-1.5">
@@ -325,14 +319,8 @@ export default function HistoryPage() {
           </div>
 
           <div className="flex gap-4 mt-3 justify-center">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-accent" />
-              <span className="text-xs text-muted">운동</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-success" />
-              <span className="text-xs text-muted">식단</span>
-            </div>
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-accent" /><span className="text-xs text-muted">운동</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-success" /><span className="text-xs text-muted">식단</span></div>
           </div>
         </div>
 
@@ -340,10 +328,7 @@ export default function HistoryPage() {
         {selectedDate && (
           <div className="px-4 space-y-4 animate-in slide-in-from-bottom-4 duration-200">
             <h3 className="text-sm font-semibold text-muted">
-              {(() => {
-                const d = new Date(selectedDate + "T00:00:00");
-                return `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`;
-              })()}
+              {(() => { const d = new Date(selectedDate + "T00:00:00"); return `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`; })()}
             </h3>
 
             {/* 운동 기록 */}
@@ -353,40 +338,23 @@ export default function HistoryPage() {
                   <Dumbbell size={14} className="text-accent" />
                   <p className="text-xs font-semibold text-muted">운동 기록</p>
                 </div>
-                <button
-                  onClick={openAddModal}
-                  className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors"
-                >
-                  <Plus size={14} />
-                  추가
+                <button onClick={openAddModal} className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors">
+                  <Plus size={14} />추가
                 </button>
               </div>
 
               {selectedSessions.length > 0 ? (
                 <div>
                   {selectedSessions.map((session, sIdx) => (
-                    <div
-                      key={session.id}
-                      className={`px-4 py-3 space-y-2 ${sIdx > 0 ? "border-t border-border" : ""}`}
-                    >
+                    <div key={session.id} className={`px-4 py-3 space-y-2 ${sIdx > 0 ? "border-t border-border" : ""}`}>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-foreground">
-                          {getRoutineName(session.routineId)}
-                        </span>
+                        <span className="text-xs font-bold text-foreground">{getRoutineName(session.routineId)}</span>
                         <div className="flex items-center">
-                          <button
-                            onClick={() => openEditModal(session)}
-                            className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors px-2 py-1"
-                          >
-                            <Pencil size={12} />
-                            수정
+                          <button onClick={() => openEditModal(session)} className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors px-2 py-1">
+                            <Pencil size={12} />수정
                           </button>
-                          <button
-                            onClick={() => handleDeleteSession(session.id)}
-                            className="flex items-center gap-1 text-xs text-muted hover:text-danger transition-colors px-2 py-1"
-                          >
-                            <Trash2 size={12} />
-                            삭제
+                          <button onClick={() => handleDeleteSession(session.id)} className="flex items-center gap-1 text-xs text-muted hover:text-danger transition-colors px-2 py-1">
+                            <Trash2 size={12} />삭제
                           </button>
                         </div>
                       </div>
@@ -399,10 +367,7 @@ export default function HistoryPage() {
                             <div className="flex flex-wrap gap-x-4 gap-y-1">
                               {done.map((s, i) => (
                                 <span key={s.id} className="text-xs text-muted">
-                                  {i + 1}세트{" "}
-                                  <span className="text-foreground font-semibold">
-                                    {s.weight}kg × {s.reps}회
-                                  </span>
+                                  {i + 1}세트 <span className="text-foreground font-semibold">{s.weight}kg × {s.reps}회</span>
                                 </span>
                               ))}
                             </div>
@@ -421,86 +386,105 @@ export default function HistoryPage() {
             </div>
 
             {/* 식단 기록 */}
-            {selectedDiets.length > 0 ? (
-              <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                <div className="px-4 pt-4 pb-3 border-b border-border space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Utensils size={14} className="text-success" />
-                    <p className="text-xs font-semibold text-muted">식단 기록</p>
-                  </div>
-                  <div className="flex justify-between items-end">
-                    <span className="text-sm text-muted">총 섭취 칼로리</span>
-                    <span className="text-2xl font-extrabold text-accent">
-                      {totalNutrition.calories}{" "}
-                      <span className="text-sm font-normal text-muted">kcal</span>
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs font-medium">
-                    <span className="text-muted">탄 {totalNutrition.carbs}g <span className="text-accent font-bold">({totalNutrition.carbsPercent}%)</span></span>
-                    <span className="text-muted">단 {totalNutrition.protein}g <span className="text-accent font-bold">({totalNutrition.proteinPercent}%)</span></span>
-                    <span className="text-muted">지 {totalNutrition.fat}g <span className="text-accent font-bold">({totalNutrition.fatPercent}%)</span></span>
-                  </div>
-                  {totalNutrition.calories > 0 && (
-                    <div className="flex w-full h-2 rounded-full overflow-hidden gap-0.5">
-                      <div className="bg-blue-400 rounded-l-full transition-all" style={{ width: `${totalNutrition.carbsPercent}%` }} />
-                      <div className="bg-emerald-400 transition-all" style={{ width: `${totalNutrition.proteinPercent}%` }} />
-                      <div className="bg-amber-400 rounded-r-full transition-all" style={{ width: `${totalNutrition.fatPercent}%` }} />
-                    </div>
-                  )}
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Utensils size={14} className="text-success" />
+                  <p className="text-xs font-semibold text-muted">식단 기록</p>
                 </div>
+                <button onClick={openDietAddModal} className="flex items-center gap-1 text-xs text-success hover:text-success/70 transition-colors">
+                  <Plus size={14} />추가
+                </button>
+              </div>
 
-                <div className="px-4">
-                  {(() => {
-                    let mealCount = 0;
-                    return MEAL_TYPES.map((type) => {
-                      const mealsOfType = selectedDiets.filter((r) => r.mealType === type);
-                      if (mealsOfType.length === 0) return null;
-                      const isFirstMeal = mealCount++ === 0;
-                      return (
-                        <div key={type} className={`py-3 space-y-2 ${isFirstMeal ? "" : "border-t border-border"}`}>
-                        <h4 className="font-bold text-sm border-l-4 border-accent pl-2">{type}</h4>
-                        {mealsOfType.map((record) =>
-                          record.items.map((item) => (
-                            <div key={item.id} className="bg-background rounded-xl px-3 py-2.5">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <p className="text-sm font-medium">{item.name}</p>
-                                  <p className="text-xs text-muted mt-0.5">
-                                    탄 {item.carbs}g • 단 {item.protein}g • 지 {item.fat}g
-                                  </p>
-                                </div>
-                                <span className="text-sm font-bold text-accent shrink-0 ml-2">
-                                  {calculateCalories(item.carbs, item.protein, item.fat)}kcal
-                                </span>
-                              </div>
-                            </div>
-                          ))
-                        )}
+              {selectedDiets.length > 0 ? (
+                <>
+                  {/* 영양 요약 */}
+                  <div className="px-4 pt-3 pb-3 border-b border-border space-y-2">
+                    <div className="flex justify-between items-end">
+                      <span className="text-sm text-muted">총 섭취 칼로리</span>
+                      <span className="text-2xl font-extrabold text-accent">
+                        {totalNutrition.calories} <span className="text-sm font-normal text-muted">kcal</span>
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs font-medium">
+                      <span className="text-muted">탄 {totalNutrition.carbs}g <span className="text-accent font-bold">({totalNutrition.carbsPercent}%)</span></span>
+                      <span className="text-muted">단 {totalNutrition.protein}g <span className="text-accent font-bold">({totalNutrition.proteinPercent}%)</span></span>
+                      <span className="text-muted">지 {totalNutrition.fat}g <span className="text-accent font-bold">({totalNutrition.fatPercent}%)</span></span>
+                    </div>
+                    {totalNutrition.calories > 0 && (
+                      <div className="flex w-full h-2 rounded-full overflow-hidden gap-0.5">
+                        <div className="bg-blue-400 rounded-l-full" style={{ width: `${totalNutrition.carbsPercent}%` }} />
+                        <div className="bg-emerald-400" style={{ width: `${totalNutrition.proteinPercent}%` }} />
+                        <div className="bg-amber-400 rounded-r-full" style={{ width: `${totalNutrition.fatPercent}%` }} />
                       </div>
-                    );
-                    })
-                  })()}
+                    )}
+                  </div>
+
+                  {/* 끼니별 아이템 */}
+                  <div className="px-4">
+                    {(() => {
+                      let mealCount = 0;
+                      return MEAL_TYPES.map((type) => {
+                        const mealsOfType = selectedDiets.filter((r) => r.mealType === type);
+                        if (mealsOfType.length === 0) return null;
+                        const isFirst = mealCount++ === 0;
+                        return (
+                          <div key={type} className={`py-3 space-y-2 ${isFirst ? "" : "border-t border-border"}`}>
+                            <h4 className="font-bold text-sm border-l-4 border-accent pl-2">{type}</h4>
+                            {mealsOfType.map((record) =>
+                              record.items.map((item) => (
+                                <div key={item.id} className="bg-background rounded-xl px-3 py-2.5">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium truncate">{item.name}</p>
+                                      <p className="text-xs text-muted mt-0.5">탄 {item.carbs}g • 단 {item.protein}g • 지 {item.fat}g</p>
+                                    </div>
+                                    <div className="flex items-center gap-0.5 shrink-0">
+                                      <span className="text-sm font-bold text-accent mr-1">
+                                        {calculateCalories(item.carbs, item.protein, item.fat)}kcal
+                                      </span>
+                                      <button
+                                        onClick={() => openDietEditModal(record, item)}
+                                        className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors px-2 py-1"
+                                      >
+                                        <Pencil size={12} />수정
+                                      </button>
+                                      <button
+                                        onClick={() => handleDietDelete(record.id, item.id)}
+                                        className="flex items-center gap-1 text-xs text-muted hover:text-danger transition-colors px-2 py-1"
+                                      >
+                                        <Trash2 size={12} />삭제
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </>
+              ) : (
+                <div className="px-4 py-6 flex flex-col items-center gap-2">
+                  <Utensils size={20} className="text-muted" />
+                  <p className="text-xs text-muted">식단 기록 없음</p>
                 </div>
-              </div>
-            ) : (
-              <div className="bg-card border border-border rounded-2xl px-4 py-6 flex flex-col items-center gap-2">
-                <Utensils size={20} className="text-muted" />
-                <p className="text-xs text-muted">식단 기록 없음</p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* 수정 모달 */}
+      {/* 운동 수정 모달 */}
       {editDraft && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in">
           <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col max-h-[85vh]">
             <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-border shrink-0">
               <h2 className="text-xl font-bold">운동 기록 수정</h2>
-              <button onClick={() => setEditDraft(null)} className="p-2 -mr-2 text-muted hover:text-foreground">
-                <X size={24} />
-              </button>
+              <button onClick={() => setEditDraft(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {editDraft.exercises.map((ex, exIdx) => (
@@ -509,46 +493,24 @@ export default function HistoryPage() {
                   {ex.sets.map((set, setIdx) => (
                     <div key={set.id} className="flex items-center gap-2">
                       <span className="text-sm font-bold text-muted w-5 text-center shrink-0">{setIdx + 1}</span>
-                      <input
-                        type="number"
-                        value={set.weight}
-                        onChange={(e) => handleEditSetChange(exIdx, setIdx, "weight", e.target.value)}
-                        placeholder="0"
-                        className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors"
-                      />
+                      <input type="number" value={set.weight} onChange={(e) => handleEditSetChange(exIdx, setIdx, "weight", e.target.value)} placeholder="0"
+                        className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
                       <span className="text-xs text-muted shrink-0">kg ×</span>
-                      <input
-                        type="number"
-                        value={set.reps}
-                        onChange={(e) => handleEditSetChange(exIdx, setIdx, "reps", e.target.value)}
-                        placeholder="0"
-                        className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors"
-                      />
+                      <input type="number" value={set.reps} onChange={(e) => handleEditSetChange(exIdx, setIdx, "reps", e.target.value)} placeholder="0"
+                        className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
                       <span className="text-xs text-muted shrink-0">회</span>
-                      <button
-                        onClick={() => removeEditSet(exIdx, setIdx)}
-                        disabled={ex.sets.length <= 1}
-                        className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-20 shrink-0"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <button onClick={() => removeEditSet(exIdx, setIdx)} disabled={ex.sets.length <= 1}
+                        className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-20 shrink-0"><Trash2 size={14} /></button>
                     </div>
                   ))}
-                  <button
-                    onClick={() => addEditSet(exIdx)}
-                    className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors"
-                  >
-                    <Plus size={12} />
-                    세트 추가
+                  <button onClick={() => addEditSet(exIdx)} className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors">
+                    <Plus size={12} />세트 추가
                   </button>
                 </div>
               ))}
             </div>
             <div className="px-6 pb-6 pt-2 shrink-0">
-              <button
-                onClick={handleEditSave}
-                className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform"
-              >
+              <button onClick={handleEditSave} className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform">
                 저장하기
               </button>
             </div>
@@ -556,17 +518,14 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {/* 추가 모달 */}
+      {/* 운동 추가 모달 */}
       {isAddOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in">
           <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col max-h-[85vh]">
             <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-border shrink-0">
               <h2 className="text-xl font-bold">운동 기록 추가</h2>
-              <button onClick={() => setIsAddOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground">
-                <X size={24} />
-              </button>
+              <button onClick={() => setIsAddOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
             </div>
-
             {addStep === 1 ? (
               <div className="flex-1 overflow-y-auto p-6 space-y-3">
                 <p className="text-sm text-muted">루틴을 선택하세요</p>
@@ -574,11 +533,8 @@ export default function HistoryPage() {
                   <p className="text-xs text-muted text-center py-8">등록된 루틴이 없습니다</p>
                 ) : (
                   routines.map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={() => selectRoutineForAdd(r.id)}
-                      className="w-full text-left bg-background border border-border rounded-xl px-4 py-3 hover:border-accent transition-colors active:scale-[0.98]"
-                    >
+                    <button key={r.id} onClick={() => selectRoutineForAdd(r.id)}
+                      className="w-full text-left bg-background border border-border rounded-xl px-4 py-3 hover:border-accent transition-colors active:scale-[0.98]">
                       <p className="font-semibold text-sm">{r.name}</p>
                       <p className="text-xs text-muted mt-0.5">{r.exercises.join(" · ")}</p>
                     </button>
@@ -594,57 +550,94 @@ export default function HistoryPage() {
                       {ex.sets.map((set, setIdx) => (
                         <div key={set.id} className="flex items-center gap-2">
                           <span className="text-sm font-bold text-muted w-5 text-center shrink-0">{setIdx + 1}</span>
-                          <input
-                            type="number"
-                            value={set.weight}
-                            onChange={(e) => updateAddSet(exIdx, setIdx, "weight", e.target.value)}
-                            placeholder="0"
-                            className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors"
-                          />
+                          <input type="number" value={set.weight} onChange={(e) => updateAddSet(exIdx, setIdx, "weight", e.target.value)} placeholder="0"
+                            className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
                           <span className="text-xs text-muted shrink-0">kg ×</span>
-                          <input
-                            type="number"
-                            value={set.reps}
-                            onChange={(e) => updateAddSet(exIdx, setIdx, "reps", e.target.value)}
-                            placeholder="0"
-                            className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors"
-                          />
+                          <input type="number" value={set.reps} onChange={(e) => updateAddSet(exIdx, setIdx, "reps", e.target.value)} placeholder="0"
+                            className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
                           <span className="text-xs text-muted shrink-0">회</span>
-                          <button
-                            onClick={() => removeAddSet(exIdx, setIdx)}
-                            disabled={ex.sets.length <= 1}
-                            className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-20 shrink-0"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <button onClick={() => removeAddSet(exIdx, setIdx)} disabled={ex.sets.length <= 1}
+                            className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-20 shrink-0"><Trash2 size={14} /></button>
                         </div>
                       ))}
-                      <button
-                        onClick={() => addAddSet(exIdx)}
-                        className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors"
-                      >
-                        <Plus size={12} />
-                        세트 추가
+                      <button onClick={() => addAddSet(exIdx)} className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors">
+                        <Plus size={12} />세트 추가
                       </button>
                     </div>
                   ))}
                 </div>
                 <div className="px-6 pb-6 pt-2 shrink-0 space-y-2">
-                  <button
-                    onClick={() => setAddStep(1)}
-                    className="w-full text-sm text-muted hover:text-foreground py-2 transition-colors"
-                  >
-                    ← 루틴 다시 선택
-                  </button>
-                  <button
-                    onClick={handleAddSave}
-                    className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform"
-                  >
-                    기록 추가
-                  </button>
+                  <button onClick={() => setAddStep(1)} className="w-full text-sm text-muted hover:text-foreground py-2 transition-colors">← 루틴 다시 선택</button>
+                  <button onClick={handleAddSave} className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform">기록 추가</button>
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 식단 추가/수정 모달 */}
+      {dietModal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in">
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center shrink-0 px-6 pt-6 pb-4 border-b border-border">
+              <h2 className="text-xl font-bold">{dietModal.mode === "edit" ? "식단 수정" : "식단 추가"}</h2>
+              <button onClick={() => setDietModal(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              {/* 끼니 선택 */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted">식사 종류</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {MEAL_TYPES.map((t) => (
+                    <button key={t} type="button"
+                      disabled={dietModal.mode === "edit"}
+                      onClick={() => setDietModal((p) => p ? { ...p, mealType: t } : p)}
+                      className={`py-2 rounded-xl text-sm font-medium transition-colors ${dietModal.mealType === t ? "bg-accent text-background" : "bg-background text-foreground border border-border"} disabled:opacity-50`}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 메뉴명 */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted">메뉴명</label>
+                <input type="text" required value={dietModal.foodName}
+                  onChange={(e) => setDietModal((p) => p ? { ...p, foodName: e.target.value } : p)}
+                  placeholder="예: 닭가슴살 샐러드"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors" />
+              </div>
+
+              {/* 탄단지 */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "탄수화물 (g)", key: "carbs" },
+                  { label: "단백질 (g)",   key: "protein" },
+                  { label: "지방 (g)",     key: "fat" },
+                ].map(({ label, key }) => (
+                  <div key={key} className="space-y-2">
+                    <label className="text-sm font-medium text-muted">{label}</label>
+                    <input type="number" value={dietModal[key as keyof DietModal] as string}
+                      onChange={(e) => setDietModal((p) => p ? { ...p, [key]: e.target.value } : p)}
+                      className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center focus:outline-none focus:border-accent" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="shrink-0 px-6 pb-6 pt-4 border-t border-border space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-muted">예상 칼로리</span>
+                <span className="text-lg font-bold">{dietCalPreview} kcal</span>
+              </div>
+              <button onClick={handleDietSubmit}
+                disabled={!dietModal.foodName || !dietModal.carbs || !dietModal.protein || !dietModal.fat}
+                className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform disabled:opacity-40">
+                {dietModal.mode === "edit" ? "수정하기" : "기록하기"}
+              </button>
+            </div>
           </div>
         </div>
       )}

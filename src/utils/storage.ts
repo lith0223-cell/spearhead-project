@@ -1,4 +1,4 @@
-import { DietRecord, Routine, WorkoutSession } from "@/types";
+import { DietRecord, MealItem, MealType, Routine, WorkoutSession } from "@/types";
 import { DUMMY_DIET_RECORDS, DUMMY_ROUTINES, DUMMY_WORKOUT_SESSIONS } from "./dummyData";
 
 const STORAGE_KEYS = {
@@ -137,7 +137,19 @@ export const deleteDietItem = (recordId: string, itemId: string) => {
   localStorage.setItem(STORAGE_KEYS.DIETS, JSON.stringify(allDiets));
 };
 
-export const updateDietItem = (recordId: string, updatedItem: import("@/types").MealItem) => {
+export const addItemToDietRecord = (date: string, mealType: MealType, item: MealItem) => {
+  if (typeof window === "undefined") return;
+  const allDiets = getAllDietRecords();
+  const existing = allDiets.find((r) => r.date === date && r.mealType === mealType);
+  if (existing) {
+    existing.items.push(item);
+  } else {
+    allDiets.push({ id: crypto.randomUUID(), date, mealType, items: [item] });
+  }
+  localStorage.setItem(STORAGE_KEYS.DIETS, JSON.stringify(allDiets));
+};
+
+export const updateDietItem = (recordId: string, updatedItem: MealItem) => {
   if (typeof window === "undefined") return;
   const data = localStorage.getItem(STORAGE_KEYS.DIETS);
   const allDiets: DietRecord[] = data ? JSON.parse(data) : [];

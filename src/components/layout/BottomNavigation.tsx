@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Home, Dumbbell, Utensils, CalendarDays, Settings } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -12,6 +13,29 @@ function cn(...inputs: ClassValue[]) {
 
 export function BottomNavigation() {
   const pathname = usePathname();
+  const [activeWorkout, setActiveWorkout] = useState<{ routineId: string; routineName: string } | null>(null);
+
+  useEffect(() => {
+    const check = () => {
+      try {
+        const saved = localStorage.getItem("ph_active_workout");
+        if (saved) {
+          const data = JSON.parse(saved);
+          const hasProgress = data.exercisesData?.some((ex: { sets: { isCompleted: boolean }[] }) =>
+            ex.sets.some((s) => s.isCompleted)
+          );
+          if (data.routineId && data.routineName && hasProgress) {
+            setActiveWorkout({ routineId: data.routineId, routineName: data.routineName });
+            return;
+          }
+        }
+      } catch {}
+      setActiveWorkout(null);
+    };
+    check();
+    window.addEventListener("storage", check);
+    return () => window.removeEventListener("storage", check);
+  }, [pathname]);
 
   const navItems = [
     { label: "홈",       href: "/",         icon: Home        },
@@ -21,38 +45,54 @@ export function BottomNavigation() {
     { label: "설정",     href: "/settings", icon: Settings    },
   ];
 
-  // Do not show bottom nav on workout execution screen
   if (pathname.startsWith("/workout/")) {
     return null;
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-safe" style={{ transform: "translateZ(0)" }}>
-      <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          // Match /routines but also allow other paths if needed. Currently exact match or starts with for routines is fine,
-          // but let's just do exact or parent path matching.
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
+    <>
+      {activeWorkout && (
+        <div
+          className="fixed left-0 right-0 z-40 max-w-md mx-auto px-3"
+          style={{ bottom: "calc(4rem + env(safe-area-inset-bottom))" }}
+        >
+          <Link href={`/workout/${activeWorkout.routineId}`}>
+            <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-3 shadow-lg shadow-accent/30">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
+              </span>
+              <span className="flex-1 text-sm font-bold truncate">{activeWorkout.routineName} 진행 중</span>
+              <span className="text-sm font-extrabold shrink-0">이어하기 →</span>
+            </div>
+          </Link>
+        </div>
+      )}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-safe" style={{ transform: "translateZ(0)" }}>
+        <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(item.href));
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex flex-col items-center justify-center w-full h-full gap-0.5 transition-colors relative",
-                isActive ? "text-accent" : "text-muted hover:text-foreground"
-              )}
-            >
-              <Icon size={24} strokeWidth={2} />
-              <span className="text-[10px] font-medium">{item.label}</span>
-              <span className={cn("w-1 h-1 rounded-full mt-0.5 transition-colors", isActive ? "bg-accent" : "bg-transparent")} />
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex flex-col items-center justify-center w-full h-full gap-0.5 transition-colors relative",
+                  isActive ? "text-accent" : "text-muted hover:text-foreground"
+                )}
+              >
+                <Icon size={24} strokeWidth={2} />
+                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className={cn("w-1 h-1 rounded-full mt-0.5 transition-colors", isActive ? "bg-accent" : "bg-transparent")} />
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </>
   );
 }

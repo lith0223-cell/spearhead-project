@@ -219,7 +219,7 @@ export default function DietPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-32">
         {["아침", "점심", "저녁", "간식"].map((type) => {
           const mealRecords = records.filter(r => r.mealType === type);
           if (mealRecords.length === 0) return null;

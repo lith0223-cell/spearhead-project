@@ -24,6 +24,7 @@ const MAX_REST_SECONDS = 240;
 const REST_STEP = 30;
 const DEFAULT_REST = 60;
 const TIMER_STORAGE_KEY = "ph_timer_end";
+const ACTIVE_WORKOUT_KEY = "ph_active_workout";
 
 export default function WorkoutPage({ params }: { params: Promise<{ routineId: string }> }) {
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   const [exercisesData, setExercisesData] = useState<ExerciseRecord[]>([]);
   const [unit, setUnit] = useState<"kg" | "lb">("kg");
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
 
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerInitial, setTimerInitial] = useState(0);
@@ -49,6 +51,8 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   const currentExNameRef = useRef<string>("");
   // 알림 권한 요청 여부 (세션 내 중복 요청 방지)
   const notifPermAskedRef = useRef(false);
+  const savedExDataRef = useRef<ExerciseRecord[]>([]);
+  const savedExIndexRef = useRef(0);
 
   // 타이머 tick — ref 기반이므로 stale closure 없음
   const tick = () => {
@@ -134,6 +138,24 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
     });
     setExercisesData(initialData);
 
+    // 이전 세션 복원 확인
+    const savedSession = localStorage.getItem(ACTIVE_WORKOUT_KEY);
+    if (savedSession) {
+      try {
+        const parsed = JSON.parse(savedSession);
+        if (parsed.routineId === routineId) {
+          const hasProgress = parsed.exercisesData?.some((ex: ExerciseRecord) =>
+            ex.sets.some((s) => s.isCompleted)
+          );
+          if (hasProgress) {
+            savedExDataRef.current = parsed.exercisesData;
+            savedExIndexRef.current = parsed.currentExIndex ?? 0;
+            setShowResumePrompt(true);
+          }
+        }
+      } catch {}
+    }
+
     // 이전에 실행 중이던 타이머 복원 (화면 이탈 후 복귀 시)
     const storedEnd = localStorage.getItem(TIMER_STORAGE_KEY);
     if (storedEnd) {
@@ -155,6 +177,28 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [routineId, router]);
+
+  // 진행 중 운동 세션 자동 저장
+  useEffect(() => {
+    if (!routine || exercisesData.length === 0 || showResumePrompt) return;
+    const hasProgress = exercisesData.some((ex) => ex.sets.some((s) => s.isCompleted));
+    if (!hasProgress) return;
+    localStorage.setItem(
+      ACTIVE_WORKOUT_KEY,
+      JSON.stringify({ routineId: routine.id, routineName: routine.name, exercisesData, currentExIndex })
+    );
+  }, [exercisesData, currentExIndex, routine, showResumePrompt]);
+
+  const handleResume = () => {
+    setExercisesData(savedExDataRef.current);
+    setCurrentExIndex(savedExIndexRef.current);
+    setShowResumePrompt(false);
+  };
+
+  const handleFresh = () => {
+    localStorage.removeItem(ACTIVE_WORKOUT_KEY);
+    setShowResumePrompt(false);
+  };
 
   const startTimer = (seconds: number, exerciseName?: string) => {
     const clamped = Math.min(seconds, MAX_REST_SECONDS);
@@ -308,6 +352,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
     };
     saveWorkoutSession(session);
     localStorage.removeItem(TIMER_STORAGE_KEY);
+    localStorage.removeItem(ACTIVE_WORKOUT_KEY);
     alert("오운완! 고생하셨습니다.");
     router.push("/");
   };
@@ -549,6 +594,31 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
           </div>
         )}
       </main>
+
+      {/* 이전 운동 복원 프롬프트 */}
+      {showResumePrompt && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" style={{ maxWidth: "448px", left: "50%", transform: "translateX(-50%)", right: "auto", width: "100%" }}>
+          <div className="w-full bg-card border-t border-border rounded-t-3xl p-6 pb-safe">
+            <div className="w-12 h-1 bg-border rounded-full mx-auto mb-6" />
+            <h2 className="text-xl font-extrabold mb-2">진행 중인 운동이 있어요</h2>
+            <p className="text-sm text-muted mb-6">이전에 진행하던 운동 기록을 이어서 하시겠어요?</p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleResume}
+                className="w-full py-4 bg-accent text-background rounded-2xl font-extrabold text-base active:scale-95 transition-transform"
+              >
+                이어서 하기
+              </button>
+              <button
+                onClick={handleFresh}
+                className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
+              >
+                새로 시작하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Fixed Area */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-card border-t border-border p-4 pb-safe space-y-3 shadow-2xl">
