@@ -1,6 +1,6 @@
 {
-  "name": "프로젝트 헬스",
-  "short_name": "프로젝트헬스",
+  "name": "스피어헤드",
+  "short_name": "스피어헤드",
   "description": "중급자 이상의 헬스인을 위한 점진적 과부하 맞춤형 PWA",
   "start_url": "/",
   "display": "standalone",

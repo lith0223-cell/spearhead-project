@@ -8,13 +8,13 @@ import { SwRegister } from "@/components/SwRegister";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "프로젝트 헬스",
+  title: "스피어헤드",
   description: "점진적 과부하 맞춤형 웹앱",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "프로젝트 헬스",
+    title: "스피어헤드",
   },
 };
 
