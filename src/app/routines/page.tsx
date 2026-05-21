@@ -270,7 +270,7 @@ export default function RoutinesPage() {
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-32">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-44">
         {routines.map((routine, idx) => (
           <div
             key={routine.id}

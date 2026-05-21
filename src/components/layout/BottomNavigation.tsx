@@ -50,25 +50,29 @@ export function BottomNavigation() {
   }
 
   return (
-    <>
+    <div
+      className="fixed bottom-0 left-0 right-0 z-50"
+      style={{ transform: "translateZ(0)" }}
+    >
+      {/* 이어하기 배너 — 내비 위에 자연스럽게 스택 */}
       {activeWorkout && (
-        <div
-          className="fixed left-0 right-0 z-40 max-w-md mx-auto px-3"
-          style={{ bottom: "calc(4rem + 0.625rem + env(safe-area-inset-bottom))" }}
-        >
-          <Link href={`/workout/${activeWorkout.routineId}?resume=true`}>
-            <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-3 shadow-lg shadow-accent/30">
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
-              </span>
-              <span className="flex-1 text-sm font-bold truncate">{activeWorkout.routineName} 진행 중</span>
-              <span className="text-sm font-extrabold shrink-0">이어하기 →</span>
-            </div>
-          </Link>
+        <div className="bg-background">
+          <div className="max-w-md mx-auto px-3 pt-1 pb-2">
+            <Link href={`/workout/${activeWorkout.routineId}?resume=true`}>
+              <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-3 shadow-lg shadow-accent/30">
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
+                </span>
+                <span className="flex-1 text-sm font-bold truncate">{activeWorkout.routineName} 진행 중</span>
+                <span className="text-sm font-extrabold shrink-0">이어하기 →</span>
+              </div>
+            </Link>
+          </div>
         </div>
       )}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-safe" style={{ transform: "translateZ(0)" }}>
+      {/* 내비게이션 */}
+      <div className="bg-card border-t border-border pb-safe">
         <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -92,7 +96,7 @@ export function BottomNavigation() {
             );
           })}
         </div>
-      </nav>
-    </>
+      </div>
+    </div>
   );
 }

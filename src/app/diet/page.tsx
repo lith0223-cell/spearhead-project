@@ -231,7 +231,7 @@ export default function DietPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-32">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-44">
         {["아침", "점심", "저녁", "간식"].map((type) => {
           const mealRecords = records.filter(r => r.mealType === type);
           if (mealRecords.length === 0) return null;
@@ -286,7 +286,8 @@ export default function DietPage() {
       {/* FAB */}
       <button
         onClick={openAddModal}
-        className={`fixed right-6 w-14 h-14 bg-accent text-background rounded-full flex items-center justify-center shadow-lg shadow-accent/30 hover:scale-105 active:scale-95 transition-all duration-200 ${hasActiveWorkout ? "bottom-36" : "bottom-28"}`}
+        style={hasActiveWorkout ? { bottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))" } : undefined}
+        className={`fixed right-6 w-14 h-14 bg-accent text-background rounded-full flex items-center justify-center shadow-lg shadow-accent/30 hover:scale-105 active:scale-95 transition-all duration-200 ${!hasActiveWorkout ? "bottom-28" : ""}`}
       >
         <Plus size={28} strokeWidth={3} />
       </button>
