@@ -56,29 +56,37 @@ function tone(
 export function playBeep(type: BeepType = "single", volume = 0.7): void {
   try {
     const ctx = getCtx();
-    if (ctx.state === "suspended") ctx.resume();
-    const t = ctx.currentTime;
     const v = Math.max(0.001, Math.min(1, volume));
 
-    switch (type) {
-      case "single":
-        tone(ctx, 800, 800, t, 0.7, v);
-        break;
-      case "double":
-        tone(ctx, 880, 880, t,        0.12, v);
-        tone(ctx, 880, 880, t + 0.22, 0.12, v);
-        break;
-      case "rise":
-        tone(ctx, 500, 1100, t, 0.6, v);
-        break;
-      case "fall":
-        tone(ctx, 1100, 500, t, 0.6, v);
-        break;
-      case "triple":
-        tone(ctx, 900, 900, t,        0.08, v);
-        tone(ctx, 900, 900, t + 0.15, 0.08, v);
-        tone(ctx, 900, 900, t + 0.30, 0.08, v);
-        break;
+    const schedule = () => {
+      const t = ctx.currentTime;
+      switch (type) {
+        case "single":
+          tone(ctx, 800, 800, t, 0.7, v);
+          break;
+        case "double":
+          tone(ctx, 880, 880, t,        0.12, v);
+          tone(ctx, 880, 880, t + 0.22, 0.12, v);
+          break;
+        case "rise":
+          tone(ctx, 500, 1100, t, 0.6, v);
+          break;
+        case "fall":
+          tone(ctx, 1100, 500, t, 0.6, v);
+          break;
+        case "triple":
+          tone(ctx, 900, 900, t,        0.08, v);
+          tone(ctx, 900, 900, t + 0.15, 0.08, v);
+          tone(ctx, 900, 900, t + 0.30, 0.08, v);
+          break;
+      }
+    };
+
+    // resume()은 비동기 — 컨텍스트가 완전히 running 상태가 된 후 스케줄링
+    if (ctx.state === "suspended") {
+      ctx.resume().then(schedule);
+    } else {
+      schedule();
     }
   } catch (e) {
     console.log("Audio play failed", e);
