@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import { Plus, X, Trash2, Edit, Pencil, Star } from "lucide-react";
 import { getDietRecordsByDate, addItemToDietRecord, calculateCalories, deleteDietItem, updateDietItem, getFoodPresets, saveFoodPreset, deleteFoodPreset } from "@/utils/storage";
 import { DietRecord, FoodPreset, MealItem, MealType } from "@/types";
-import { Drawer, DrawerContent, DrawerClose } from "@/components/ui/drawer";
-import { withVerification } from "@/utils/verifyHelper";
 
 export default function DietPage() {
   const [records, setRecords] = useState<DietRecord[]>([]);
@@ -139,55 +137,42 @@ export default function DietPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!foodName || !carbs || !protein || !fat) return;
 
-    const actionName = editingItemId ? "식단 수정" : "식단 추가";
+    // 수정 모드
+    if (editingRecordId && editingItemId) {
+      const updatedItem: MealItem = {
+        id: editingItemId,
+        name: foodName,
+        carbs: Number(carbs),
+        protein: Number(protein),
+        fat: Number(fat),
+      };
+      updateDietItem(editingRecordId, updatedItem);
+      refreshRecords();
+      setIsModalOpen(false);
+      return;
+    }
 
-    await withVerification(
-      actionName,
-      () => {
-        if (editingRecordId && editingItemId) {
-          const updatedItem: MealItem = {
-            id: editingItemId,
-            name: foodName,
-            carbs: Number(carbs),
-            protein: Number(protein),
-            fat: Number(fat),
-          };
-          updateDietItem(editingRecordId, updatedItem);
-          return updatedItem;
-        } else {
-          const newItem: MealItem = {
-            id: crypto.randomUUID(),
-            name: foodName,
-            carbs: Number(carbs),
-            protein: Number(protein),
-            fat: Number(fat),
-          };
-          addItemToDietRecord(todayStr, mealType, newItem);
-          return newItem;
-        }
-      },
-      (result) => {
-        if (!result) return false;
-        if (result.carbs < 0 || result.protein < 0 || result.fat < 0) return false;
-        if (result.name.trim() === "") return false;
-        return true;
-      },
-      () => {
-        refreshRecords();
-        setFoodName("");
-        setCarbs("");
-        setProtein("");
-        setFat("");
-        setIsModalOpen(false);
-      },
-      (err) => {
-        alert(`저장 실패: ${err.message}`);
-      }
-    );
+    // 추가 모드
+    const newItem: MealItem = {
+      id: crypto.randomUUID(),
+      name: foodName,
+      carbs: Number(carbs),
+      protein: Number(protein),
+      fat: Number(fat),
+    };
+
+    addItemToDietRecord(todayStr, mealType, newItem);
+
+    refreshRecords();
+    setFoodName("");
+    setCarbs("");
+    setProtein("");
+    setFat("");
+    setIsModalOpen(false);
   };
 
   return (
@@ -321,18 +306,17 @@ export default function DietPage() {
       </button>
 
       {/* Add/Edit Modal */}
-      <Drawer open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DrawerContent className="h-[85vh] flex flex-col w-full sm:max-w-sm mx-auto">
-          <div className="flex justify-between items-center shrink-0 px-6 pt-6 pb-4">
-            <h2 className="text-xl font-bold">{editingItemId ? "식단 수정" : "식단 추가"}</h2>
-            <DrawerClose asChild>
-              <button className="p-2 -mr-2 text-muted hover:text-foreground">
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setIsModalOpen(false)}>
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col h-[85vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center shrink-0 px-6 pt-6 pb-4">
+              <h2 className="text-xl font-bold">{editingItemId ? "식단 수정" : "식단 추가"}</h2>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground">
                 <X size={24} />
               </button>
-            </DrawerClose>
-          </div>
+            </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 overflow-y-auto px-6 space-y-5 pb-2">
                 {/* 즐겨찾기 프리셋 */}
                 {presets.length > 0 && (
@@ -423,8 +407,9 @@ export default function DietPage() {
                 </button>
               </div>
             </form>
-        </DrawerContent>
-      </Drawer>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
