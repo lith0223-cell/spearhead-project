@@ -108,44 +108,37 @@ export function BottomNavigation() {
   const workoutHref = `/workout/${activeWorkout?.routineId}?resume=true`;
 
   return (
-    <div className="relative z-50 shrink-0">
-      {/* 이어하기 배너 */}
+    <div className="z-50 shrink-0 bg-card border-t border-border">
+      {/* 이어하기 배너 — 레이아웃 흐름에 포함되어 컨텐츠 영역이 자동으로 줄어듦 */}
       {activeWorkout && (
-        <div className="absolute bottom-full left-0 right-0 pb-2 pointer-events-none">
-          <div className="max-w-md mx-auto px-4 pointer-events-auto">
-            <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-2.5 shadow-lg shadow-black/20">
-              {/* 핑 + 루틴명 → 워크아웃으로 이동 */}
-              <Link href={workoutHref} className="flex items-center gap-2.5 flex-1 min-w-0 overflow-hidden">
-                <span className="relative flex h-2.5 w-2.5 shrink-0">
-                  {!isPaused && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />}
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
-                </span>
-                <span className="text-sm font-bold truncate">{activeWorkout.routineName} 진행 중</span>
-              </Link>
-
-              {/* 소요시간 + 일시정지 버튼 */}
-              {activeWorkout.startTime && (
-                <button
-                  onClick={handleTogglePause}
-                  className="flex items-center gap-1.5 shrink-0 bg-black/15 rounded-lg px-2.5 py-1 active:scale-90 transition-transform"
-                >
-                  {isPaused
-                    ? <Play size={11} fill="currentColor" />
-                    : <Pause size={11} fill="currentColor" />
-                  }
-                  <span className="text-xs font-mono w-10 text-left">{formatElapsed(elapsed)}</span>
-                </button>
-              )}
-
-              {/* 이어하기 링크 */}
-              <Link href={workoutHref} className="text-sm font-extrabold shrink-0">이어하기 →</Link>
-            </div>
+        <div className="max-w-md mx-auto px-4 pt-2">
+          <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-2.5 shadow-lg shadow-accent/20">
+            <Link href={workoutHref} className="flex items-center gap-2.5 flex-1 min-w-0 overflow-hidden">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                {!isPaused && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />}
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
+              </span>
+              <span className="text-sm font-bold truncate">{activeWorkout.routineName} 진행 중</span>
+            </Link>
+            {activeWorkout.startTime && (
+              <button
+                onClick={handleTogglePause}
+                className="flex items-center gap-1.5 shrink-0 bg-black/15 rounded-lg px-2.5 py-1 active:scale-90 transition-transform"
+              >
+                {isPaused
+                  ? <Play size={11} fill="currentColor" />
+                  : <Pause size={11} fill="currentColor" />
+                }
+                <span className="text-xs font-mono w-10 text-left">{formatElapsed(elapsed)}</span>
+              </button>
+            )}
+            <Link href={workoutHref} className="text-sm font-extrabold shrink-0">이어하기 →</Link>
           </div>
         </div>
       )}
 
       {/* 내비게이션 */}
-      <div className="bg-card border-t border-border pb-safe">
+      <div className="pb-safe">
         <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
           {navItems.map((item) => {
             const Icon = item.icon;
