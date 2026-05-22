@@ -366,6 +366,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
         weight: unit === "lb" ? Math.round(s.weight / KG_TO_LB) : s.weight,
       })),
     }));
+    const allSessions = getWorkoutSessions();
     const session: WorkoutSession = {
       id: crypto.randomUUID(),
       routineId: routine.id,
@@ -394,7 +395,6 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
         }
       }
     }
-    const allSessions = getWorkoutSessions();
     const prevSession = [...allSessions]
       .filter(s => s.routineId === routine.id)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
@@ -475,7 +475,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
         <div className="mb-6 flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-extrabold">{currentExercise.name}</h1>
-            {lastEx && lastEx.sets.length > 0 && (
+            {lastEx && lastEx.sets.filter(s => s.isCompleted).length > 0 && (
               <p className="text-sm text-muted mt-2">
                 {isCardioExercise ? (
                   <>

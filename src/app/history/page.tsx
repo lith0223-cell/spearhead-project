@@ -131,6 +131,11 @@ export default function HistoryPage() {
   const getRoutineName = (routineId: string) =>
     routines.find((r) => r.id === routineId)?.name ?? "기록된 운동";
 
+  const isExerciseCardio = (session: WorkoutSession, exName: string): boolean => {
+    const r = routines.find(rt => rt.id === session.routineId);
+    return r?.exerciseConfigs?.find(c => c.name === exName)?.category === "유산소";
+  };
+
   // ── 운동 CRUD ──
   const handleDeleteSession = (sessionId: string) => {
     if (!confirm("이 운동 기록을 삭제하시겠습니까?")) return;
@@ -521,13 +526,19 @@ export default function HistoryPage() {
                       {session.exercises.map((ex) => {
                         const done = ex.sets.filter((s) => s.isCompleted && (s.weight > 0 || s.reps > 0));
                         if (done.length === 0) return null;
+                        const isCardio = isExerciseCardio(session, ex.name);
                         return (
                           <div key={ex.id} className="bg-background rounded-xl px-3 py-2.5">
                             <p className="text-xs font-bold text-foreground mb-1.5">{ex.name}</p>
                             <div className="flex flex-wrap gap-x-4 gap-y-1">
                               {done.map((s, i) => (
                                 <span key={s.id} className="text-xs text-muted">
-                                  {i + 1}세트 <span className="text-foreground font-semibold">{s.weight}kg × {s.reps}회</span>
+                                  {i + 1}{isCardio ? "구간" : "세트"}{" "}
+                                  <span className="text-foreground font-semibold">
+                                    {isCardio
+                                      ? `${(s.weight || 0).toFixed(1)}km × ${s.reps}분`
+                                      : `${s.weight}kg × ${s.reps}회`}
+                                  </span>
                                 </span>
                               ))}
                             </div>

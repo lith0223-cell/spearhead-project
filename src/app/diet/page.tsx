@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Plus, X, Trash2, Edit, Pencil, Star } from "lucide-react";
-import { getDietRecordsByDate, saveDietRecord, calculateCalories, deleteDietItem, updateDietItem, getFoodPresets, saveFoodPreset, deleteFoodPreset } from "@/utils/storage";
+import { getDietRecordsByDate, addItemToDietRecord, calculateCalories, deleteDietItem, updateDietItem, getFoodPresets, saveFoodPreset, deleteFoodPreset } from "@/utils/storage";
 import { DietRecord, FoodPreset, MealItem, MealType } from "@/types";
 
 export default function DietPage() {
@@ -85,6 +85,7 @@ export default function DietPage() {
 
   const handleSavePreset = () => {
     if (!foodName.trim() || !carbs || !protein || !fat) return;
+    if (presets.some(p => p.name === foodName.trim())) return;
     const preset: FoodPreset = {
       id: crypto.randomUUID(),
       name: foodName.trim(),
@@ -164,25 +165,7 @@ export default function DietPage() {
       fat: Number(fat),
     };
 
-    const existingRecord = records.find(r => r.mealType === mealType);
-
-    if (existingRecord) {
-      existingRecord.items.push(newItem);
-      const allData = JSON.parse(localStorage.getItem("ph_diets") || "[]");
-      const index = allData.findIndex((d: DietRecord) => d.id === existingRecord.id);
-      if (index >= 0) {
-        allData[index].items.push(newItem);
-        localStorage.setItem("ph_diets", JSON.stringify(allData));
-      }
-    } else {
-      const newRecord: DietRecord = {
-        id: crypto.randomUUID(),
-        date: todayStr,
-        mealType: mealType,
-        items: [newItem],
-      };
-      saveDietRecord(newRecord);
-    }
+    addItemToDietRecord(todayStr, mealType, newItem);
 
     refreshRecords();
     setFoodName("");

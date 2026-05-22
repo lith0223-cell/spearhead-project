@@ -284,7 +284,8 @@ export const getSessionsByExerciseName = (name: string): { date: string; sets: S
 };
 
 // --- Workout Stats ---
-const toDateStr = (d: Date) => d.toISOString().split("T")[0];
+const toDateStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 export const getWorkoutStreak = (): number => {
   if (typeof window === "undefined") return 0;
