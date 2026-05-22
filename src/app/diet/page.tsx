@@ -381,7 +381,8 @@ export default function DietPage() {
         {drawerTab === "presets" && !editingItemId && (
           <div className="flex flex-col flex-1 min-h-0">
             {/* 식사 종류 선택 */}
-            <div className="shrink-0 px-6 pb-3">
+            <div className="shrink-0 px-6 pb-3 space-y-2">
+              <label className="text-sm font-medium text-muted">식사 종류</label>
               <div className="grid grid-cols-4 gap-2">
                 {(["아침", "점심", "저녁", "간식"] as MealType[]).map((t) => (
                   <button
@@ -514,20 +515,7 @@ export default function DietPage() {
               </div>
 
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium text-muted">메뉴명</label>
-                  {!editingItemId && (
-                    <button
-                      type="button"
-                      onClick={handleSavePreset}
-                      disabled={!foodName.trim() || !carbs || !protein || !fat}
-                      className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <Star size={13} />
-                      즐겨찾기 저장
-                    </button>
-                  )}
-                </div>
+                <label className="text-sm font-medium text-muted">메뉴명</label>
                 <input
                   type="text"
                   required
@@ -551,6 +539,18 @@ export default function DietPage() {
                   </div>
                 ))}
               </div>
+
+              {!editingItemId && (
+                <button
+                  type="button"
+                  onClick={handleSavePreset}
+                  disabled={!foodName.trim() || !carbs || !protein || !fat || presets.some(p => p.name === foodName.trim())}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-amber-400/60 text-amber-500 font-semibold text-sm bg-amber-400/5 hover:bg-amber-400/10 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
+                >
+                  <Star size={15} fill={foodName.trim() && carbs && protein && fat && !presets.some(p => p.name === foodName.trim()) ? "currentColor" : "none"} />
+                  {presets.some(p => p.name === foodName.trim()) ? "이미 즐겨찾기에 있음" : "즐겨찾기에 저장"}
+                </button>
+              )}
             </div>
 
             <div className="shrink-0 px-6 pb-6 pt-4 border-t border-border">
