@@ -7,12 +7,17 @@ import {
   initializeDummyData,
   getDietRecordsByDate,
   calculateCalories,
+  getWorkoutStreak,
+  getWeeklyWorkoutCount,
+  getWorkoutDaysThisWeek,
+  getLastWorkoutDaysAgo,
 } from "@/utils/storage";
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [calorieGoal, setCalorieGoal] = useState(2000);
   const [stats, setStats] = useState({ calories: 0, carbs: 0, protein: 0, fat: 0 });
+  const [workoutStats, setWorkoutStats] = useState({ streak: 0, weeklyCount: 0, daysAgo: null as number | null, weekDays: Array(7).fill(false) as boolean[] });
 
   useEffect(() => {
     initializeDummyData();
@@ -31,6 +36,12 @@ export default function Home() {
       fat: totalFat,
     });
     setCalorieGoal(parseInt(localStorage.getItem("ph_calorie_goal") || "2000"));
+    setWorkoutStats({
+      streak: getWorkoutStreak(),
+      weeklyCount: getWeeklyWorkoutCount(),
+      daysAgo: getLastWorkoutDaysAgo(),
+      weekDays: getWorkoutDaysThisWeek(),
+    });
     setMounted(true);
   }, []);
 
@@ -111,6 +122,48 @@ export default function Home() {
               ) : (
                 <div className="w-full bg-background rounded-full" />
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* 이번 주 운동 카드 */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Dumbbell size={14} className="text-accent" />
+              <p className="text-xs font-semibold text-muted">이번 주 운동</p>
+            </div>
+            {workoutStats.daysAgo !== null && (
+              <p className="text-xs text-muted">
+                {workoutStats.daysAgo === 0 ? "오늘 운동했어요" : `${workoutStats.daysAgo}일 전`}
+              </p>
+            )}
+          </div>
+          <div className="px-4 py-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-lg">🔥</span>
+                <span className="text-2xl font-extrabold text-accent">{workoutStats.streak}</span>
+                <span className="text-sm text-muted">일 연속</span>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-extrabold">{workoutStats.weeklyCount}</span>
+                <span className="text-sm text-muted ml-1">회 / 주</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center pt-1">
+              {["월","화","수","목","금","토","일"].map((day, i) => (
+                <div key={i} className="flex flex-col items-center gap-1.5">
+                  <span className="text-[10px] text-muted font-medium">{day}</span>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
+                    workoutStats.weekDays[i]
+                      ? "bg-accent text-background"
+                      : "bg-background border border-border text-muted"
+                  }`}>
+                    {workoutStats.weekDays[i] ? "✓" : ""}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

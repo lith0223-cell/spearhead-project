@@ -50,6 +50,15 @@ export interface ExerciseTemplate {
   category: ExerciseCategory;
 }
 
+// 식품 프리셋
+export interface FoodPreset {
+  id: string;
+  name: string;
+  carbs: number;
+  protein: number;
+  fat: number;
+}
+
 // 식단 관련 타입
 export type MealType = "아침" | "점심" | "저녁" | "간식";
 

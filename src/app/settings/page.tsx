@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useTheme, type AccentColor, type ColorMode } from "@/providers/ThemeProvider";
-import { Sun, Moon, Check, Play, Minus, Plus } from "lucide-react";
+import { Sun, Moon, Check, Play, Minus, Plus, Download, Upload } from "lucide-react";
 import { playBeep, resumeAudioContext, BEEP_TYPES, type BeepType } from "@/utils/audio";
+import { exportAllData, importAllData } from "@/utils/storage";
 
 const ACCENT_COLORS: { id: AccentColor; hex: string; label: string }[] = [
   { id: "yellow", hex: "#fede24", label: "옐로우" },
@@ -68,6 +69,34 @@ export default function SettingsPage() {
   };
 
   const volumePct = Math.round(beepVolume * 100);
+
+  const handleExport = () => {
+    const json = exportAllData();
+    const date = new Date().toISOString().split("T")[0].replace(/-/g, "");
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `spearhead-backup-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        importAllData(ev.target?.result as string);
+        location.reload();
+      } catch {
+        alert("파일 형식이 올바르지 않습니다.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
 
   return (
     <main className="flex flex-col h-full animate-in fade-in duration-300">
@@ -204,6 +233,36 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+        </section>
+
+        {/* 데이터 관리 */}
+        <section className="space-y-4">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest">데이터 관리</h2>
+          <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
+            <button
+              onClick={handleExport}
+              className="w-full flex items-center gap-3 px-4 py-4 hover:bg-background transition-colors active:scale-[0.98]"
+            >
+              <span className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                <Download size={15} className="text-accent" />
+              </span>
+              <div className="text-left">
+                <p className="text-sm font-semibold">데이터 내보내기</p>
+                <p className="text-xs text-muted mt-0.5">루틴·운동·식단 기록을 JSON 파일로 저장</p>
+              </div>
+            </button>
+            <label className="w-full flex items-center gap-3 px-4 py-4 hover:bg-background transition-colors cursor-pointer active:scale-[0.98]">
+              <span className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                <Upload size={15} className="text-accent" />
+              </span>
+              <div className="text-left">
+                <p className="text-sm font-semibold">데이터 불러오기</p>
+                <p className="text-xs text-muted mt-0.5">이전에 저장한 백업 파일을 복원</p>
+              </div>
+              <input type="file" accept=".json" className="hidden" onChange={handleImport} />
+            </label>
+          </div>
+          <p className="text-xs text-muted px-1">불러오기 시 현재 데이터를 덮어씁니다.</p>
         </section>
 
       </div>

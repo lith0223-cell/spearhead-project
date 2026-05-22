@@ -7,6 +7,7 @@ import {
   getRoutines,
   getLastSessionByExercise,
   getRecentSessionsByExercise,
+  getWorkoutSessions,
   calculate1RM,
   saveWorkoutSession,
 } from "@/utils/storage";
@@ -38,7 +39,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   const [unit, setUnit] = useState<"kg" | "lb">("kg");
   const [isEditMode, setIsEditMode] = useState(false);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
-  const [summary, setSummary] = useState<{ exercises: number; sets: number; durationSec: number; calories: number } | null>(null);
+  const [summary, setSummary] = useState<{ exercises: number; sets: number; durationSec: number; calories: number; volumeDiff: number | null } | null>(null);
 
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerInitial, setTimerInitial] = useState(0);
@@ -393,7 +394,18 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
         }
       }
     }
-    setSummary({ exercises: completedExercises, sets: totalSets, durationSec, calories: Math.round(calories) });
+    const allSessions = getWorkoutSessions();
+    const prevSession = [...allSessions]
+      .filter(s => s.routineId === routine.id)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    const prevVolume = prevSession
+      ? prevSession.exercises.flatMap(e => e.sets).filter((s) => s.isCompleted).reduce((sum: number, s) => sum + s.weight * s.reps, 0)
+      : null;
+    const curVolume = exercisesInKg.flatMap(e => e.sets).filter((s) => s.isCompleted).reduce((sum: number, s) => sum + s.weight * s.reps, 0);
+    const volumeDiff = (prevVolume !== null && prevVolume > 0)
+      ? Math.round(((curVolume - prevVolume) / prevVolume) * 100)
+      : null;
+    setSummary({ exercises: completedExercises, sets: totalSets, durationSec, calories: Math.round(calories), volumeDiff });
   };
 
   const todayStats = useMemo(() => {
@@ -443,12 +455,18 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
           <ChevronLeft size={24} />
         </button>
         <div className="flex gap-1.5">
-          {routine.exercises.map((_, idx) => (
-            <div
-              key={idx}
-              className={`w-2 h-2 rounded-full transition-all ${idx === currentExIndex ? "w-6 bg-accent" : "bg-border"}`}
-            />
-          ))}
+          {routine.exercises.map((_, idx) => {
+            const exDone = exercisesData[idx]?.sets.length > 0 && exercisesData[idx].sets.every(s => s.isCompleted);
+            return (
+              <div
+                key={idx}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  idx === currentExIndex ? "w-6 bg-accent" :
+                  exDone ? "bg-success" : "bg-border"
+                }`}
+              />
+            );
+          })}
         </div>
         <div className="w-8" />
       </header>
@@ -821,6 +839,28 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
               </div>
             ))}
           </div>
+
+          {/* 볼륨 비교 인사이트 */}
+          {summary.volumeDiff === null ? (
+            <div className="text-center py-2 px-4 bg-accent/10 border border-accent/20 rounded-xl">
+              <p className="text-sm font-bold text-accent">첫 번째 기록이에요!</p>
+              <p className="text-xs text-muted mt-0.5">다음엔 더 높이 도전해보세요</p>
+            </div>
+          ) : summary.volumeDiff > 0 ? (
+            <div className="text-center py-2 px-4 bg-accent/10 border border-accent/20 rounded-xl">
+              <p className="text-sm font-bold text-accent">이전보다 {summary.volumeDiff}% 더 했어요!</p>
+              <p className="text-xs text-muted mt-0.5">꾸준히 성장하고 있습니다</p>
+            </div>
+          ) : summary.volumeDiff === 0 ? (
+            <div className="text-center py-2 px-4 bg-card border border-border rounded-xl">
+              <p className="text-sm font-medium text-muted">지난 기록과 동일해요</p>
+            </div>
+          ) : (
+            <div className="text-center py-2 px-4 bg-card border border-border rounded-xl">
+              <p className="text-sm font-medium text-muted">이전보다 {Math.abs(summary.volumeDiff)}% 감소했어요</p>
+              <p className="text-xs text-muted mt-0.5">괜찮아요, 다음엔 더 잘할 거예요</p>
+            </div>
+          )}
 
           <button
             onClick={() => router.push("/")}

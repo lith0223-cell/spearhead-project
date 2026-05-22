@@ -6,6 +6,7 @@ import {
   getWorkoutSessions,
   getAllDietRecords,
   calculateCalories,
+  calculate1RM,
   deleteWorkoutSession,
   updateWorkoutSession,
   saveWorkoutSession,
@@ -13,8 +14,9 @@ import {
   deleteDietItem,
   updateDietItem,
   addItemToDietRecord,
+  getSessionsByExerciseName,
 } from "@/utils/storage";
-import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord } from "@/types";
+import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord, SetRecord } from "@/types";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MEAL_TYPES: MealType[] = ["아침", "점심", "저녁", "간식"];
@@ -55,6 +57,13 @@ export default function HistoryPage() {
 
   // 식단 추가/수정 모달
   const [dietModal, setDietModal] = useState<DietModal | null>(null);
+
+  // 탭
+  const [activeTab, setActiveTab] = useState<"history" | "analytics">("history");
+
+  // 분석 탭
+  const [chartExName, setChartExName] = useState<string>("");
+  const [chartMetric, setChartMetric] = useState<"1rm" | "weight" | "volume">("1rm");
 
   const refreshData = () => {
     setSessions(getWorkoutSessions());
@@ -260,13 +269,164 @@ export default function HistoryPage() {
     ? calculateCalories(Number(dietModal.carbs) || 0, Number(dietModal.protein) || 0, Number(dietModal.fat) || 0)
     : 0;
 
+  // 분석 탭용 데이터
+  const allExerciseNames = useMemo(() => {
+    const names = new Set<string>();
+    sessions.forEach(s => s.exercises.forEach(e => names.add(e.name)));
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [sessions]);
+
+  const chartData = useMemo(() => {
+    if (!chartExName) return [];
+    return getSessionsByExerciseName(chartExName).slice(-10);
+  }, [chartExName, sessions]);
+
+  const chartPoints = useMemo(() => {
+    return chartData.map(({ date, sets }) => {
+      const completed = sets.filter(s => s.isCompleted && s.weight > 0 && s.reps > 0);
+      if (completed.length === 0) return null;
+      let value = 0;
+      if (chartMetric === "1rm") value = Math.max(...completed.map(s => calculate1RM(s.weight, s.reps)));
+      else if (chartMetric === "weight") value = Math.max(...completed.map(s => s.weight));
+      else value = completed.reduce((sum, s) => sum + s.weight * s.reps, 0);
+      const d = new Date(date);
+      return { date: `${d.getMonth() + 1}/${d.getDate()}`, value };
+    }).filter(Boolean) as { date: string; value: number }[];
+  }, [chartData, chartMetric]);
+
+  const SvgChart = ({ points }: { points: { date: string; value: number }[] }) => {
+    if (points.length < 2) return (
+      <div className="flex items-center justify-center h-40 text-sm text-muted">
+        {points.length === 1 ? "기록이 2회 이상 있어야 차트가 표시됩니다" : "기록이 없습니다"}
+      </div>
+    );
+    const W = 320, H = 160, PL = 44, PR = 12, PT = 12, PB = 28;
+    const cW = W - PL - PR, cH = H - PT - PB;
+    const vals = points.map(p => p.value);
+    const minV = Math.min(...vals), maxV = Math.max(...vals);
+    const range = maxV - minV || 1;
+    const toX = (i: number) => PL + (i / (points.length - 1)) * cW;
+    const toY = (v: number) => PT + cH - ((v - minV) / range) * cH;
+    const polyline = points.map((p, i) => `${toX(i)},${toY(p.value)}`).join(" ");
+    const yTicks = [minV, minV + range / 2, maxV].map(v => Math.round(v));
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 160 }}>
+        {yTicks.map((v, i) => {
+          const y = toY(v);
+          return (
+            <g key={i}>
+              <line x1={PL} x2={W - PR} y1={y} y2={y} stroke="currentColor" strokeOpacity={0.08} strokeWidth={1} />
+              <text x={PL - 4} y={y + 4} textAnchor="end" fontSize={9} fill="currentColor" fillOpacity={0.4}>{v}</text>
+            </g>
+          );
+        })}
+        <polygon points={`${PL},${PT + cH} ${polyline} ${W - PR},${PT + cH}`} fill="var(--color-accent)" fillOpacity={0.08} stroke="none" />
+        <polyline points={polyline} fill="none" stroke="var(--color-accent)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle cx={toX(i)} cy={toY(p.value)} r={3.5} fill="var(--color-accent)" />
+            <text x={toX(i)} y={H - 4} textAnchor="middle" fontSize={9} fill="currentColor" fillOpacity={0.5}>{p.date}</text>
+          </g>
+        ))}
+        <circle cx={toX(points.length - 1)} cy={toY(points[points.length - 1].value)} r={5} fill="var(--color-accent)" />
+        <text x={toX(points.length - 1)} y={toY(points[points.length - 1].value) - 8} textAnchor="middle" fontSize={10} fill="var(--color-accent)" fontWeight="bold">
+          {points[points.length - 1].value}
+        </text>
+      </svg>
+    );
+  };
+
   return (
     <main className="flex flex-col h-full animate-in fade-in duration-300">
       <header className="px-6 py-6 border-b border-border bg-card sticky top-0 z-10">
         <h1 className="text-2xl font-bold">기록</h1>
+        <div className="flex gap-1 mt-4 bg-background rounded-xl p-1">
+          {([["history", "캘린더"], ["analytics", "분석"]] as const).map(([tab, label]) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto pb-8">
+      {activeTab === "analytics" ? (
+        <div className="p-4 space-y-4">
+          {allExerciseNames.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <p className="text-muted text-sm">운동 기록이 없습니다</p>
+              <p className="text-muted text-xs mt-1">운동을 완료하면 여기서 성장 추이를 확인할 수 있어요</p>
+            </div>
+          ) : (
+            <>
+              <select
+                value={chartExName}
+                onChange={(e) => setChartExName(e.target.value)}
+                className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm font-semibold focus:outline-none focus:border-accent transition-colors"
+              >
+                <option value="">종목을 선택하세요</option>
+                {allExerciseNames.map(name => <option key={name} value={name}>{name}</option>)}
+              </select>
+
+              {chartExName && (
+                <>
+                  <div className="flex gap-2">
+                    {([["1rm", "예상 1RM"], ["weight", "최대 무게"], ["volume", "총 볼륨"]] as const).map(([m, label]) => (
+                      <button
+                        key={m}
+                        onClick={() => setChartMetric(m)}
+                        className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors ${
+                          chartMetric === m ? "bg-accent text-background border-accent" : "bg-card border-border text-muted"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="bg-card border border-border rounded-2xl p-4">
+                    <p className="text-xs font-semibold text-muted mb-3">
+                      {chartExName} — {chartMetric === "1rm" ? "예상 1RM" : chartMetric === "weight" ? "최대 무게" : "총 볼륨"}
+                      {chartMetric !== "volume" ? " (kg)" : " (kg)"}
+                    </p>
+                    <SvgChart points={chartPoints} />
+                  </div>
+
+                  {chartPoints.length > 0 && (() => {
+                    const vals = chartPoints.map(p => p.value);
+                    const best = Math.max(...vals);
+                    const latest = vals[vals.length - 1];
+                    const first = vals[0];
+                    const totalGrowth = first > 0 ? Math.round(((latest - first) / first) * 100) : null;
+                    return (
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { label: "최고 기록", value: best, unit: "kg" },
+                          { label: "최근 기록", value: latest, unit: "kg" },
+                          { label: "전체 성장", value: totalGrowth !== null ? `${totalGrowth > 0 ? "+" : ""}${totalGrowth}%` : "-", unit: "" },
+                        ].map(({ label, value, unit }) => (
+                          <div key={label} className="bg-card border border-border rounded-2xl p-3 text-center">
+                            <p className="text-[10px] text-muted mb-1">{label}</p>
+                            <p className="text-lg font-extrabold leading-none">{value}</p>
+                            {unit && <p className="text-[10px] text-muted mt-0.5">{unit}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        <>
         {/* 캘린더 */}
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
@@ -474,6 +634,8 @@ export default function HistoryPage() {
             </div>
           </div>
         )}
+        </>
+      )}
       </div>
 
       {/* 운동 수정 모달 */}

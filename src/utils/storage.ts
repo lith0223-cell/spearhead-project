@@ -1,4 +1,4 @@
-import { DietRecord, ExerciseCategory, ExerciseTemplate, MealItem, MealType, Routine, WorkoutSession } from "@/types";
+import { DietRecord, ExerciseCategory, ExerciseTemplate, FoodPreset, MealItem, MealType, Routine, SetRecord, WorkoutSession } from "@/types";
 import { DUMMY_DIET_RECORDS, DUMMY_ROUTINES, DUMMY_WORKOUT_SESSIONS } from "./dummyData";
 
 const STORAGE_KEYS = {
@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   DIETS: "ph_diets",
   HAS_INITIALIZED: "ph_initialized",
   EXERCISE_LIBRARY: "ph_exercise_library",
+  FOOD_PRESETS: "ph_food_presets",
 };
 
 const DEFAULT_EXERCISE_LIBRARY: ExerciseTemplate[] = [
@@ -247,4 +248,122 @@ export const calculate1RM = (weight: number, reps: number): number => {
 
 export const calculateCalories = (carbs: number, protein: number, fat: number): number => {
   return (carbs * 4) + (protein * 4) + (fat * 9);
+};
+
+// --- Food Presets ---
+export const getFoodPresets = (): FoodPreset[] => {
+  if (typeof window === "undefined") return [];
+  const data = localStorage.getItem(STORAGE_KEYS.FOOD_PRESETS);
+  return data ? JSON.parse(data) : [];
+};
+
+export const saveFoodPreset = (preset: FoodPreset) => {
+  if (typeof window === "undefined") return;
+  const presets = getFoodPresets();
+  presets.push(preset);
+  localStorage.setItem(STORAGE_KEYS.FOOD_PRESETS, JSON.stringify(presets));
+};
+
+export const deleteFoodPreset = (id: string) => {
+  if (typeof window === "undefined") return;
+  const presets = getFoodPresets().filter((p) => p.id !== id);
+  localStorage.setItem(STORAGE_KEYS.FOOD_PRESETS, JSON.stringify(presets));
+};
+
+// --- Analytics ---
+export const getSessionsByExerciseName = (name: string): { date: string; sets: SetRecord[] }[] => {
+  const sessions = getWorkoutSessions();
+  return sessions
+    .filter(s => s.exercises.some(e => e.name === name))
+    .map(s => ({
+      date: s.date,
+      sets: s.exercises.find(e => e.name === name)!.sets.filter(set => set.isCompleted),
+    }))
+    .filter(s => s.sets.length > 0)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+};
+
+// --- Workout Stats ---
+const toDateStr = (d: Date) => d.toISOString().split("T")[0];
+
+export const getWorkoutStreak = (): number => {
+  if (typeof window === "undefined") return 0;
+  const sessions = getWorkoutSessions();
+  const workoutDates = new Set(sessions.map(s => toDateStr(new Date(s.date))));
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    if (workoutDates.has(toDateStr(d))) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+};
+
+const getMondayOfWeek = (date: Date): Date => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + offset);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+export const getWeeklyWorkoutCount = (): number => {
+  if (typeof window === "undefined") return 0;
+  const sessions = getWorkoutSessions();
+  const monday = getMondayOfWeek(new Date());
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return new Set(
+    sessions
+      .filter(s => { const d = new Date(s.date); return d >= monday && d <= sunday; })
+      .map(s => toDateStr(new Date(s.date)))
+  ).size;
+};
+
+export const getWorkoutDaysThisWeek = (): boolean[] => {
+  if (typeof window === "undefined") return Array(7).fill(false);
+  const sessions = getWorkoutSessions();
+  const workoutDates = new Set(sessions.map(s => toDateStr(new Date(s.date))));
+  const monday = getMondayOfWeek(new Date());
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return workoutDates.has(toDateStr(d));
+  });
+};
+
+export const getLastWorkoutDaysAgo = (): number | null => {
+  if (typeof window === "undefined") return null;
+  const sessions = getWorkoutSessions();
+  if (sessions.length === 0) return null;
+  const sorted = [...sessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const last = new Date(sorted[0].date);
+  const today = new Date();
+  last.setHours(0, 0, 0, 0); today.setHours(0, 0, 0, 0);
+  return Math.floor((today.getTime() - last.getTime()) / 86400000);
+};
+
+// --- Data Export/Import ---
+export const exportAllData = (): string => {
+  if (typeof window === "undefined") return "{}";
+  const data: Record<string, string> = {};
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith("ph_")) data[key] = localStorage.getItem(key)!;
+  }
+  return JSON.stringify(data, null, 2);
+};
+
+export const importAllData = (json: string) => {
+  if (typeof window === "undefined") return;
+  const data = JSON.parse(json) as Record<string, string>;
+  for (const [k, v] of Object.entries(data)) {
+    if (k.startsWith("ph_")) localStorage.setItem(k, v);
+  }
 };

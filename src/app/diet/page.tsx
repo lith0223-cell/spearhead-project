@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, X, Trash2, Edit, Pencil } from "lucide-react";
-import { getDietRecordsByDate, saveDietRecord, calculateCalories, deleteDietItem, updateDietItem } from "@/utils/storage";
-import { DietRecord, MealItem, MealType } from "@/types";
+import { Plus, X, Trash2, Edit, Pencil, Star } from "lucide-react";
+import { getDietRecordsByDate, saveDietRecord, calculateCalories, deleteDietItem, updateDietItem, getFoodPresets, saveFoodPreset, deleteFoodPreset } from "@/utils/storage";
+import { DietRecord, FoodPreset, MealItem, MealType } from "@/types";
 
 export default function DietPage() {
   const [records, setRecords] = useState<DietRecord[]>([]);
@@ -24,6 +24,7 @@ export default function DietPage() {
   const [isGoalEditing, setIsGoalEditing] = useState(false);
   const [goalDraft, setGoalDraft] = useState("2000");
   const [hasActiveWorkout, setHasActiveWorkout] = useState(false);
+  const [presets, setPresets] = useState<FoodPreset[]>([]);
 
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -32,6 +33,7 @@ export default function DietPage() {
     const savedGoal = parseInt(localStorage.getItem("ph_calorie_goal") || "2000");
     setCalorieGoal(savedGoal);
     setGoalDraft(String(savedGoal));
+    setPresets(getFoodPresets());
 
     try {
       const saved = localStorage.getItem("ph_active_workout");
@@ -80,6 +82,31 @@ export default function DietPage() {
   const carbsPercent = totalCalories > 0 ? Math.round((carbsCal / totalCalories) * 100) : 0;
   const proteinPercent = totalCalories > 0 ? Math.round((proteinCal / totalCalories) * 100) : 0;
   const fatPercent = totalCalories > 0 ? 100 - carbsPercent - proteinPercent : 0;
+
+  const handleSavePreset = () => {
+    if (!foodName.trim() || !carbs || !protein || !fat) return;
+    const preset: FoodPreset = {
+      id: crypto.randomUUID(),
+      name: foodName.trim(),
+      carbs: Number(carbs),
+      protein: Number(protein),
+      fat: Number(fat),
+    };
+    saveFoodPreset(preset);
+    setPresets(getFoodPresets());
+  };
+
+  const handleApplyPreset = (preset: FoodPreset) => {
+    setFoodName(preset.name);
+    setCarbs(String(preset.carbs));
+    setProtein(String(preset.protein));
+    setFat(String(preset.fat));
+  };
+
+  const handleDeletePreset = (id: string) => {
+    deleteFoodPreset(id);
+    setPresets(getFoodPresets());
+  };
 
   const openAddModal = () => {
     setEditingRecordId(null);
@@ -308,6 +335,26 @@ export default function DietPage() {
 
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 overflow-y-auto px-6 space-y-5 pb-2">
+                {/* 즐겨찾기 프리셋 */}
+                {presets.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted">즐겨찾기</label>
+                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                      {presets.map((p) => (
+                        <div key={p.id} className="flex items-center gap-1 shrink-0 bg-background border border-border rounded-full pl-3 pr-1.5 py-1.5">
+                          <button type="button" onClick={() => handleApplyPreset(p)} className="text-xs font-semibold whitespace-nowrap">
+                            {p.name}
+                            <span className="text-muted ml-1 font-normal">{calculateCalories(p.carbs, p.protein, p.fat)}kcal</span>
+                          </button>
+                          <button type="button" onClick={() => handleDeletePreset(p.id)} className="text-muted hover:text-danger transition-colors p-0.5">
+                            <X size={11} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted">식사 종류</label>
                   <div className="grid grid-cols-4 gap-2">
@@ -326,7 +373,19 @@ export default function DietPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted">메뉴명</label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-muted">메뉴명</label>
+                    <button
+                      type="button"
+                      onClick={handleSavePreset}
+                      disabled={!foodName.trim() || !carbs || !protein || !fat}
+                      title="즐겨찾기에 저장"
+                      className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Star size={13} />
+                      즐겨찾기 저장
+                    </button>
+                  </div>
                   <input
                     type="text"
                     required
