@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Plus, X, Trash2, Edit, Pencil, Star } from "lucide-react";
+import { Drawer } from "@/components/ui/Drawer";
 import { getDietRecordsByDate, addItemToDietRecord, calculateCalories, deleteDietItem, updateDietItem, getFoodPresets, saveFoodPreset, deleteFoodPreset } from "@/utils/storage";
 import { DietRecord, FoodPreset, MealItem, MealType } from "@/types";
 
@@ -297,119 +298,114 @@ export default function DietPage() {
       <button
         onClick={openAddModal}
         style={{ bottom: hasActiveWorkout
-          ? "calc(8rem + env(safe-area-inset-bottom, 0px))"
-          : "calc(4.5rem + env(safe-area-inset-bottom, 0px))"
+          ? "calc(10.5rem + env(safe-area-inset-bottom, 0px))"
+          : "calc(5.5rem + env(safe-area-inset-bottom, 0px))"
         }}
         className="fixed right-6 w-14 h-14 bg-accent text-background rounded-full flex items-center justify-center shadow-lg shadow-accent/30 hover:scale-105 active:scale-95 transition-all duration-200"
       >
         <Plus size={28} strokeWidth={3} />
       </button>
 
-      {/* Add/Edit Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setIsModalOpen(false)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col h-[85vh]" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center shrink-0 px-6 pt-6 pb-4">
-              <h2 className="text-xl font-bold">{editingItemId ? "식단 수정" : "식단 추가"}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground">
-                <X size={24} />
-              </button>
+      {/* 식단 추가/수정 Drawer */}
+      <Drawer open={isModalOpen} onClose={() => setIsModalOpen(false)} height="85vh" zIndex={60}>
+        <div className="flex justify-between items-center shrink-0 px-6 pt-3 pb-4">
+          <h2 className="text-xl font-bold">{editingItemId ? "식단 수정" : "식단 추가"}</h2>
+          <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground">
+            <X size={24} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto px-6 space-y-5 pb-2">
+            {presets.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted">즐겨찾기</label>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                  {presets.map((p) => (
+                    <div key={p.id} className="flex items-center gap-1 shrink-0 bg-background border border-border rounded-full pl-3 pr-1.5 py-1.5">
+                      <button type="button" onClick={() => handleApplyPreset(p)} className="text-xs font-semibold whitespace-nowrap">
+                        {p.name}
+                        <span className="text-muted ml-1 font-normal">{calculateCalories(p.carbs, p.protein, p.fat)}kcal</span>
+                      </button>
+                      <button type="button" onClick={() => handleDeletePreset(p.id)} className="text-muted hover:text-danger transition-colors p-0.5">
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted">식사 종류</label>
+              <div className="grid grid-cols-4 gap-2">
+                {(["아침", "점심", "저녁", "간식"] as MealType[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setMealType(t)}
+                    disabled={!!editingItemId}
+                    className={`py-2 rounded-xl text-sm font-medium transition-colors ${mealType === t ? 'bg-accent text-background' : 'bg-background text-foreground border border-border'} disabled:opacity-50`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-              <div className="flex-1 overflow-y-auto px-6 space-y-5 pb-2">
-                {/* 즐겨찾기 프리셋 */}
-                {presets.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted">즐겨찾기</label>
-                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                      {presets.map((p) => (
-                        <div key={p.id} className="flex items-center gap-1 shrink-0 bg-background border border-border rounded-full pl-3 pr-1.5 py-1.5">
-                          <button type="button" onClick={() => handleApplyPreset(p)} className="text-xs font-semibold whitespace-nowrap">
-                            {p.name}
-                            <span className="text-muted ml-1 font-normal">{calculateCalories(p.carbs, p.protein, p.fat)}kcal</span>
-                          </button>
-                          <button type="button" onClick={() => handleDeletePreset(p.id)} className="text-muted hover:text-danger transition-colors p-0.5">
-                            <X size={11} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted">식사 종류</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {(["아침", "점심", "저녁", "간식"] as MealType[]).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setMealType(t)}
-                        disabled={!!editingItemId}
-                        className={`py-2 rounded-xl text-sm font-medium transition-colors ${mealType === t ? 'bg-accent text-background' : 'bg-background text-foreground border border-border'} disabled:opacity-50`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-sm font-medium text-muted">메뉴명</label>
-                    <button
-                      type="button"
-                      onClick={handleSavePreset}
-                      disabled={!foodName.trim() || !carbs || !protein || !fat}
-                      title="즐겨찾기에 저장"
-                      className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <Star size={13} />
-                      즐겨찾기 저장
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={foodName}
-                    onChange={(e) => setFoodName(e.target.value)}
-                    placeholder="예: 닭가슴살 샐러드"
-                    className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted">탄수화물 (g)</label>
-                    <input type="number" required value={carbs} onChange={(e) => setCarbs(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted">단백질 (g)</label>
-                    <input type="number" required value={protein} onChange={(e) => setProtein(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted">지방 (g)</label>
-                    <input type="number" required value={fat} onChange={(e) => setFat(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="shrink-0 px-6 pb-6 pt-4 border-t border-border">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm font-medium text-muted">예상 칼로리</span>
-                  <span className="text-lg font-bold">
-                    {calculateCalories(Number(carbs) || 0, Number(protein) || 0, Number(fat) || 0)} kcal
-                  </span>
-                </div>
-                <button type="submit" className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform">
-                  {editingItemId ? "수정하기" : "기록하기"}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-muted">메뉴명</label>
+                <button
+                  type="button"
+                  onClick={handleSavePreset}
+                  disabled={!foodName.trim() || !carbs || !protein || !fat}
+                  title="즐겨찾기에 저장"
+                  className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <Star size={13} />
+                  즐겨찾기 저장
                 </button>
               </div>
-            </form>
+              <input
+                type="text"
+                required
+                value={foodName}
+                onChange={(e) => setFoodName(e.target.value)}
+                placeholder="예: 닭가슴살 샐러드"
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted">탄수화물 (g)</label>
+                <input type="number" required value={carbs} onChange={(e) => setCarbs(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted">단백질 (g)</label>
+                <input type="number" required value={protein} onChange={(e) => setProtein(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted">지방 (g)</label>
+                <input type="number" required value={fat} onChange={(e) => setFat(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center" />
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="shrink-0 px-6 pb-6 pt-4 border-t border-border">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm font-medium text-muted">예상 칼로리</span>
+              <span className="text-lg font-bold">
+                {calculateCalories(Number(carbs) || 0, Number(protein) || 0, Number(fat) || 0)} kcal
+              </span>
+            </div>
+            <button type="submit" className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform">
+              {editingItemId ? "수정하기" : "기록하기"}
+            </button>
+          </div>
+        </form>
+      </Drawer>
     </main>
   );
 }

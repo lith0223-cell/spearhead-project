@@ -57,6 +57,11 @@ export default function RootLayout({
         <ThemeProvider>
           <SplashScreen />
           <SwRegister />
+          {/* iOS 상단 Safe Area 배경 채우기 (헤더 색상과 일치) */}
+          <div
+            className="fixed top-0 left-0 right-0 z-[200] bg-card pointer-events-none"
+            style={{ height: "env(safe-area-inset-top, 0px)" }}
+          />
           <div className="flex-1 min-h-0 max-w-md mx-auto w-full relative pt-safe">
             {children}
           </div>

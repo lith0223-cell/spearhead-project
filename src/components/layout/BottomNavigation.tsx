@@ -108,11 +108,11 @@ export function BottomNavigation() {
   const workoutHref = `/workout/${activeWorkout?.routineId}?resume=true`;
 
   return (
-    <div className="z-50 shrink-0 bg-card border-t border-border">
-      {/* 이어하기 배너 — 레이아웃 흐름에 포함되어 컨텐츠 영역이 자동으로 줄어듦 */}
+    <div className="z-50 shrink-0">
+      {/* 이어하기 배너 — 배너 영역은 완전 투명, pill만 부유 */}
       {activeWorkout && (
-        <div className="max-w-md mx-auto px-4 pt-2">
-          <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-2.5 shadow-lg shadow-accent/20">
+        <div className="max-w-md mx-auto px-4 pt-3 pb-3">
+          <div className="bg-gradient-to-r from-accent to-accent/80 text-background rounded-2xl py-3 px-4 flex items-center gap-2.5 shadow-xl shadow-accent/40">
             <Link href={workoutHref} className="flex items-center gap-2.5 flex-1 min-w-0 overflow-hidden">
               <span className="relative flex h-2.5 w-2.5 shrink-0">
                 {!isPaused && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />}
@@ -137,9 +137,9 @@ export function BottomNavigation() {
         </div>
       )}
 
-      {/* 내비게이션 */}
-      <div className="pb-safe">
-        <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
+      {/* 내비게이션 — 별도 bg-card로 배너와 완전 분리 */}
+      <div className="bg-card border-t border-border pb-safe">
+        <div className="flex justify-around items-center h-20 max-w-md mx-auto px-4">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));

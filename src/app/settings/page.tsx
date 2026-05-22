@@ -33,6 +33,8 @@ export default function SettingsPage() {
   const [beepVolume, setBeepVolume]       = useState(0.7);
   const [userWeight, setUserWeight]       = useState(70);
   const [userHeight, setUserHeight]       = useState(170);
+  const [weightDraft, setWeightDraft]     = useState("70");
+  const [heightDraft, setHeightDraft]     = useState("170");
 
   useEffect(() => {
     const a  = (localStorage.getItem("ph_accent")      as AccentColor) || "cyan";
@@ -44,17 +46,32 @@ export default function SettingsPage() {
     setCurrentAccent(a); setCurrentMode(m);
     setBeepType(bt); setBeepVolume(bv);
     setUserWeight(wt); setUserHeight(ht);
+    setWeightDraft(String(wt)); setHeightDraft(String(ht));
   }, []);
 
   const handleWeightChange = (delta: number) => {
     const next = Math.max(30, Math.min(200, userWeight + delta));
     setUserWeight(next);
+    setWeightDraft(String(next));
     localStorage.setItem("ph_user_weight", String(next));
   };
   const handleHeightChange = (delta: number) => {
     const next = Math.max(100, Math.min(250, userHeight + delta));
     setUserHeight(next);
+    setHeightDraft(String(next));
     localStorage.setItem("ph_user_height", String(next));
+  };
+  const commitWeight = () => {
+    const v = Math.max(30, Math.min(200, parseInt(weightDraft) || userWeight));
+    setUserWeight(v);
+    setWeightDraft(String(v));
+    localStorage.setItem("ph_user_weight", String(v));
+  };
+  const commitHeight = () => {
+    const v = Math.max(100, Math.min(250, parseInt(heightDraft) || userHeight));
+    setUserHeight(v);
+    setHeightDraft(String(v));
+    localStorage.setItem("ph_user_height", String(v));
   };
   const handleAccentChange = (a: AccentColor) => { setCurrentAccent(a); setAccent(a); };
   const handleModeChange   = (m: ColorMode)   => { setCurrentMode(m);   setMode(m);   };
@@ -124,7 +141,19 @@ export default function SettingsPage() {
                   <button onClick={() => handleWeightChange(-1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
                     <Minus size={14} />
                   </button>
-                  <span className="text-base font-extrabold w-16 text-center tabular-nums">{userWeight} kg</span>
+                  <div className="flex items-center gap-0.5 w-20 justify-center">
+                    <input
+                      type="number"
+                      value={weightDraft}
+                      onChange={(e) => setWeightDraft(e.target.value)}
+                      onBlur={commitWeight}
+                      onKeyDown={(e) => e.key === "Enter" && (e.currentTarget.blur())}
+                      min={30}
+                      max={200}
+                      className="text-base font-extrabold w-12 text-right tabular-nums bg-transparent focus:outline-none focus:text-accent border-b border-border focus:border-accent transition-colors"
+                    />
+                    <span className="text-base font-extrabold text-muted shrink-0">kg</span>
+                  </div>
                   <button onClick={() => handleWeightChange(1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
                     <Plus size={14} />
                   </button>
@@ -139,7 +168,19 @@ export default function SettingsPage() {
                   <button onClick={() => handleHeightChange(-1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
                     <Minus size={14} />
                   </button>
-                  <span className="text-base font-extrabold w-16 text-center tabular-nums">{userHeight} cm</span>
+                  <div className="flex items-center gap-0.5 w-20 justify-center">
+                    <input
+                      type="number"
+                      value={heightDraft}
+                      onChange={(e) => setHeightDraft(e.target.value)}
+                      onBlur={commitHeight}
+                      onKeyDown={(e) => e.key === "Enter" && (e.currentTarget.blur())}
+                      min={100}
+                      max={250}
+                      className="text-base font-extrabold w-12 text-right tabular-nums bg-transparent focus:outline-none focus:text-accent border-b border-border focus:border-accent transition-colors"
+                    />
+                    <span className="text-base font-extrabold text-muted shrink-0">cm</span>
+                  </div>
                   <button onClick={() => handleHeightChange(1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
                     <Plus size={14} />
                   </button>

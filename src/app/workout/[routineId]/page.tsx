@@ -41,6 +41,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [summary, setSummary] = useState<{ exercises: number; sets: number; durationSec: number; calories: number; volumeDiff: number | null } | null>(null);
 
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerInitial, setTimerInitial] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -468,7 +469,17 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
             );
           })}
         </div>
-        <div className="w-8" />
+        {exercisesData.some(ex => ex.sets.some(s => s.isCompleted)) ? (
+          <button
+            onClick={() => setShowFinishConfirm(true)}
+            className="flex items-center gap-1 bg-danger/10 border border-danger/25 text-danger rounded-lg px-2.5 py-1.5 text-xs font-bold active:scale-95 transition-all"
+          >
+            <Square size={10} fill="currentColor" />
+            마무리
+          </button>
+        ) : (
+          <div className="w-16" />
+        )}
       </header>
 
       <main className="flex-1 overflow-y-auto px-6 pb-48">
@@ -694,20 +705,21 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
         )}
       </main>
 
-      {/* 이전 운동 복원 프롬프트 */}
+      {/* 이전 운동 복원 프롬프트 — Drawer */}
       {showResumePrompt && (
         <>
-          {/* 배경 탭 시 이전 페이지로 이동 */}
           <div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
             onClick={() => router.back()}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto">
-            <div
-              className="w-full bg-card border-t border-border rounded-t-3xl p-6 pb-safe"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-12 h-1 bg-border rounded-full mx-auto mb-6" />
+          <div
+            className="fixed bottom-0 left-0 right-0 z-[51] max-w-md mx-auto bg-card rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 shrink-0">
+              <div className="w-10 h-1 bg-border rounded-full" />
+            </div>
+            <div className="p-6 pb-safe">
               <h2 className="text-xl font-extrabold mb-2">진행 중인 운동이 있어요</h2>
               <p className="text-sm text-muted mb-6">이전에 진행하던 운동 기록을 이어서 하시겠어요?</p>
               <div className="flex flex-col gap-3">
@@ -722,6 +734,44 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
                   className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
                 >
                   새로 시작하기
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 운동 마무리 확인 Drawer */}
+      {showFinishConfirm && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => setShowFinishConfirm(false)}
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 z-[51] max-w-md mx-auto bg-card rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 shrink-0">
+              <div className="w-10 h-1 bg-border rounded-full" />
+            </div>
+            <div className="p-6 pb-safe">
+              <h2 className="text-xl font-extrabold mb-2">지금 마무리할까요?</h2>
+              <p className="text-sm text-muted mb-6">
+                완료한 세트까지만 기록하고 운동을 종료합니다.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => { setShowFinishConfirm(false); finishWorkout(); }}
+                  className="w-full py-4 bg-danger text-white rounded-2xl font-extrabold text-base active:scale-95 transition-transform"
+                >
+                  지금 마무리하기
+                </button>
+                <button
+                  onClick={() => setShowFinishConfirm(false)}
+                  className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
+                >
+                  계속하기
                 </button>
               </div>
             </div>
