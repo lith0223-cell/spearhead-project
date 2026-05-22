@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Dumbbell, Utensils, Trash2, Pencil, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Dumbbell, Utensils, Trash2, Pencil, Plus, X } from "lucide-react";
 import {
   getWorkoutSessions,
   getAllDietRecords,
@@ -370,14 +370,21 @@ export default function HistoryPage() {
             </div>
           ) : (
             <>
-              <select
-                value={chartExName}
-                onChange={(e) => setChartExName(e.target.value)}
-                className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm font-semibold focus:outline-none focus:border-accent transition-colors"
-              >
-                <option value="">종목을 선택하세요</option>
-                {allExerciseNames.map(name => <option key={name} value={name}>{name}</option>)}
-              </select>
+              <div className="relative">
+                <select
+                  value={chartExName}
+                  onChange={(e) => setChartExName(e.target.value)}
+                  className="w-full appearance-none bg-card border border-border rounded-xl px-4 py-3 pr-10 text-sm font-semibold text-foreground focus:outline-none focus:border-accent transition-colors cursor-pointer"
+                >
+                  <option value="" className="bg-card text-foreground">종목을 선택하세요</option>
+                  {allExerciseNames.map(name => (
+                    <option key={name} value={name} className="bg-card text-foreground">{name}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
+                  <ChevronDown size={16} />
+                </div>
+              </div>
 
               {chartExName && (
                 <>
