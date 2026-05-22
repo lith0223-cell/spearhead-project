@@ -11,9 +11,18 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+function formatElapsed(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 export function BottomNavigation() {
   const pathname = usePathname();
-  const [activeWorkout, setActiveWorkout] = useState<{ routineId: string; routineName: string } | null>(null);
+  const [activeWorkout, setActiveWorkout] = useState<{ routineId: string; routineName: string; startTime?: number } | null>(null);
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
     const check = () => {
@@ -25,7 +34,7 @@ export function BottomNavigation() {
             ex.sets.some((s) => s.isCompleted)
           );
           if (data.routineId && data.routineName && hasProgress) {
-            setActiveWorkout({ routineId: data.routineId, routineName: data.routineName });
+            setActiveWorkout({ routineId: data.routineId, routineName: data.routineName, startTime: data.startTime });
             return;
           }
         }
@@ -36,6 +45,14 @@ export function BottomNavigation() {
     window.addEventListener("storage", check);
     return () => window.removeEventListener("storage", check);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!activeWorkout?.startTime) { setElapsed(0); return; }
+    const tick = () => setElapsed(Math.floor((Date.now() - activeWorkout.startTime!) / 1000));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [activeWorkout?.startTime]);
 
   const navItems = [
     { label: "홈",       href: "/",         icon: Home        },
@@ -62,6 +79,9 @@ export function BottomNavigation() {
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
                 </span>
                 <span className="flex-1 text-sm font-bold truncate">{activeWorkout.routineName} 진행 중</span>
+                {activeWorkout.startTime && (
+                  <span className="text-sm font-mono shrink-0 opacity-90">{formatElapsed(elapsed)}</span>
+                )}
                 <span className="text-sm font-extrabold shrink-0">이어하기 →</span>
               </div>
             </Link>

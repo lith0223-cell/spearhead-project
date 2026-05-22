@@ -55,6 +55,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   const notifPermAskedRef = useRef(false);
   const savedExDataRef = useRef<ExerciseRecord[]>([]);
   const savedExIndexRef = useRef(0);
+  const workoutStartTimeRef = useRef<number | null>(null);
 
   // 타이머 tick — ref 기반이므로 stale closure 없음
   const tick = () => {
@@ -151,6 +152,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
           if (hasProgress) {
             savedExDataRef.current = parsed.exercisesData;
             savedExIndexRef.current = parsed.currentExIndex ?? 0;
+            workoutStartTimeRef.current = parsed.startTime ?? Date.now();
             if (shouldAutoResume) {
               // 배너에서 진입 시 프롬프트 없이 즉시 복원
               setExercisesData(parsed.exercisesData);
@@ -194,9 +196,12 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
     if (!routine || exercisesData.length === 0 || showResumePrompt) return;
     const hasProgress = exercisesData.some((ex) => ex.sets.some((s) => s.isCompleted));
     if (!hasProgress) return;
+    if (workoutStartTimeRef.current === null) {
+      workoutStartTimeRef.current = Date.now();
+    }
     localStorage.setItem(
       ACTIVE_WORKOUT_KEY,
-      JSON.stringify({ routineId: routine.id, routineName: routine.name, exercisesData, currentExIndex })
+      JSON.stringify({ routineId: routine.id, routineName: routine.name, exercisesData, currentExIndex, startTime: workoutStartTimeRef.current })
     );
   }, [exercisesData, currentExIndex, routine, showResumePrompt]);
 
