@@ -64,6 +64,7 @@ export default function HistoryPage() {
   // 분석 탭
   const [chartExName, setChartExName] = useState<string>("");
   const [chartMetric, setChartMetric] = useState<"1rm" | "weight" | "volume">("1rm");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const refreshData = () => {
     setSessions(getWorkoutSessions());
@@ -371,19 +372,40 @@ export default function HistoryPage() {
           ) : (
             <>
               <div className="relative">
-                <select
-                  value={chartExName}
-                  onChange={(e) => setChartExName(e.target.value)}
-                  className="w-full appearance-none bg-card border border-border rounded-xl px-4 py-3 pr-10 text-sm font-semibold text-foreground focus:outline-none focus:border-accent transition-colors cursor-pointer"
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(p => !p)}
+                  className={`w-full flex items-center justify-between px-4 py-3 bg-card border rounded-xl text-sm font-semibold transition-colors ${isDropdownOpen ? "border-accent" : "border-border"}`}
                 >
-                  <option value="" className="bg-card text-foreground">종목을 선택하세요</option>
-                  {allExerciseNames.map(name => (
-                    <option key={name} value={name} className="bg-card text-foreground">{name}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
-                  <ChevronDown size={16} />
-                </div>
+                  <span className={chartExName ? "text-foreground" : "text-muted"}>
+                    {chartExName || "종목을 선택하세요"}
+                  </span>
+                  <ChevronDown size={16} className={`text-muted transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {isDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsDropdownOpen(false)} />
+                    <div className="absolute top-full left-0 right-0 mt-1.5 z-20 bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="max-h-56 overflow-y-auto py-1">
+                        {allExerciseNames.map(name => (
+                          <button
+                            key={name}
+                            type="button"
+                            onClick={() => { setChartExName(name); setIsDropdownOpen(false); }}
+                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                              chartExName === name
+                                ? "bg-accent/15 text-accent font-semibold"
+                                : "text-foreground hover:bg-background font-medium"
+                            }`}
+                          >
+                            {name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {chartExName && (
