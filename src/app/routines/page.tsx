@@ -9,6 +9,8 @@ import {
   estimateRoutineCalories,
 } from "@/utils/storage";
 import { Routine, RoutineExerciseConfig, ExerciseTemplate, ExerciseCategory } from "@/types";
+import { Drawer, DrawerContent, DrawerClose } from "@/components/ui/drawer";
+import { withVerification } from "@/utils/verifyHelper";
 
 const DEFAULT_REST = 60;
 const MAX_REST = 240;
@@ -162,19 +164,34 @@ export default function RoutinesPage() {
   const handleDelete = (id: string) => {
     if (confirm("정말 삭제하시겠습니까?")) { deleteRoutine(id); setRoutines(getRoutines()); }
   };
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const valid = exerciseConfigs.filter((c) => c.name.trim());
     if (!routineName.trim() || valid.length === 0) return;
-    const newRoutine: Routine = {
-      id: editingId || crypto.randomUUID(),
-      name: routineName,
-      exercises: valid.map((c) => c.name),
-      exerciseConfigs: valid,
-    };
-    saveRoutine(newRoutine);
-    setRoutines(getRoutines());
-    setIsModalOpen(false);
+    
+    await withVerification(
+      editingId ? "루틴 수정" : "루틴 생성",
+      () => {
+        const newRoutine: Routine = {
+          id: editingId || crypto.randomUUID(),
+          name: routineName,
+          exercises: valid.map((c) => c.name),
+          exerciseConfigs: valid,
+        };
+        saveRoutine(newRoutine);
+        return newRoutine;
+      },
+      (result) => {
+        if (!result.name.trim()) return false;
+        if (result.exercises.length === 0) return false;
+        return true;
+      },
+      () => {
+        setRoutines(getRoutines());
+        setIsModalOpen(false);
+      },
+      (err) => alert(`실패: ${err.message}`)
+    );
   };
 
   // ── 피커 ──
@@ -217,12 +234,25 @@ export default function RoutinesPage() {
   const libFiltered = library
     .filter((ex) => libCat === "전체" || ex.category === libCat)
     .sort(libCat === "전체" ? sortByCategory : () => 0);
-  const handleAddExerciseToLibrary = () => {
+  const handleAddExerciseToLibrary = async () => {
     if (!newExName.trim()) return;
-    const newEx: ExerciseTemplate = { id: crypto.randomUUID(), name: newExName.trim(), category: newExCat };
-    saveExerciseToLibrary(newEx);
-    setLibrary(getExerciseLibrary());
-    setNewExName(""); setIsAddExOpen(false);
+    await withVerification(
+      "종목 추가",
+      () => {
+        const newEx: ExerciseTemplate = { id: crypto.randomUUID(), name: newExName.trim(), category: newExCat };
+        saveExerciseToLibrary(newEx);
+        return newEx;
+      },
+      (result) => {
+        if (!result.name.trim()) return false;
+        return true;
+      },
+      () => {
+        setLibrary(getExerciseLibrary());
+        setNewExName(""); setIsAddExOpen(false);
+      },
+      (err) => alert(`실패: ${err.message}`)
+    );
   };
   const handleDeleteFromLibrary = (id: string) => {
     deleteExerciseFromLibrary(id);
@@ -357,15 +387,16 @@ export default function RoutinesPage() {
       )}
 
       {/* ── 루틴 모달 ── */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setIsModalOpen(false)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center px-6 pt-6 pb-4 shrink-0">
-              <h2 className="text-xl font-bold">{editingId ? "루틴 수정" : "새 루틴 만들기"}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
-            </div>
+      <Drawer open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DrawerContent className="h-[85vh] flex flex-col w-full sm:max-w-sm mx-auto">
+          <div className="flex justify-between items-center px-6 pt-6 pb-4 shrink-0">
+            <h2 className="text-xl font-bold">{editingId ? "루틴 수정" : "새 루틴 만들기"}</h2>
+            <DrawerClose asChild>
+              <button className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
+            </DrawerClose>
+          </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-5">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted">루틴 이름</label>
@@ -461,9 +492,8 @@ export default function RoutinesPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        </DrawerContent>
+      </Drawer>
 
       {/* ── 종목 피커 (루틴 빌더용) ── */}
       {isPickerOpen && (
@@ -576,14 +606,15 @@ export default function RoutinesPage() {
       )}
 
       {/* ── 종목 추가 모달 (라이브러리 탭) ── */}
-      {isAddExOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end justify-center animate-in fade-in" onClick={() => setIsAddExOpen(false)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border shadow-2xl h-[62vh] flex flex-col animate-in slide-in-from-bottom-8" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center px-6 pt-6 pb-4 shrink-0">
-              <h3 className="text-lg font-bold">종목 추가</h3>
-              <button onClick={() => setIsAddExOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={22} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 space-y-4">
+      <Drawer open={isAddExOpen} onOpenChange={setIsAddExOpen}>
+        <DrawerContent className="h-[62vh] flex flex-col w-full sm:max-w-sm mx-auto">
+          <div className="flex justify-between items-center px-6 pt-6 pb-4 shrink-0">
+            <h3 className="text-lg font-bold">종목 추가</h3>
+            <DrawerClose asChild>
+              <button className="p-2 -mr-2 text-muted hover:text-foreground"><X size={22} /></button>
+            </DrawerClose>
+          </div>
+          <div className="flex-1 overflow-y-auto px-6 space-y-4">
               <input
                 autoFocus
                 type="text"
@@ -620,9 +651,8 @@ export default function RoutinesPage() {
                 추가
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </DrawerContent>
+      </Drawer>
 
       {/* ── 세트 설정 서브 모달 ── */}
       {configExIdx !== null && exerciseConfigs[configExIdx] && (() => {

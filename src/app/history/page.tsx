@@ -17,6 +17,8 @@ import {
   getSessionsByExerciseName,
 } from "@/utils/storage";
 import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord, SetRecord } from "@/types";
+import { Drawer, DrawerContent, DrawerClose } from "@/components/ui/drawer";
+import { withVerification } from "@/utils/verifyHelper";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MEAL_TYPES: MealType[] = ["아침", "점심", "저녁", "간식"];
@@ -175,11 +177,24 @@ export default function HistoryPage() {
     });
   };
 
-  const handleEditSave = () => {
+  const handleEditSave = async () => {
     if (!editDraft) return;
-    updateWorkoutSession(editDraft);
-    refreshData();
-    setEditDraft(null);
+    await withVerification(
+      "운동 기록 수정",
+      () => {
+        updateWorkoutSession(editDraft);
+        return editDraft;
+      },
+      (result) => {
+        if (!result.exercises || result.exercises.length === 0) return false;
+        return true;
+      },
+      () => {
+        refreshData();
+        setEditDraft(null);
+      },
+      (err) => alert(`수정 실패: ${err.message}`)
+    );
   };
 
   const openAddModal = () => { setAddStep(1); setAddRoutineId(""); setAddExData([]); setIsAddOpen(true); };
@@ -221,7 +236,7 @@ export default function HistoryPage() {
     });
   };
 
-  const handleAddSave = () => {
+  const handleAddSave = async () => {
     if (!selectedDate) return;
     const exercises: ExerciseRecord[] = addExData
       .map((ex) => ({
@@ -231,9 +246,19 @@ export default function HistoryPage() {
       }))
       .filter((ex) => ex.sets.length > 0);
     if (exercises.length === 0) return;
-    saveWorkoutSession({ id: crypto.randomUUID(), routineId: addRoutineId, date: `${selectedDate}T12:00:00.000Z`, exercises });
-    refreshData();
-    setIsAddOpen(false);
+
+    await withVerification(
+      "운동 기록 추가",
+      () => {
+        saveWorkoutSession({ id: crypto.randomUUID(), routineId: addRoutineId, date: `${selectedDate}T12:00:00.000Z`, exercises });
+      },
+      () => true,
+      () => {
+        refreshData();
+        setIsAddOpen(false);
+      },
+      (err) => alert(`추가 실패: ${err.message}`)
+    );
   };
 
   // ── 식단 CRUD ──
@@ -255,20 +280,32 @@ export default function HistoryPage() {
     refreshData();
   };
 
-  const handleDietSubmit = () => {
+  const handleDietSubmit = async () => {
     if (!selectedDate || !dietModal) return;
     const { mode, recordId, itemId, mealType, foodName, carbs, protein, fat } = dietModal;
     if (!foodName || !carbs || !protein || !fat) return;
 
-    if (mode === "edit" && recordId && itemId) {
-      updateDietItem(recordId, { id: itemId, name: foodName, carbs: Number(carbs), protein: Number(protein), fat: Number(fat) });
-    } else {
-      addItemToDietRecord(selectedDate, mealType, {
-        id: crypto.randomUUID(), name: foodName, carbs: Number(carbs), protein: Number(protein), fat: Number(fat),
-      });
-    }
-    refreshData();
-    setDietModal(null);
+    await withVerification(
+      mode === "edit" ? "식단 기록 수정" : "식단 기록 추가",
+      () => {
+        if (mode === "edit" && recordId && itemId) {
+          updateDietItem(recordId, { id: itemId, name: foodName, carbs: Number(carbs), protein: Number(protein), fat: Number(fat) });
+        } else {
+          addItemToDietRecord(selectedDate, mealType, {
+            id: crypto.randomUUID(), name: foodName, carbs: Number(carbs), protein: Number(protein), fat: Number(fat),
+          });
+        }
+      },
+      () => {
+        if (Number(carbs) < 0 || Number(protein) < 0 || Number(fat) < 0) return false;
+        return true;
+      },
+      () => {
+        refreshData();
+        setDietModal(null);
+      },
+      (err) => alert(`식단 저장 실패: ${err.message}`)
+    );
   };
 
   const dietCalPreview = dietModal
@@ -679,15 +716,16 @@ export default function HistoryPage() {
       </div>
 
       {/* 운동 수정 모달 */}
-      {editDraft && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setEditDraft(null)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col h-[85vh]" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-border shrink-0">
-              <h2 className="text-xl font-bold">운동 기록 수정</h2>
-              <button onClick={() => setEditDraft(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {editDraft.exercises.map((ex, exIdx) => (
+      <Drawer open={!!editDraft} onOpenChange={(open) => !open && setEditDraft(null)}>
+        <DrawerContent className="h-[85vh] flex flex-col w-full sm:max-w-sm mx-auto">
+          <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-border shrink-0">
+            <h2 className="text-xl font-bold">운동 기록 수정</h2>
+            <DrawerClose asChild>
+              <button className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
+            </DrawerClose>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            {editDraft?.exercises.map((ex, exIdx) => (
                 <div key={ex.id} className="space-y-2">
                   <p className="text-sm font-bold">{ex.name}</p>
                   {ex.sets.map((set, setIdx) => (
@@ -714,19 +752,19 @@ export default function HistoryPage() {
                 저장하기
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </DrawerContent>
+      </Drawer>
 
       {/* 운동 추가 모달 */}
-      {isAddOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setIsAddOpen(false)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col h-[85vh]" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-border shrink-0">
-              <h2 className="text-xl font-bold">운동 기록 추가</h2>
-              <button onClick={() => setIsAddOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
-            </div>
-            {addStep === 1 ? (
+      <Drawer open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DrawerContent className="h-[85vh] flex flex-col w-full sm:max-w-sm mx-auto">
+          <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-border shrink-0">
+            <h2 className="text-xl font-bold">운동 기록 추가</h2>
+            <DrawerClose asChild>
+              <button className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
+            </DrawerClose>
+          </div>
+          {addStep === 1 ? (
               <div className="flex-1 overflow-y-auto p-6 space-y-3">
                 <p className="text-sm text-muted">루틴을 선택하세요</p>
                 {routines.length === 0 ? (
@@ -772,75 +810,78 @@ export default function HistoryPage() {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
+        </DrawerContent>
+      </Drawer>
 
       {/* 식단 추가/수정 모달 */}
-      {dietModal && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setDietModal(null)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col h-[85vh]" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center shrink-0 px-6 pt-6 pb-4 border-b border-border">
-              <h2 className="text-xl font-bold">{dietModal.mode === "edit" ? "식단 수정" : "식단 추가"}</h2>
-              <button onClick={() => setDietModal(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
-            </div>
+      <Drawer open={!!dietModal} onOpenChange={(open) => !open && setDietModal(null)}>
+        <DrawerContent className="h-[85vh] flex flex-col w-full sm:max-w-sm mx-auto">
+          {dietModal && (
+            <>
+              <div className="flex justify-between items-center shrink-0 px-6 pt-6 pb-4 border-b border-border">
+                <h2 className="text-xl font-bold">{dietModal.mode === "edit" ? "식단 수정" : "식단 추가"}</h2>
+                <DrawerClose asChild>
+                  <button className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
+                </DrawerClose>
+              </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {/* 끼니 선택 */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted">식사 종류</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {MEAL_TYPES.map((t) => (
-                    <button key={t} type="button"
-                      disabled={dietModal.mode === "edit"}
-                      onClick={() => setDietModal((p) => p ? { ...p, mealType: t } : p)}
-                      className={`py-2 rounded-xl text-sm font-medium transition-colors ${dietModal.mealType === t ? "bg-accent text-background" : "bg-background text-foreground border border-border"} disabled:opacity-50`}>
-                      {t}
-                    </button>
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+                {/* 끼니 선택 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted">식사 종류</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {MEAL_TYPES.map((t) => (
+                      <button key={t} type="button"
+                        disabled={dietModal.mode === "edit"}
+                        onClick={() => setDietModal((p) => p ? { ...p, mealType: t } : p)}
+                        className={`py-2 rounded-xl text-sm font-medium transition-colors ${dietModal.mealType === t ? "bg-accent text-background" : "bg-background text-foreground border border-border"} disabled:opacity-50`}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 메뉴명 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted">메뉴명</label>
+                  <input type="text" required value={dietModal.foodName}
+                    onChange={(e) => setDietModal((p) => p ? { ...p, foodName: e.target.value } : p)}
+                    placeholder="예: 닭가슴살 샐러드"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors" />
+                </div>
+
+                {/* 탄단지 */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "탄수화물 (g)", key: "carbs" },
+                    { label: "단백질 (g)",   key: "protein" },
+                    { label: "지방 (g)",     key: "fat" },
+                  ].map(({ label, key }) => (
+                    <div key={key} className="space-y-2">
+                      <label className="text-sm font-medium text-muted">{label}</label>
+                      <input type="number" value={dietModal[key as keyof DietModal] as string}
+                        onChange={(e) => setDietModal((p) => p ? { ...p, [key]: e.target.value } : p)}
+                        className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center focus:outline-none focus:border-accent" />
+                    </div>
                   ))}
                 </div>
               </div>
 
-              {/* 메뉴명 */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted">메뉴명</label>
-                <input type="text" required value={dietModal.foodName}
-                  onChange={(e) => setDietModal((p) => p ? { ...p, foodName: e.target.value } : p)}
-                  placeholder="예: 닭가슴살 샐러드"
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors" />
+              <div className="shrink-0 px-6 pb-6 pt-4 border-t border-border space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-muted">예상 칼로리</span>
+                  <span className="text-lg font-bold">{dietCalPreview} kcal</span>
+                </div>
+                <button onClick={handleDietSubmit}
+                  disabled={!dietModal.foodName || !dietModal.carbs || !dietModal.protein || !dietModal.fat}
+                  className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform disabled:opacity-40">
+                  {dietModal.mode === "edit" ? "수정하기" : "기록하기"}
+                </button>
               </div>
-
-              {/* 탄단지 */}
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: "탄수화물 (g)", key: "carbs" },
-                  { label: "단백질 (g)",   key: "protein" },
-                  { label: "지방 (g)",     key: "fat" },
-                ].map(({ label, key }) => (
-                  <div key={key} className="space-y-2">
-                    <label className="text-sm font-medium text-muted">{label}</label>
-                    <input type="number" value={dietModal[key as keyof DietModal] as string}
-                      onChange={(e) => setDietModal((p) => p ? { ...p, [key]: e.target.value } : p)}
-                      className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center focus:outline-none focus:border-accent" />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="shrink-0 px-6 pb-6 pt-4 border-t border-border space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-muted">예상 칼로리</span>
-                <span className="text-lg font-bold">{dietCalPreview} kcal</span>
-              </div>
-              <button onClick={handleDietSubmit}
-                disabled={!dietModal.foodName || !dietModal.carbs || !dietModal.protein || !dietModal.fat}
-                className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform disabled:opacity-40">
-                {dietModal.mode === "edit" ? "수정하기" : "기록하기"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </DrawerContent>
+      </Drawer>
     </main>
   );
 }

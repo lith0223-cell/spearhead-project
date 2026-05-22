@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Geist } from "next/font/google";
 import "./globals.css";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { SwRegister } from "@/components/SwRegister";
 import { SplashScreen } from "@/components/SplashScreen";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -44,7 +47,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className="h-full antialiased" data-mode="dark" data-accent="cyan">
+    <html lang="ko" className={cn("h-full antialiased", "font-sans", geist.variable)} data-mode="dark" data-accent="cyan">
       <head>
         {/* 테마 깜빡임 방지: 첫 페인트 전 localStorage에서 테마 복원 */}
         <script
