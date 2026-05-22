@@ -375,6 +375,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
       exercises: exercisesInKg,
     };
     saveWorkoutSession(session);
+    stopTimer();
     cancelRestNotification();
     localStorage.removeItem(TIMER_STORAGE_KEY);
     localStorage.removeItem(ACTIVE_WORKOUT_KEY);

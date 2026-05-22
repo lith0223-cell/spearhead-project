@@ -3,8 +3,8 @@
 @theme {
   --color-background: #0f1115;
   --color-foreground: #f8fafc;
-  --color-accent: #00e5ff;
-  --color-accent-hover: #00b8cc;
+  --color-accent: #00F2FF;
+  --color-accent-hover: #00c2cc;
   --color-card: #1e2128;
   --color-card-hover: #262a33;
   --color-border: #333a45;
@@ -36,20 +36,20 @@ html[data-mode="light"] {
 
 /* ── 액센트 컬러 ── */
 html[data-accent="yellow"] {
-  --color-accent: #fede24;
-  --color-accent-hover: #d4b81e;
+  --color-accent: #D4FF00;
+  --color-accent-hover: #aace00;
 }
 html[data-accent="cyan"] {
-  --color-accent: #00e5ff;
-  --color-accent-hover: #00b8cc;
+  --color-accent: #00F2FF;
+  --color-accent-hover: #00c2cc;
 }
 html[data-accent="red"] {
-  --color-accent: #df1b3f;
+  --color-accent: #DF1B3F;
   --color-accent-hover: #b51532;
 }
-html[data-accent="green"] {
-  --color-accent: #a6ff00;
-  --color-accent-hover: #85cc00;
+html[data-accent="purple"] {
+  --color-accent: #8F00FF;
+  --color-accent-hover: #7200cc;
 }
 
 :root {

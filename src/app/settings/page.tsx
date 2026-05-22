@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useTheme, type AccentColor, type ColorMode } from "@/providers/ThemeProvider";
+import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import { Sun, Moon, Check, Play, Minus, Plus, Download, Upload, ChevronDown, User, Palette, Bell, Database } from "lucide-react";
 import { playBeep, resumeAudioContext, BEEP_TYPES, type BeepType } from "@/utils/audio";
 import { exportAllData, importAllData } from "@/utils/storage";
 
 const ACCENT_COLORS: { id: AccentColor; hex: string; label: string }[] = [
-  { id: "yellow", hex: "#fede24", label: "옐로우" },
-  { id: "cyan",   hex: "#00e5ff", label: "사이언" },
-  { id: "red",    hex: "#df1b3f", label: "레드"   },
-  { id: "green",  hex: "#a6ff00", label: "그린"   },
+  { id: "cyan",   hex: "#00F2FF", label: "사이언"  },
+  { id: "yellow", hex: "#D4FF00", label: "옐로우"  },
+  { id: "purple", hex: "#8F00FF", label: "퍼플"    },
+  { id: "red",    hex: "#DF1B3F", label: "레드"    },
 ];
 
 const COLOR_MODES: { id: ColorMode; label: string; Icon: typeof Sun }[] = [
@@ -22,6 +23,7 @@ type SectionId = "profile" | "color" | "sound" | "data";
 
 export default function SettingsPage() {
   const { setAccent, setMode } = useTheme();
+  const { isActive } = useActiveWorkout();
   const [open, setOpen] = useState<Record<SectionId, boolean>>({
     profile: false, color: false, sound: false, data: false,
   });
@@ -116,7 +118,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">설정</h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-8">
+      <div className={`flex-1 overflow-y-auto p-4 space-y-3 ${isActive ? "pb-24" : "pb-8"}`}>
 
         {/* 프로필 */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">

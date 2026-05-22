@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Home, Dumbbell, Utensils, CalendarDays, Settings, Pause, Play } from "lucide-react";
+import { Home, Dumbbell, Utensils, CalendarDays, Settings, Pause, Play, ChevronRight } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -108,12 +108,13 @@ export function BottomNavigation() {
   const workoutHref = `/workout/${activeWorkout?.routineId}?resume=true`;
 
   return (
-    <div className="z-50 shrink-0">
-      {/* 이어하기 배너 — 배너 영역은 완전 투명, pill만 부유 */}
+    <div className="z-50 shrink-0 relative">
+      {/* 이어하기 배너 — absolute로 네비바 위에 부유, 배경 완전 투명 */}
       {activeWorkout && (
-        <div className="max-w-md mx-auto px-4 pt-3 pb-3">
+        <div className="absolute bottom-full left-0 right-0 px-4 pb-2 pointer-events-none">
+          <div className="max-w-md mx-auto pointer-events-auto">
           <div className="bg-gradient-to-r from-accent to-accent/80 text-background rounded-2xl py-3 px-4 flex items-center gap-2.5 shadow-xl shadow-accent/40">
-            <Link href={workoutHref} className="flex items-center gap-2.5 flex-1 min-w-0 overflow-hidden">
+            <Link href={workoutHref} className="flex items-center gap-2.5 flex-1 min-w-0">
               <span className="relative flex h-2.5 w-2.5 shrink-0">
                 {!isPaused && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />}
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
@@ -129,16 +130,19 @@ export function BottomNavigation() {
                   ? <Play size={11} fill="currentColor" />
                   : <Pause size={11} fill="currentColor" />
                 }
-                <span className="text-xs font-mono w-10 text-left">{formatElapsed(elapsed)}</span>
+                <span className="text-xs font-mono tabular-nums">{formatElapsed(elapsed)}</span>
               </button>
             )}
-            <Link href={workoutHref} className="text-sm font-extrabold shrink-0">이어하기 →</Link>
+            <Link href={workoutHref} className="shrink-0 flex items-center justify-center w-8 h-8 bg-white/20 rounded-xl active:scale-90 transition-transform">
+              <ChevronRight size={16} strokeWidth={3} />
+            </Link>
+          </div>
           </div>
         </div>
       )}
 
-      {/* 내비게이션 — 별도 bg-card로 배너와 완전 분리 */}
-      <div className="bg-card border-t border-border pb-safe">
+      {/* 내비게이션 */}
+      <div className="bg-card border-t border-border pb-safe relative z-10">
         <div className="flex justify-around items-center h-20 max-w-md mx-auto px-4">
           {navItems.map((item) => {
             const Icon = item.icon;

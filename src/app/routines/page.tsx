@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Plus, Play, Trash2, Edit, X, GripVertical, Minus, Search, Check } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
+import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import {
   getRoutines, saveRoutine, deleteRoutine, saveRoutinesOrder,
   getExerciseLibrary, saveExerciseToLibrary, deleteExerciseFromLibrary,
@@ -29,6 +30,7 @@ const CAT_COLORS: Record<ExerciseCategory, string> = {
 };
 
 export default function RoutinesPage() {
+  const { isActive } = useActiveWorkout();
   const [activeTab, setActiveTab] = useState<"routines" | "exercises">("routines");
 
   // ── 루틴 상태 ──
@@ -260,7 +262,7 @@ export default function RoutinesPage() {
 
       {/* ── 루틴 탭 ── */}
       {activeTab === "routines" && (
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-8">
+        <div className={`flex-1 overflow-y-auto p-6 space-y-4 ${isActive ? "pb-24" : "pb-8"}`}>
           {routines.map((routine, idx) => {
             const kcal = estimateRoutineCalories(routine, userWeight);
             return (
@@ -324,7 +326,7 @@ export default function RoutinesPage() {
 
       {/* ── 종목 라이브러리 탭 ── */}
       {activeTab === "exercises" && (
-        <div className="flex-1 overflow-y-auto pb-8">
+        <div className={`flex-1 overflow-y-auto ${isActive ? "pb-24" : "pb-8"}`}>
           {/* 카테고리 필터 */}
           <div className="flex gap-2 px-6 py-3 overflow-x-auto scrollbar-none">
             {(["전체", ...CATEGORIES] as const).map((cat) => (

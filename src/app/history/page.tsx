@@ -17,6 +17,7 @@ import {
   getSessionsByExerciseName,
 } from "@/utils/storage";
 import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord, SetRecord } from "@/types";
+import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MEAL_TYPES: MealType[] = ["아침", "점심", "저녁", "간식"];
@@ -37,6 +38,7 @@ type DietModal = {
 };
 
 export default function HistoryPage() {
+  const { isActive } = useActiveWorkout();
   const [today] = useState(new Date());
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -361,7 +363,7 @@ export default function HistoryPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto pb-8">
+      <div className={`flex-1 overflow-y-auto ${isActive ? "pb-24" : "pb-8"}`}>
       {activeTab === "analytics" ? (
         <div className="p-4 space-y-4">
           {allExerciseNames.length === 0 ? (

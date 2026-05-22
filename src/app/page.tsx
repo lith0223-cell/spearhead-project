@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Dumbbell, Utensils } from "lucide-react";
+import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import {
   initializeDummyData,
   getDietRecordsByDate,
@@ -14,6 +15,7 @@ import {
 } from "@/utils/storage";
 
 export default function Home() {
+  const { isActive } = useActiveWorkout();
   const [mounted, setMounted] = useState(false);
   const [calorieGoal, setCalorieGoal] = useState(2000);
   const [stats, setStats] = useState({ calories: 0, carbs: 0, protein: 0, fat: 0 });
@@ -65,7 +67,7 @@ export default function Home() {
         <p className="text-xs text-muted mt-1">{todayStr}</p>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-8">
+      <div className={`flex-1 overflow-y-auto p-6 space-y-4 ${isActive ? "pb-24" : "pb-8"}`}>
         {/* 오늘의 식단 카드 */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">

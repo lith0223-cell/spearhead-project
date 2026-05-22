@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { ThemeProvider } from "@/providers/ThemeProvider";
+import { ActiveWorkoutProvider } from "@/providers/ActiveWorkoutProvider";
 import { SwRegister } from "@/components/SwRegister";
 import { SplashScreen } from "@/components/SplashScreen";
 
@@ -55,6 +56,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} h-dvh flex flex-col overflow-hidden bg-background text-foreground selection:bg-accent selection:text-black`}>
         <ThemeProvider>
+          <ActiveWorkoutProvider>
           <SplashScreen />
           <SwRegister />
           {/* iOS 상단 Safe Area 배경 채우기 (헤더 색상과 일치) */}
@@ -66,6 +68,7 @@ export default function RootLayout({
             {children}
           </div>
           <BottomNavigation />
+          </ActiveWorkoutProvider>
         </ThemeProvider>
       </body>
     </html>

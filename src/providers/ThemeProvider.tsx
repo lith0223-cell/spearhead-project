@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-export type AccentColor = "yellow" | "cyan" | "red" | "green";
+export type AccentColor = "yellow" | "cyan" | "red" | "purple";
 export type ColorMode = "dark" | "light";
 
 interface ThemeContextType {
@@ -25,7 +25,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<ColorMode>("dark");
 
   useEffect(() => {
-    const savedAccent = (localStorage.getItem("ph_accent") as AccentColor) || "cyan";
+    const raw = localStorage.getItem("ph_accent");
+    const savedAccent: AccentColor = (raw === "green" ? "purple" : raw as AccentColor) || "cyan";
     const savedMode = (localStorage.getItem("ph_mode") as ColorMode) || "dark";
     setAccentState(savedAccent);
     setModeState(savedMode);

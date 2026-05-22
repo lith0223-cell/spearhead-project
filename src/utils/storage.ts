@@ -270,6 +270,12 @@ export const deleteFoodPreset = (id: string) => {
   localStorage.setItem(STORAGE_KEYS.FOOD_PRESETS, JSON.stringify(presets));
 };
 
+export const updateFoodPreset = (preset: FoodPreset) => {
+  if (typeof window === "undefined") return;
+  const presets = getFoodPresets().map((p) => (p.id === preset.id ? preset : p));
+  localStorage.setItem(STORAGE_KEYS.FOOD_PRESETS, JSON.stringify(presets));
+};
+
 // --- Analytics ---
 export const getSessionsByExerciseName = (name: string): { date: string; sets: SetRecord[] }[] => {
   const sessions = getWorkoutSessions();
