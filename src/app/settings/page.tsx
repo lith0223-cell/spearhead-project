@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTheme, type AccentColor, type ColorMode } from "@/providers/ThemeProvider";
-import { Sun, Moon, Check, Play } from "lucide-react";
+import { Sun, Moon, Check, Play, Minus, Plus } from "lucide-react";
 import { playBeep, resumeAudioContext, BEEP_TYPES, type BeepType } from "@/utils/audio";
 
 const ACCENT_COLORS: { id: AccentColor; hex: string; label: string }[] = [
@@ -24,17 +24,26 @@ export default function SettingsPage() {
   const [currentMode, setCurrentMode]     = useState<ColorMode>("dark");
   const [beepType, setBeepType]           = useState<BeepType>("single");
   const [beepVolume, setBeepVolume]       = useState(0.7);
+  const [userWeight, setUserWeight]       = useState(70);
 
   useEffect(() => {
     const a = (localStorage.getItem("ph_accent")      as AccentColor) || "cyan";
     const m = (localStorage.getItem("ph_mode")        as ColorMode)   || "dark";
     const bt = (localStorage.getItem("ph_beep_type")  as BeepType)    || "single";
     const bv = parseFloat(localStorage.getItem("ph_beep_volume") || "0.7");
+    const wt = parseInt(localStorage.getItem("ph_user_weight") || "70");
     setCurrentAccent(a);
     setCurrentMode(m);
     setBeepType(bt);
     setBeepVolume(bv);
+    setUserWeight(wt);
   }, []);
+
+  const handleWeightChange = (delta: number) => {
+    const next = Math.max(30, Math.min(200, userWeight + delta));
+    setUserWeight(next);
+    localStorage.setItem("ph_user_weight", String(next));
+  };
 
   const handleAccentChange = (a: AccentColor) => {
     setCurrentAccent(a);
@@ -168,6 +177,32 @@ export default function SettingsPage() {
                 </button>
               );
             })}
+          </div>
+        </section>
+
+        {/* 신체 정보 */}
+        <section className="space-y-4">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest">신체 정보</h2>
+          <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold">체중</p>
+              <p className="text-xs text-muted mt-0.5">칼로리 소모량 계산에 사용됩니다</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => handleWeightChange(-1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted hover:text-foreground active:scale-90 transition-all"
+              >
+                <Minus size={14} />
+              </button>
+              <span className="text-lg font-extrabold w-14 text-center tabular-nums">{userWeight} kg</span>
+              <button
+                onClick={() => handleWeightChange(1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted hover:text-foreground active:scale-90 transition-all"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
           </div>
         </section>
 

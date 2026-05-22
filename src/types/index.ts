@@ -39,6 +39,15 @@ export interface WorkoutSession {
   exercises: ExerciseRecord[];
 }
 
+// 종목 라이브러리
+export type ExerciseCategory = "가슴" | "등" | "어깨" | "팔" | "하체" | "코어" | "유산소" | "기타";
+
+export interface ExerciseTemplate {
+  id: string;
+  name: string;
+  category: ExerciseCategory;
+}
+
 // 식단 관련 타입
 export type MealType = "아침" | "점심" | "저녁" | "간식";
 

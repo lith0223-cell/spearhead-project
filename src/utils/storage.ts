@@ -1,4 +1,4 @@
-import { DietRecord, MealItem, MealType, Routine, WorkoutSession } from "@/types";
+import { DietRecord, ExerciseCategory, ExerciseTemplate, MealItem, MealType, Routine, WorkoutSession } from "@/types";
 import { DUMMY_DIET_RECORDS, DUMMY_ROUTINES, DUMMY_WORKOUT_SESSIONS } from "./dummyData";
 
 const STORAGE_KEYS = {
@@ -6,7 +6,40 @@ const STORAGE_KEYS = {
   SESSIONS: "ph_sessions",
   DIETS: "ph_diets",
   HAS_INITIALIZED: "ph_initialized",
+  EXERCISE_LIBRARY: "ph_exercise_library",
 };
+
+const DEFAULT_EXERCISE_LIBRARY: ExerciseTemplate[] = [
+  { id: "ex-001", name: "바벨 벤치프레스",      category: "가슴" },
+  { id: "ex-002", name: "덤벨 벤치프레스",      category: "가슴" },
+  { id: "ex-003", name: "인클라인 벤치프레스",  category: "가슴" },
+  { id: "ex-004", name: "딥스",                category: "가슴" },
+  { id: "ex-005", name: "케이블 플라이",        category: "가슴" },
+  { id: "ex-006", name: "풀업",                category: "등"   },
+  { id: "ex-007", name: "바벨 데드리프트",      category: "등"   },
+  { id: "ex-008", name: "바벨 로우",           category: "등"   },
+  { id: "ex-009", name: "랫 풀다운",           category: "등"   },
+  { id: "ex-010", name: "시티드 케이블 로우",   category: "등"   },
+  { id: "ex-011", name: "오버헤드 프레스",      category: "어깨" },
+  { id: "ex-012", name: "덤벨 레터럴 레이즈",  category: "어깨" },
+  { id: "ex-013", name: "리어 델트 플라이",     category: "어깨" },
+  { id: "ex-014", name: "바벨 컬",            category: "팔"   },
+  { id: "ex-015", name: "해머 컬",            category: "팔"   },
+  { id: "ex-016", name: "스컬 크러셔",         category: "팔"   },
+  { id: "ex-017", name: "트라이셉스 푸시다운", category: "팔"   },
+  { id: "ex-018", name: "바벨 스쿼트",         category: "하체" },
+  { id: "ex-019", name: "레그 프레스",         category: "하체" },
+  { id: "ex-020", name: "런지",               category: "하체" },
+  { id: "ex-021", name: "레그 컬",            category: "하체" },
+  { id: "ex-022", name: "레그 익스텐션",       category: "하체" },
+  { id: "ex-023", name: "카프 레이즈",         category: "하체" },
+  { id: "ex-024", name: "플랭크",             category: "코어" },
+  { id: "ex-025", name: "크런치",             category: "코어" },
+  { id: "ex-026", name: "레그 레이즈",         category: "코어" },
+  { id: "ex-027", name: "트레드밀",            category: "유산소" },
+  { id: "ex-028", name: "사이클",             category: "유산소" },
+  { id: "ex-029", name: "로잉머신",            category: "유산소" },
+];
 
 // --- Initialization ---
 export const initializeDummyData = () => {
@@ -161,6 +194,42 @@ export const updateDietItem = (recordId: string, updatedItem: MealItem) => {
     }
   }
   localStorage.setItem(STORAGE_KEYS.DIETS, JSON.stringify(allDiets));
+};
+
+// --- Exercise Library ---
+export const getExerciseLibrary = (): ExerciseTemplate[] => {
+  if (typeof window === "undefined") return DEFAULT_EXERCISE_LIBRARY;
+  const data = localStorage.getItem(STORAGE_KEYS.EXERCISE_LIBRARY);
+  if (!data) {
+    localStorage.setItem(STORAGE_KEYS.EXERCISE_LIBRARY, JSON.stringify(DEFAULT_EXERCISE_LIBRARY));
+    return DEFAULT_EXERCISE_LIBRARY;
+  }
+  return JSON.parse(data);
+};
+
+export const saveExerciseToLibrary = (ex: ExerciseTemplate) => {
+  if (typeof window === "undefined") return;
+  const lib = getExerciseLibrary();
+  lib.push(ex);
+  localStorage.setItem(STORAGE_KEYS.EXERCISE_LIBRARY, JSON.stringify(lib));
+};
+
+export const deleteExerciseFromLibrary = (id: string) => {
+  if (typeof window === "undefined") return;
+  const lib = getExerciseLibrary().filter((e) => e.id !== id);
+  localStorage.setItem(STORAGE_KEYS.EXERCISE_LIBRARY, JSON.stringify(lib));
+};
+
+// --- Calorie estimate ---
+export const estimateRoutineCalories = (routine: Routine, weightKg: number): number => {
+  const configs = routine.exerciseConfigs ?? [];
+  if (configs.length === 0) return 0;
+  let totalSeconds = 0;
+  for (const ex of configs) {
+    const sets = ex.sets.length > 0 ? ex.sets : [{ restTime: 60, weight: 0, reps: 0 }, { restTime: 60, weight: 0, reps: 0 }, { restTime: 60, weight: 0, reps: 0 }];
+    for (const s of sets) totalSeconds += 40 + (s.restTime || 60);
+  }
+  return Math.round(4.5 * weightKg * (totalSeconds / 3600));
 };
 
 // --- Utilities ---

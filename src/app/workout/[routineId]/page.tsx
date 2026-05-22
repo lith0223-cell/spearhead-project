@@ -38,6 +38,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   const [unit, setUnit] = useState<"kg" | "lb">("kg");
   const [isEditMode, setIsEditMode] = useState(false);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const [summary, setSummary] = useState<{ exercises: number; sets: number; durationSec: number; calories: number } | null>(null);
 
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerInitial, setTimerInitial] = useState(0);
@@ -289,7 +290,11 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
             const toggled = { ...s, isCompleted: !s.isCompleted };
             if (toggled.isCompleted) {
               currentExNameRef.current = ex.name;
-              startTimer(toggled.restTime || DEFAULT_REST, ex.name);
+              const isLastEx = exIdx === prev.length - 1;
+              const willFinishEx = ex.sets.every((s2, si2) => si2 === setIdx || s2.isCompleted);
+              if (!(isLastEx && willFinishEx)) {
+                startTimer(toggled.restTime || DEFAULT_REST, ex.name);
+              }
             }
             return toggled;
           }),
@@ -367,10 +372,16 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
       exercises: exercisesInKg,
     };
     saveWorkoutSession(session);
+    cancelRestNotification();
     localStorage.removeItem(TIMER_STORAGE_KEY);
     localStorage.removeItem(ACTIVE_WORKOUT_KEY);
-    alert("오운완! 고생하셨습니다.");
-    router.push("/");
+
+    const completedExercises = exercisesInKg.filter((ex) => ex.sets.some((s) => s.isCompleted)).length;
+    const totalSets = exercisesInKg.flatMap((ex) => ex.sets).filter((s) => s.isCompleted).length;
+    const durationSec = workoutStartTimeRef.current ? Math.floor((Date.now() - workoutStartTimeRef.current) / 1000) : 0;
+    const userWeight = parseInt(localStorage.getItem("ph_user_weight") || "70");
+    const calories = Math.round(4.5 * userWeight * (durationSec / 3600));
+    setSummary({ exercises: completedExercises, sets: totalSets, durationSec, calories });
   };
 
   const todayStats = useMemo(() => {
@@ -401,6 +412,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   const formatRestTime = (sec: number) => `${sec}초`;
 
   return (
+    <>
     <div className="flex flex-col h-[100dvh] bg-background">
       <header className="px-6 py-4 flex items-center justify-between sticky top-0 bg-background z-20">
         <button onClick={() => router.back()} className="p-2 -ml-2 text-muted hover:text-foreground">
@@ -720,5 +732,52 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
         </div>
       </div>
     </div>
+
+    {/* 운동 완료 요약 */}
+
+    {summary && (
+      <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center p-8 animate-in fade-in duration-500">
+        <div className="w-full max-w-xs space-y-8">
+          <div className="text-center">
+            <p className="text-xs font-semibold text-muted uppercase tracking-widest mb-2">오운완</p>
+            <h2 className="text-3xl font-extrabold">고생하셨습니다</h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "종목", value: String(summary.exercises), unit: "종목" },
+              { label: "세트",  value: String(summary.sets),      unit: "세트"  },
+              {
+                label: "소요 시간",
+                value: (() => {
+                  const h = Math.floor(summary.durationSec / 3600);
+                  const m = Math.floor((summary.durationSec % 3600) / 60);
+                  const s = summary.durationSec % 60;
+                  if (h > 0) return `${h}시간 ${m}분`;
+                  if (m > 0) return `${m}분 ${s}초`;
+                  return `${s}초`;
+                })(),
+                unit: "",
+              },
+              { label: "소모 칼로리", value: String(summary.calories), unit: "kcal" },
+            ].map(({ label, value, unit }) => (
+              <div key={label} className="bg-card border border-border rounded-2xl p-4 text-center">
+                <p className="text-xs text-muted mb-1">{label}</p>
+                <p className="text-2xl font-extrabold leading-none">{value}</p>
+                {unit && <p className="text-xs text-muted mt-1">{unit}</p>}
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={() => router.push("/")}
+            className="w-full py-4 bg-accent text-background font-extrabold rounded-2xl active:scale-95 transition-transform shadow-lg shadow-accent/30"
+          >
+            홈으로
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
