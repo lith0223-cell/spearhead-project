@@ -351,8 +351,8 @@ export default function RoutinesPage() {
 
       {/* ── 루틴 모달 ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in">
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border p-6 shadow-2xl animate-in slide-in-from-bottom-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setIsModalOpen(false)}>
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border p-6 shadow-2xl animate-in slide-in-from-bottom-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">{editingId ? "루틴 수정" : "새 루틴 만들기"}</h2>
               <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
@@ -458,8 +458,8 @@ export default function RoutinesPage() {
 
       {/* ── 종목 피커 (루틴 빌더용) ── */}
       {isPickerOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[70] flex items-end justify-center animate-in fade-in">
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border shadow-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-8">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[70] flex items-end justify-center animate-in fade-in" onClick={() => setIsPickerOpen(false)}>
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border shadow-2xl h-[80vh] flex flex-col animate-in slide-in-from-bottom-8" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center px-6 pt-6 pb-3 shrink-0">
               <h3 className="text-lg font-bold">종목 선택</h3>
               <button onClick={() => setIsPickerOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={22} /></button>
@@ -568,8 +568,8 @@ export default function RoutinesPage() {
 
       {/* ── 종목 추가 모달 (라이브러리 탭) ── */}
       {isAddExOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end justify-center animate-in fade-in">
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border p-6 shadow-2xl animate-in slide-in-from-bottom-8">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end justify-center animate-in fade-in" onClick={() => setIsAddExOpen(false)}>
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border p-6 shadow-2xl animate-in slide-in-from-bottom-8" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-5">
               <h3 className="text-lg font-bold">종목 추가</h3>
               <button onClick={() => setIsAddExOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={22} /></button>
@@ -617,8 +617,8 @@ export default function RoutinesPage() {
 
       {/* ── 세트 설정 서브 모달 ── */}
       {configExIdx !== null && exerciseConfigs[configExIdx] && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[80] flex items-end justify-center animate-in fade-in">
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border p-6 shadow-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom-8">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[80] flex items-end justify-center animate-in fade-in" onClick={() => setConfigExIdx(null)}>
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border p-6 shadow-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom-8" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-1">
               <h3 className="text-lg font-bold">{exerciseConfigs[configExIdx].name}</h3>
               <button type="button" onClick={() => setConfigExIdx(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>

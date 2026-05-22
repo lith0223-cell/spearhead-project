@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Home, Dumbbell, Utensils, CalendarDays, Settings } from "lucide-react";
+import { Home, Dumbbell, Utensils, CalendarDays, Settings, Pause, Play } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -19,10 +19,14 @@ function formatElapsed(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+const PAUSE_KEY = "ph_workout_pause";
+
 export function BottomNavigation() {
   const pathname = usePathname();
   const [activeWorkout, setActiveWorkout] = useState<{ routineId: string; routineName: string; startTime?: number } | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pausedElapsedSec, setPausedElapsedSec] = useState(0);
 
   useEffect(() => {
     const check = () => {
@@ -35,11 +39,22 @@ export function BottomNavigation() {
           );
           if (data.routineId && data.routineName && hasProgress) {
             setActiveWorkout({ routineId: data.routineId, routineName: data.routineName, startTime: data.startTime });
+            const pausedRaw = localStorage.getItem(PAUSE_KEY);
+            if (pausedRaw) {
+              const pausedSec = parseInt(pausedRaw);
+              setIsPaused(true);
+              setPausedElapsedSec(pausedSec);
+              setElapsed(pausedSec);
+            } else {
+              setIsPaused(false);
+              setPausedElapsedSec(0);
+            }
             return;
           }
         }
       } catch {}
       setActiveWorkout(null);
+      setIsPaused(false);
     };
     check();
     window.addEventListener("storage", check);
@@ -47,56 +62,94 @@ export function BottomNavigation() {
   }, [pathname]);
 
   useEffect(() => {
+    if (isPaused) { setElapsed(pausedElapsedSec); return; }
     if (!activeWorkout?.startTime) { setElapsed(0); return; }
     const tick = () => setElapsed(Math.floor((Date.now() - activeWorkout.startTime!) / 1000));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [activeWorkout?.startTime]);
+  }, [activeWorkout?.startTime, isPaused, pausedElapsedSec]);
+
+  const handleTogglePause = () => {
+    if (isPaused) {
+      // 재개: startTime을 현재 기준으로 재계산
+      const newStartTime = Date.now() - pausedElapsedSec * 1000;
+      try {
+        const saved = localStorage.getItem("ph_active_workout");
+        if (saved) {
+          const data = JSON.parse(saved);
+          data.startTime = newStartTime;
+          localStorage.setItem("ph_active_workout", JSON.stringify(data));
+          setActiveWorkout((prev) => prev ? { ...prev, startTime: newStartTime } : null);
+        }
+      } catch {}
+      localStorage.removeItem(PAUSE_KEY);
+      setIsPaused(false);
+    } else {
+      // 일시정지
+      const cur = activeWorkout?.startTime ? Math.floor((Date.now() - activeWorkout.startTime) / 1000) : elapsed;
+      setPausedElapsedSec(cur);
+      setElapsed(cur);
+      localStorage.setItem(PAUSE_KEY, String(cur));
+      setIsPaused(true);
+    }
+  };
 
   const navItems = [
-    { label: "홈",       href: "/",         icon: Home        },
-    { label: "운동",     href: "/routines", icon: Dumbbell    },
-    { label: "식단",     href: "/diet",     icon: Utensils    },
-    { label: "기록",     href: "/history",  icon: CalendarDays},
-    { label: "설정",     href: "/settings", icon: Settings    },
+    { label: "홈",   href: "/",         icon: Home         },
+    { label: "운동", href: "/routines", icon: Dumbbell     },
+    { label: "식단", href: "/diet",     icon: Utensils     },
+    { label: "기록", href: "/history",  icon: CalendarDays },
+    { label: "설정", href: "/settings", icon: Settings     },
   ];
 
-  if (pathname.startsWith("/workout/")) {
-    return null;
-  }
+  if (pathname.startsWith("/workout/")) return null;
+
+  const workoutHref = `/workout/${activeWorkout?.routineId}?resume=true`;
 
   return (
     <div className="relative z-50 shrink-0">
-      {/* 이어하기 배너 — 네비 위에 absolute floating, 네비 높이 불변 */}
+      {/* 이어하기 배너 */}
       {activeWorkout && (
         <div className="absolute bottom-full left-0 right-0 pb-2 pointer-events-none">
           <div className="max-w-md mx-auto px-4 pointer-events-auto">
-            <Link href={`/workout/${activeWorkout.routineId}?resume=true`}>
-              <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-3 shadow-lg shadow-black/20">
+            <div className="bg-accent text-background rounded-xl py-2.5 px-4 flex items-center gap-2.5 shadow-lg shadow-black/20">
+              {/* 핑 + 루틴명 → 워크아웃으로 이동 */}
+              <Link href={workoutHref} className="flex items-center gap-2.5 flex-1 min-w-0 overflow-hidden">
                 <span className="relative flex h-2.5 w-2.5 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                  {!isPaused && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />}
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
                 </span>
-                <span className="flex-1 text-sm font-bold truncate">{activeWorkout.routineName} 진행 중</span>
-                {activeWorkout.startTime && (
-                  <span className="text-sm font-mono shrink-0 opacity-90">{formatElapsed(elapsed)}</span>
-                )}
-                <span className="text-sm font-extrabold shrink-0">이어하기 →</span>
-              </div>
-            </Link>
+                <span className="text-sm font-bold truncate">{activeWorkout.routineName} 진행 중</span>
+              </Link>
+
+              {/* 소요시간 + 일시정지 버튼 */}
+              {activeWorkout.startTime && (
+                <button
+                  onClick={handleTogglePause}
+                  className="flex items-center gap-1.5 shrink-0 bg-black/15 rounded-lg px-2.5 py-1 active:scale-90 transition-transform"
+                >
+                  {isPaused
+                    ? <Play size={11} fill="currentColor" />
+                    : <Pause size={11} fill="currentColor" />
+                  }
+                  <span className="text-xs font-mono w-10 text-left">{formatElapsed(elapsed)}</span>
+                </button>
+              )}
+
+              {/* 이어하기 링크 */}
+              <Link href={workoutHref} className="text-sm font-extrabold shrink-0">이어하기 →</Link>
+            </div>
           </div>
         </div>
       )}
-      {/* 내비게이션 — 높이 항상 고정 */}
+
+      {/* 내비게이션 */}
       <div className="bg-card border-t border-border pb-safe">
         <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/" && pathname.startsWith(item.href));
-
+            const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             return (
               <Link
                 key={item.href}
