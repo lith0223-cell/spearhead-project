@@ -187,9 +187,9 @@ export default function RoutinesPage() {
   const handlePickExercise = (ex: ExerciseTemplate) => {
     if (pickerTargetIdx === null) return;
     if (pickerTargetIdx === -1) {
-      setExerciseConfigs((prev) => [...prev, { name: ex.name, sets: [] }]);
+      setExerciseConfigs((prev) => [...prev, { name: ex.name, sets: [], category: ex.category }]);
     } else {
-      setExerciseConfigs((prev) => prev.map((c, i) => i === pickerTargetIdx ? { ...c, name: ex.name } : c));
+      setExerciseConfigs((prev) => prev.map((c, i) => i === pickerTargetIdx ? { ...c, name: ex.name, category: ex.category } : c));
     }
     setIsPickerOpen(false); setPickerTargetIdx(null);
   };
@@ -616,50 +616,66 @@ export default function RoutinesPage() {
       )}
 
       {/* ── 세트 설정 서브 모달 ── */}
-      {configExIdx !== null && exerciseConfigs[configExIdx] && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[80] flex items-end justify-center animate-in fade-in" onClick={() => setConfigExIdx(null)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border p-6 shadow-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom-8" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-1">
-              <h3 className="text-lg font-bold">{exerciseConfigs[configExIdx].name}</h3>
-              <button type="button" onClick={() => setConfigExIdx(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
-            </div>
-            <p className="text-xs text-muted mb-4">기본 세트를 설정하면 운동 시작 시 자동으로 적용됩니다.</p>
+      {configExIdx !== null && exerciseConfigs[configExIdx] && (() => {
+        const isCardioConfig = exerciseConfigs[configExIdx].category === "유산소";
+        return (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[80] flex items-end justify-center animate-in fade-in" onClick={() => setConfigExIdx(null)}>
+            <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border p-6 shadow-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom-8" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-1">
+                <h3 className="text-lg font-bold">{exerciseConfigs[configExIdx].name}</h3>
+                <button type="button" onClick={() => setConfigExIdx(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
+              </div>
+              <p className="text-xs text-muted mb-4">기본 세트를 설정하면 운동 시작 시 자동으로 적용됩니다.</p>
 
-            <div className="space-y-2 mb-3">
-              {exerciseConfigs[configExIdx].sets.map((set, sIdx) => (
-                <div key={sIdx} className="p-3 bg-background rounded-xl border border-border space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-muted w-5 text-center shrink-0">{sIdx + 1}</span>
-                    <input type="number" value={set.weight || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "weight", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
-                    <span className="text-xs text-muted shrink-0">kg ×</span>
-                    <input type="number" value={set.reps || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "reps", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
-                    <span className="text-xs text-muted shrink-0">회</span>
-                    <button type="button" onClick={() => removeConfigSet(configExIdx, sIdx)} className="text-muted hover:text-danger p-1 shrink-0 transition-colors"><Trash2 size={14} /></button>
-                  </div>
-                  <div className="flex items-center justify-between pl-6">
-                    <span className="text-xs text-muted">휴식</span>
+              <div className="space-y-2 mb-3">
+                {exerciseConfigs[configExIdx].sets.map((set, sIdx) => (
+                  <div key={sIdx} className="p-3 bg-background rounded-xl border border-border space-y-2">
                     <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => updateConfigSet(configExIdx, sIdx, "restTime", Math.max(REST_STEP, (set.restTime || DEFAULT_REST) - REST_STEP))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-card border border-border text-muted hover:text-foreground active:scale-90 transition-all"><Minus size={13} /></button>
-                      <span className="text-sm font-bold w-12 text-center">{set.restTime || DEFAULT_REST}초</span>
-                      <button type="button" onClick={() => updateConfigSet(configExIdx, sIdx, "restTime", Math.min(MAX_REST, (set.restTime || DEFAULT_REST) + REST_STEP))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-card border border-border text-muted hover:text-foreground active:scale-90 transition-all"><Plus size={13} /></button>
+                      <span className="text-xs font-bold text-muted w-5 text-center shrink-0">{sIdx + 1}</span>
+                      {isCardioConfig ? (
+                        <>
+                          <input type="number" value={set.weight || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "weight", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
+                          <span className="text-xs text-muted shrink-0">km</span>
+                          <input type="number" value={set.reps || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "reps", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
+                          <span className="text-xs text-muted shrink-0">분</span>
+                        </>
+                      ) : (
+                        <>
+                          <input type="number" value={set.weight || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "weight", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
+                          <span className="text-xs text-muted shrink-0">kg ×</span>
+                          <input type="number" value={set.reps || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "reps", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
+                          <span className="text-xs text-muted shrink-0">회</span>
+                        </>
+                      )}
+                      <button type="button" onClick={() => removeConfigSet(configExIdx, sIdx)} className="text-muted hover:text-danger p-1 shrink-0 transition-colors"><Trash2 size={14} /></button>
                     </div>
+                    {!isCardioConfig && (
+                      <div className="flex items-center justify-between pl-6">
+                        <span className="text-xs text-muted">휴식</span>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => updateConfigSet(configExIdx, sIdx, "restTime", Math.max(REST_STEP, (set.restTime || DEFAULT_REST) - REST_STEP))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-card border border-border text-muted hover:text-foreground active:scale-90 transition-all"><Minus size={13} /></button>
+                          <span className="text-sm font-bold w-12 text-center">{set.restTime || DEFAULT_REST}초</span>
+                          <button type="button" onClick={() => updateConfigSet(configExIdx, sIdx, "restTime", Math.min(MAX_REST, (set.restTime || DEFAULT_REST) + REST_STEP))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-card border border-border text-muted hover:text-foreground active:scale-90 transition-all"><Plus size={13} /></button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
-              {exerciseConfigs[configExIdx].sets.length === 0 && (
-                <p className="text-center text-xs text-muted py-6">아래 버튼으로 세트를 추가해주세요.</p>
-              )}
-            </div>
+                ))}
+                {exerciseConfigs[configExIdx].sets.length === 0 && (
+                  <p className="text-center text-xs text-muted py-6">아래 버튼으로 세트를 추가해주세요.</p>
+                )}
+              </div>
 
-            <button type="button" onClick={() => addConfigSet(configExIdx)} className="w-full py-2.5 border-2 border-dashed border-border rounded-xl text-sm font-medium text-muted hover:text-foreground hover:border-muted transition-colors mb-4">
-              + 세트 추가
-            </button>
-            <button type="button" onClick={() => setConfigExIdx(null)} className="w-full py-4 bg-foreground text-background font-bold rounded-xl active:scale-95 transition-transform">
-              완료
-            </button>
+              <button type="button" onClick={() => addConfigSet(configExIdx)} className="w-full py-2.5 border-2 border-dashed border-border rounded-xl text-sm font-medium text-muted hover:text-foreground hover:border-muted transition-colors mb-4">
+                + {isCardioConfig ? "구간 추가" : "세트 추가"}
+              </button>
+              <button type="button" onClick={() => setConfigExIdx(null)} className="w-full py-4 bg-foreground text-background font-bold rounded-xl active:scale-95 transition-transform">
+                완료
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </main>
   );
 }

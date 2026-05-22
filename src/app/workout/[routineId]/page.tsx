@@ -380,22 +380,45 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
     const totalSets = exercisesInKg.flatMap((ex) => ex.sets).filter((s) => s.isCompleted).length;
     const durationSec = workoutStartTimeRef.current ? Math.floor((Date.now() - workoutStartTimeRef.current) / 1000) : 0;
     const userWeight = parseInt(localStorage.getItem("ph_user_weight") || "70");
-    const calories = Math.round(4.5 * userWeight * (durationSec / 3600));
-    setSummary({ exercises: completedExercises, sets: totalSets, durationSec, calories });
+    let calories = 0;
+    for (const ex of exercisesInKg) {
+      const exCategory = routine.exerciseConfigs?.find((c) => c.name === ex.name)?.category;
+      const isCardio = exCategory === "유산소";
+      for (const s of ex.sets) {
+        if (!s.isCompleted) continue;
+        if (isCardio) {
+          calories += 7.5 * userWeight * ((s.reps || 0) / 60);
+        } else {
+          calories += 4.5 * userWeight * ((40 + (s.restTime || 60)) / 3600);
+        }
+      }
+    }
+    setSummary({ exercises: completedExercises, sets: totalSets, durationSec, calories: Math.round(calories) });
   };
 
   const todayStats = useMemo(() => {
     const ex = exercisesData[currentExIndex];
     if (!ex) return null;
-    const done = ex.sets.filter((s) => s.isCompleted && s.weight > 0 && s.reps > 0);
+    const isCardio = routine?.exerciseConfigs?.find((c) => c.name === ex.name)?.category === "유산소";
+    const done = ex.sets.filter((s) => s.isCompleted && s.reps > 0);
     if (done.length === 0) return null;
+    if (isCardio) {
+      return {
+        isCardio: true as const,
+        totalDist: done.reduce((sum, s) => sum + (s.weight || 0), 0),
+        totalMin: done.reduce((sum, s) => sum + (s.reps || 0), 0),
+      };
+    }
+    const doneWeighted = done.filter((s) => s.weight > 0);
+    if (doneWeighted.length === 0) return null;
     const toUnit = (w: number) => unit === "lb" ? Math.round(w * KG_TO_LB) : w;
     return {
-      maxRM:      Math.max(...done.map((s) => calculate1RM(toUnit(s.weight), s.reps))),
-      maxWeight:  Math.max(...done.map((s) => toUnit(s.weight))),
-      totalVolume: done.reduce((sum, s) => sum + toUnit(s.weight) * s.reps, 0),
+      isCardio: false as const,
+      maxRM:      Math.max(...doneWeighted.map((s) => calculate1RM(toUnit(s.weight), s.reps))),
+      maxWeight:  Math.max(...doneWeighted.map((s) => toUnit(s.weight))),
+      totalVolume: doneWeighted.reduce((sum, s) => sum + toUnit(s.weight) * s.reps, 0),
     };
-  }, [exercisesData, currentExIndex, unit]);
+  }, [exercisesData, currentExIndex, unit, routine]);
 
   const recentSessions = useMemo(() => {
     const ex = exercisesData[currentExIndex];
@@ -408,6 +431,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
   const currentExercise = exercisesData[currentExIndex];
   const lastSession = getLastSessionByExercise(currentExercise.name);
   const lastEx = lastSession?.exercises.find((e) => e.name === currentExercise.name);
+  const isCardioExercise = routine.exerciseConfigs?.find((c) => c.name === currentExercise.name)?.category === "유산소";
 
   const formatRestTime = (sec: number) => `${sec}초`;
 
@@ -435,28 +459,40 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
             <h1 className="text-3xl font-extrabold">{currentExercise.name}</h1>
             {lastEx && lastEx.sets.length > 0 && (
               <p className="text-sm text-muted mt-2">
-                지난번 최고기록:{" "}
-                {Math.max(...lastEx.sets.filter((s) => s.isCompleted).map((s) => s.weight))}kg x{" "}
-                {Math.max(...lastEx.sets.filter((s) => s.isCompleted).map((s) => s.reps))}회
+                {isCardioExercise ? (
+                  <>
+                    지난번:{" "}
+                    {lastEx.sets.filter((s) => s.isCompleted).reduce((sum, s) => sum + (s.weight || 0), 0).toFixed(1)}km{" "}
+                    / {lastEx.sets.filter((s) => s.isCompleted).reduce((sum, s) => sum + (s.reps || 0), 0)}분
+                  </>
+                ) : (
+                  <>
+                    지난번 최고기록:{" "}
+                    {Math.max(...lastEx.sets.filter((s) => s.isCompleted).map((s) => s.weight))}kg x{" "}
+                    {Math.max(...lastEx.sets.filter((s) => s.isCompleted).map((s) => s.reps))}회
+                  </>
+                )}
               </p>
             )}
           </div>
-          <button
-            onClick={toggleUnit}
-            className="px-3 py-1 bg-card border border-border rounded-lg text-sm font-bold active:scale-95"
-          >
-            {unit.toUpperCase()}
-          </button>
+          {!isCardioExercise && (
+            <button
+              onClick={toggleUnit}
+              className="px-3 py-1 bg-card border border-border rounded-lg text-sm font-bold active:scale-95"
+            >
+              {unit.toUpperCase()}
+            </button>
+          )}
         </div>
 
         {/* Sets */}
         <div className="space-y-3">
           <div className="flex text-xs font-medium text-muted px-2 mb-2 items-center">
-            <span className="w-8 text-center">세트</span>
-            <span className="flex-1 text-center">무게 ({unit})</span>
-            <span className="flex-1 text-center">횟수</span>
-            <span className="w-24 text-center">휴식</span>
-            <span className="w-10 text-center">완료</span>
+            <span className="w-8 text-center">{isCardioExercise ? "구간" : "세트"}</span>
+            <span className="flex-1 text-center">{isCardioExercise ? "거리 (km)" : `무게 (${unit})`}</span>
+            <span className="flex-1 text-center">{isCardioExercise ? "시간 (분)" : "횟수"}</span>
+            {!isCardioExercise && <span className="w-24 text-center">휴식</span>}
+            <span className={`${isCardioExercise ? "w-10" : "w-10"} text-center`}>완료</span>
             <button
               onClick={() => setIsEditMode((p) => !p)}
               title={isEditMode ? "편집 완료" : "세트 편집 (삭제 활성화)"}
@@ -499,27 +535,29 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
                   />
                 </div>
 
-                <div className="w-24 flex items-center justify-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => updateSetRestTime(currentExIndex, sIdx, -REST_STEP)}
-                    disabled={set.isCompleted || (set.restTime || DEFAULT_REST) <= REST_STEP}
-                    className="w-6 h-6 flex items-center justify-center text-muted hover:text-foreground disabled:opacity-20"
-                  >
-                    <Minus size={12} />
-                  </button>
-                  <span className="text-xs font-bold text-muted whitespace-nowrap">
-                    {formatRestTime(set.restTime || DEFAULT_REST)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => updateSetRestTime(currentExIndex, sIdx, REST_STEP)}
-                    disabled={set.isCompleted || (set.restTime || DEFAULT_REST) >= MAX_REST_SECONDS}
-                    className="w-6 h-6 flex items-center justify-center text-muted hover:text-foreground disabled:opacity-20"
-                  >
-                    <Plus size={12} />
-                  </button>
-                </div>
+                {!isCardioExercise && (
+                  <div className="w-24 flex items-center justify-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => updateSetRestTime(currentExIndex, sIdx, -REST_STEP)}
+                      disabled={set.isCompleted || (set.restTime || DEFAULT_REST) <= REST_STEP}
+                      className="w-6 h-6 flex items-center justify-center text-muted hover:text-foreground disabled:opacity-20"
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <span className="text-xs font-bold text-muted whitespace-nowrap">
+                      {formatRestTime(set.restTime || DEFAULT_REST)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateSetRestTime(currentExIndex, sIdx, REST_STEP)}
+                      disabled={set.isCompleted || (set.restTime || DEFAULT_REST) >= MAX_REST_SECONDS}
+                      className="w-6 h-6 flex items-center justify-center text-muted hover:text-foreground disabled:opacity-20"
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                )}
 
                 <button
                   onClick={() => handleSetToggle(currentExIndex, sIdx)}
@@ -557,27 +595,40 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
           onClick={() => addSet(currentExIndex)}
           className="w-full mt-4 py-3 border-2 border-dashed border-border rounded-2xl text-muted font-bold hover:text-foreground hover:border-muted transition-colors"
         >
-          + 세트 추가
+          + {isCardioExercise ? "구간 추가" : "세트 추가"}
         </button>
 
         {/* 금일 기록 */}
         {todayStats && (
           <div className="mt-4 p-4 bg-accent/10 border border-accent/20 rounded-2xl animate-in fade-in duration-300">
             <p className="text-xs font-semibold text-muted mb-3">금일 기록</p>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
-                <p className="text-[11px] text-muted mb-0.5">예상 1RM</p>
-                <p className="text-xl font-extrabold text-accent">{todayStats.maxRM}{unit}</p>
+            {todayStats.isCardio ? (
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div>
+                  <p className="text-[11px] text-muted mb-0.5">총 거리</p>
+                  <p className="text-xl font-extrabold text-accent">{todayStats.totalDist.toFixed(1)}km</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted mb-0.5">총 시간</p>
+                  <p className="text-xl font-extrabold">{todayStats.totalMin}분</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[11px] text-muted mb-0.5">최대 무게</p>
-                <p className="text-xl font-extrabold">{todayStats.maxWeight}{unit}</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-[11px] text-muted mb-0.5">예상 1RM</p>
+                  <p className="text-xl font-extrabold text-accent">{todayStats.maxRM}{unit}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted mb-0.5">최대 무게</p>
+                  <p className="text-xl font-extrabold">{todayStats.maxWeight}{unit}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted mb-0.5">총 볼륨</p>
+                  <p className="text-xl font-extrabold">{todayStats.totalVolume}{unit}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[11px] text-muted mb-0.5">총 볼륨</p>
-                <p className="text-xl font-extrabold">{todayStats.totalVolume}{unit}</p>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -606,9 +657,11 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
                           const w = unit === "lb" ? Math.round(s.weight * KG_TO_LB) : s.weight;
                           return (
                             <span key={s.id} className="text-xs text-muted">
-                              {i + 1}세트{" "}
+                              {i + 1}{isCardioExercise ? "구간" : "세트"}{" "}
                               <span className="text-foreground font-semibold">
-                                {w}{unit}×{s.reps}회
+                                {isCardioExercise
+                                  ? `${(s.weight || 0).toFixed(1)}km×${s.reps}분`
+                                  : `${w}${unit}×${s.reps}회`}
                               </span>
                             </span>
                           );

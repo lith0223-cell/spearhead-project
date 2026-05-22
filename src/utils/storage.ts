@@ -224,12 +224,18 @@ export const deleteExerciseFromLibrary = (id: string) => {
 export const estimateRoutineCalories = (routine: Routine, weightKg: number): number => {
   const configs = routine.exerciseConfigs ?? [];
   if (configs.length === 0) return 0;
-  let totalSeconds = 0;
+  let totalCal = 0;
   for (const ex of configs) {
-    const sets = ex.sets.length > 0 ? ex.sets : [{ restTime: 60, weight: 0, reps: 0 }, { restTime: 60, weight: 0, reps: 0 }, { restTime: 60, weight: 0, reps: 0 }];
-    for (const s of sets) totalSeconds += 40 + (s.restTime || 60);
+    const isCardio = ex.category === "유산소";
+    if (isCardio) {
+      const sets = ex.sets.length > 0 ? ex.sets : [{ restTime: 0, weight: 0, reps: 30 }];
+      for (const s of sets) totalCal += 7.5 * weightKg * ((s.reps || 30) / 60);
+    } else {
+      const sets = ex.sets.length > 0 ? ex.sets : [{ restTime: 60, weight: 0, reps: 0 }, { restTime: 60, weight: 0, reps: 0 }, { restTime: 60, weight: 0, reps: 0 }];
+      for (const s of sets) totalCal += 4.5 * weightKg * ((40 + (s.restTime || 60)) / 3600);
+    }
   }
-  return Math.round(4.5 * weightKg * (totalSeconds / 3600));
+  return Math.round(totalCal);
 };
 
 // --- Utilities ---

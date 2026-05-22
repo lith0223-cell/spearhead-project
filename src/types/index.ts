@@ -1,5 +1,8 @@
 export type WeightUnit = "kg" | "lb";
 
+// 종목 카테고리
+export type ExerciseCategory = "가슴" | "등" | "어깨" | "팔" | "하체" | "코어" | "유산소" | "기타";
+
 export interface SetRecord {
   id: string;
   weight: number;
@@ -23,6 +26,7 @@ export interface RoutineSetTemplate {
 export interface RoutineExerciseConfig {
   name: string;
   sets: RoutineSetTemplate[];
+  category?: ExerciseCategory;
 }
 
 export interface Routine {
@@ -40,8 +44,6 @@ export interface WorkoutSession {
 }
 
 // 종목 라이브러리
-export type ExerciseCategory = "가슴" | "등" | "어깨" | "팔" | "하체" | "코어" | "유산소" | "기타";
-
 export interface ExerciseTemplate {
   id: string;
   name: string;
