@@ -479,7 +479,7 @@ export default function HistoryPage() {
       {/* 운동 수정 모달 */}
       {editDraft && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setEditDraft(null)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col h-[85vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-border shrink-0">
               <h2 className="text-xl font-bold">운동 기록 수정</h2>
               <button onClick={() => setEditDraft(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
@@ -519,7 +519,7 @@ export default function HistoryPage() {
       {/* 운동 추가 모달 */}
       {isAddOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setIsAddOpen(false)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col h-[85vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-border shrink-0">
               <h2 className="text-xl font-bold">운동 기록 추가</h2>
               <button onClick={() => setIsAddOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
@@ -577,7 +577,7 @@ export default function HistoryPage() {
       {/* 식단 추가/수정 모달 */}
       {dietModal && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setDietModal(null)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col h-[85vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center shrink-0 px-6 pt-6 pb-4 border-b border-border">
               <h2 className="text-xl font-bold">{dietModal.mode === "edit" ? "식단 수정" : "식단 추가"}</h2>
               <button onClick={() => setDietModal(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>

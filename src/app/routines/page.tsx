@@ -201,15 +201,22 @@ export default function RoutinesPage() {
     handlePickExercise(newEx);
   };
 
-  const pickerFiltered = library.filter((ex) => {
-    const matchCat = pickerCat === "전체" || ex.category === pickerCat;
-    const matchSearch = ex.name.includes(pickerSearch);
-    return matchCat && matchSearch;
-  });
+  const sortByCategory = (a: ExerciseTemplate, b: ExerciseTemplate) =>
+    CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category);
+
+  const pickerFiltered = library
+    .filter((ex) => {
+      const matchCat = pickerCat === "전체" || ex.category === pickerCat;
+      const matchSearch = ex.name.includes(pickerSearch);
+      return matchCat && matchSearch;
+    })
+    .sort(pickerCat === "전체" ? sortByCategory : () => 0);
   const addedNames = new Set(exerciseConfigs.map((c) => c.name));
 
   // ── 종목 라이브러리 ──
-  const libFiltered = library.filter((ex) => libCat === "전체" || ex.category === libCat);
+  const libFiltered = library
+    .filter((ex) => libCat === "전체" || ex.category === libCat)
+    .sort(libCat === "전체" ? sortByCategory : () => 0);
   const handleAddExerciseToLibrary = () => {
     if (!newExName.trim()) return;
     const newEx: ExerciseTemplate = { id: crypto.randomUUID(), name: newExName.trim(), category: newExCat };
@@ -352,13 +359,14 @@ export default function RoutinesPage() {
       {/* ── 루틴 모달 ── */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setIsModalOpen(false)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border p-6 shadow-2xl animate-in slide-in-from-bottom-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center px-6 pt-6 pb-4 shrink-0">
               <h2 className="text-xl font-bold">{editingId ? "루틴 수정" : "새 루틴 만들기"}</h2>
               <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-5">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted">루틴 이름</label>
                 <input
@@ -439,7 +447,8 @@ export default function RoutinesPage() {
                 </button>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              </div>
+              <div className="shrink-0 px-6 pb-6 pt-2 flex gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 font-bold text-muted hover:text-foreground transition-colors">
                   취소
                 </button>
@@ -569,12 +578,12 @@ export default function RoutinesPage() {
       {/* ── 종목 추가 모달 (라이브러리 탭) ── */}
       {isAddExOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end justify-center animate-in fade-in" onClick={() => setIsAddExOpen(false)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border p-6 shadow-2xl animate-in slide-in-from-bottom-8" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-5">
+          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border shadow-2xl h-[62vh] flex flex-col animate-in slide-in-from-bottom-8" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center px-6 pt-6 pb-4 shrink-0">
               <h3 className="text-lg font-bold">종목 추가</h3>
               <button onClick={() => setIsAddExOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={22} /></button>
             </div>
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 space-y-4">
               <input
                 autoFocus
                 type="text"
@@ -600,16 +609,16 @@ export default function RoutinesPage() {
                   ))}
                 </div>
               </div>
-              <div className="flex gap-3 pt-1">
-                <button onClick={() => setIsAddExOpen(false)} className="flex-1 py-4 font-bold text-muted">취소</button>
-                <button
-                  onClick={handleAddExerciseToLibrary}
-                  disabled={!newExName.trim()}
-                  className="flex-[2] py-4 bg-foreground text-background font-bold rounded-xl active:scale-95 transition-transform disabled:opacity-30"
-                >
-                  추가
-                </button>
-              </div>
+            </div>
+            <div className="shrink-0 px-6 pb-6 pt-2 flex gap-3">
+              <button onClick={() => setIsAddExOpen(false)} className="flex-1 py-4 font-bold text-muted">취소</button>
+              <button
+                onClick={handleAddExerciseToLibrary}
+                disabled={!newExName.trim()}
+                className="flex-[2] py-4 bg-foreground text-background font-bold rounded-xl active:scale-95 transition-transform disabled:opacity-30"
+              >
+                추가
+              </button>
             </div>
           </div>
         </div>
@@ -620,14 +629,14 @@ export default function RoutinesPage() {
         const isCardioConfig = exerciseConfigs[configExIdx].category === "유산소";
         return (
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[80] flex items-end justify-center animate-in fade-in" onClick={() => setConfigExIdx(null)}>
-            <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border p-6 shadow-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom-8" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-1">
+            <div className="bg-card w-full sm:max-w-sm rounded-t-3xl border border-border shadow-2xl h-[82vh] flex flex-col animate-in slide-in-from-bottom-8" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center px-6 pt-6 pb-1 shrink-0">
                 <h3 className="text-lg font-bold">{exerciseConfigs[configExIdx].name}</h3>
                 <button type="button" onClick={() => setConfigExIdx(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
               </div>
-              <p className="text-xs text-muted mb-4">기본 세트를 설정하면 운동 시작 시 자동으로 적용됩니다.</p>
+              <p className="text-xs text-muted px-6 pb-3 shrink-0">기본 세트를 설정하면 운동 시작 시 자동으로 적용됩니다.</p>
 
-              <div className="space-y-2 mb-3">
+              <div className="flex-1 overflow-y-auto px-6 space-y-2 pb-2">
                 {exerciseConfigs[configExIdx].sets.map((set, sIdx) => (
                   <div key={sIdx} className="p-3 bg-background rounded-xl border border-border space-y-2">
                     <div className="flex items-center gap-2">
@@ -666,12 +675,14 @@ export default function RoutinesPage() {
                 )}
               </div>
 
-              <button type="button" onClick={() => addConfigSet(configExIdx)} className="w-full py-2.5 border-2 border-dashed border-border rounded-xl text-sm font-medium text-muted hover:text-foreground hover:border-muted transition-colors mb-4">
+              <div className="shrink-0 px-6 pb-6 pt-2 space-y-2">
+              <button type="button" onClick={() => addConfigSet(configExIdx)} className="w-full py-2.5 border-2 border-dashed border-border rounded-xl text-sm font-medium text-muted hover:text-foreground hover:border-muted transition-colors">
                 + {isCardioConfig ? "구간 추가" : "세트 추가"}
               </button>
               <button type="button" onClick={() => setConfigExIdx(null)} className="w-full py-4 bg-foreground text-background font-bold rounded-xl active:scale-95 transition-transform">
                 완료
               </button>
+              </div>
             </div>
           </div>
         );
