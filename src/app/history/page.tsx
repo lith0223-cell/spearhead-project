@@ -81,6 +81,8 @@ export default function HistoryPage() {
   const [chartExName, setChartExName] = useState<string>("");
   const [chartMetric, setChartMetric] = useState<"1rm" | "weight" | "volume">("1rm");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDietCardOpen, setIsDietCardOpen] = useState(true);
+  const [isWeightCardOpen, setIsWeightCardOpen] = useState(true);
 
   const refreshData = () => {
     setSessions(getWorkoutSessions());
@@ -473,7 +475,7 @@ export default function HistoryPage() {
       {activeTab === "analytics" ? (
         <div className="p-4 space-y-4">
           {allExerciseNames.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="flex flex-col items-center justify-center py-10 text-center">
               <p className="text-muted text-sm">운동 기록이 없습니다</p>
               <p className="text-muted text-xs mt-1">운동을 완료하면 여기서 성장 추이를 확인할 수 있어요</p>
             </div>
@@ -568,67 +570,90 @@ export default function HistoryPage() {
           )}
 
           {/* 식단 분석 */}
+
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="px-4 pt-4 pb-3 border-b border-border flex items-center gap-2">
-              <Utensils size={14} className="text-accent" />
-              <p className="text-sm font-semibold">식단 분석 (최근 7일)</p>
-            </div>
-            {dietWeekAvg ? (
-              <div className="p-4 space-y-4">
-                {/* 칼로리 라인 차트 */}
-                <div>
-                  <p className="text-xs font-semibold text-muted mb-3">칼로리 추이 — 최근 7일</p>
-                  <SvgChart points={dietWeeklyPoints.filter(p => p.hasData).map(p => ({ date: p.date, value: p.calories }))} />
-                </div>
-                {/* 평균 요약 */}
-                <div>
-                  <p className="text-xs text-muted mb-2">일 평균 ({dietWeekAvg.days}일 기준)</p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { label: "칼로리", value: dietWeekAvg.calories, unit: "kcal", color: "text-accent" },
-                      { label: "탄수화물", value: dietWeekAvg.carbs, unit: "g", color: "text-blue-400" },
-                      { label: "단백질", value: dietWeekAvg.protein, unit: "g", color: "text-emerald-400" },
-                      { label: "지방", value: dietWeekAvg.fat, unit: "g", color: "text-amber-400" },
-                    ].map(({ label, value, unit, color }) => (
-                      <div key={label} className="bg-background rounded-xl p-2.5 text-center">
-                        <p className="text-[10px] text-muted mb-1">{label}</p>
-                        <p className={`text-base font-extrabold leading-none ${color}`}>{value}</p>
-                        <p className="text-[9px] text-muted mt-0.5">{unit}</p>
+            <button
+              onClick={() => setIsDietCardOpen(o => !o)}
+              className="w-full px-4 pt-4 pb-3 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <Utensils size={14} className="text-accent" />
+                <p className="text-sm font-semibold">식단 분석 (최근 7일)</p>
+              </div>
+              <ChevronDown size={16} className={`text-muted transition-transform duration-300 ${isDietCardOpen ? "rotate-180" : ""}`} />
+            </button>
+            <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isDietCardOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+              <div className="overflow-hidden">
+                <div className="border-t border-border">
+                  {dietWeekAvg ? (
+                    <div className="p-4 space-y-4">
+                      <div>
+                        <p className="text-xs font-semibold text-muted mb-3">칼로리 추이 — 최근 7일</p>
+                        <SvgChart points={dietWeeklyPoints.filter(p => p.hasData).map(p => ({ date: p.date, value: p.calories }))} />
                       </div>
-                    ))}
-                  </div>
+                      <div>
+                        <p className="text-xs text-muted mb-2">일 평균 ({dietWeekAvg.days}일 기준)</p>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { label: "칼로리", value: dietWeekAvg.calories, unit: "kcal", color: "text-accent" },
+                            { label: "탄수화물", value: dietWeekAvg.carbs, unit: "g", color: "text-blue-400" },
+                            { label: "단백질", value: dietWeekAvg.protein, unit: "g", color: "text-emerald-400" },
+                            { label: "지방", value: dietWeekAvg.fat, unit: "g", color: "text-amber-400" },
+                          ].map(({ label, value, unit, color }) => (
+                            <div key={label} className="bg-background rounded-xl p-2.5 text-center">
+                              <p className="text-[10px] text-muted mb-1">{label}</p>
+                              <p className={`text-base font-extrabold leading-none ${color}`}>{value}</p>
+                              <p className="text-[9px] text-muted mt-0.5">{unit}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                      <p className="text-sm text-muted">최근 7일간 식단 기록이 없습니다</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <p className="text-sm text-muted">최근 7일간 식단 기록이 없습니다</p>
-              </div>
-            )}
+            </div>
           </div>
 
           {/* 체중 추이 */}
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="px-4 pt-4 pb-3 border-b border-border flex items-center gap-2">
-              <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="text-accent"><path d="M3 6h18M3 12h18M3 18h18" /><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none" /><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" /><circle cx="9" cy="18" r="2" fill="currentColor" stroke="none" /></svg>
-              <p className="text-sm font-semibold">체중 추이 (최근 30일)</p>
-            </div>
-            {weightChartPoints.length >= 2 ? (
-              <div className="p-4">
-                <SvgChart points={weightChartPoints} />
-                <div className="flex justify-between mt-2 text-xs text-muted">
-                  <span>최저 {Math.min(...weightChartPoints.map(p => p.value))}kg</span>
-                  <span>최고 {Math.max(...weightChartPoints.map(p => p.value))}kg</span>
-                  <span>최근 {weightChartPoints[weightChartPoints.length - 1].value}kg</span>
+            <button
+              onClick={() => setIsWeightCardOpen(o => !o)}
+              className="w-full px-4 pt-4 pb-3 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="text-accent"><path d="M3 6h18M3 12h18M3 18h18" /><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none" /><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" /><circle cx="9" cy="18" r="2" fill="currentColor" stroke="none" /></svg>
+                <p className="text-sm font-semibold">체중 추이 (최근 30일)</p>
+              </div>
+              <ChevronDown size={16} className={`text-muted transition-transform duration-300 ${isWeightCardOpen ? "rotate-180" : ""}`} />
+            </button>
+            <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isWeightCardOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+              <div className="overflow-hidden">
+                <div className="border-t border-border">
+                  {weightChartPoints.length >= 2 ? (
+                    <div className="p-4">
+                      <SvgChart points={weightChartPoints} />
+                      <div className="flex justify-between mt-2 text-xs text-muted">
+                        <span>최저 {Math.min(...weightChartPoints.map(p => p.value))}kg</span>
+                        <span>최고 {Math.max(...weightChartPoints.map(p => p.value))}kg</span>
+                        <span>최근 {weightChartPoints[weightChartPoints.length - 1].value}kg</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-10 text-center gap-1">
+                      <p className="text-sm text-muted">
+                        {weightChartPoints.length === 1 ? "2회 이상 기록하면 추이를 볼 수 있어요" : "식단 탭에서 체중을 기록해보세요"}
+                      </p>
+                      <p className="text-xs text-muted/60">날짜를 이동하며 매일 체중을 입력하세요</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center gap-1">
-                <p className="text-sm text-muted">
-                  {weightChartPoints.length === 1 ? "2회 이상 기록하면 추이를 볼 수 있어요" : "식단 탭에서 체중을 기록해보세요"}
-                </p>
-                <p className="text-xs text-muted/60">날짜를 이동하며 매일 체중을 입력하세요</p>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       ) : (
@@ -702,7 +727,7 @@ export default function HistoryPage() {
               <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                 <div className="flex items-center gap-2">
                   <Dumbbell size={14} className="text-accent" />
-                  <p className="text-xs font-semibold text-muted">운동 기록</p>
+                  <p className="text-sm font-semibold">운동 기록</p>
                 </div>
                 <button onClick={openAddModal} className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors">
                   <Plus size={14} />추가
@@ -762,7 +787,7 @@ export default function HistoryPage() {
               <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                 <div className="flex items-center gap-2">
                   <Utensils size={14} className="text-success" />
-                  <p className="text-xs font-semibold text-muted">식단 기록</p>
+                  <p className="text-sm font-semibold">식단 기록</p>
                 </div>
                 <button onClick={openDietAddModal} className="flex items-center gap-1 text-xs text-success hover:text-success/70 transition-colors">
                   <Plus size={14} />추가

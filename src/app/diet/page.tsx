@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, X, Trash2, Edit, Pencil, Star, Search, Check, ChevronLeft, ChevronRight, Scale } from "lucide-react";
+import { Plus, X, Trash2, Edit, Pencil, Star, Search, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import { getDietRecordsByDate, addItemToDietRecord, calculateCalories, deleteDietItem, updateDietItem, getFoodPresets, saveFoodPreset, deleteFoodPreset, updateFoodPreset, getLocalDateStr, getWeightRecord, saveWeightRecord } from "@/utils/storage";
@@ -36,7 +36,6 @@ export default function DietPage() {
 
   // 체중 상태
   const [weightForDate, setWeightForDate] = useState<number | null>(null);
-  const [isWeightEditing, setIsWeightEditing] = useState(false);
   const [weightDraft, setWeightDraft] = useState("");
 
   const PRESET_LIMIT = 4;
@@ -46,7 +45,9 @@ export default function DietPage() {
     realTodayRef.current = today;
     setViewDateStr(today);
     setRecords(getDietRecordsByDate(today));
-    setWeightForDate(getWeightRecord(today));
+    const w = getWeightRecord(today);
+    setWeightForDate(w);
+    setWeightDraft(w !== null ? String(w) : "");
     const savedGoal = parseInt(localStorage.getItem("ph_calorie_goal") || "2000");
     setCalorieGoal(savedGoal);
     setGoalDraft(String(savedGoal));
@@ -64,8 +65,9 @@ export default function DietPage() {
     if (next > realTodayRef.current) return;
     setViewDateStr(next);
     setRecords(getDietRecordsByDate(next));
-    setWeightForDate(getWeightRecord(next));
-    setIsWeightEditing(false);
+    const w = getWeightRecord(next);
+    setWeightForDate(w);
+    setWeightDraft(w !== null ? String(w) : "");
   };
 
   const commitWeight = () => {
@@ -75,7 +77,6 @@ export default function DietPage() {
       saveWeightRecord(viewDateStr, rounded);
       setWeightForDate(rounded);
     }
-    setIsWeightEditing(false);
   };
 
   const dateLabel = (() => {
@@ -258,7 +259,7 @@ export default function DietPage() {
 
   return (
     <main className="flex flex-col h-full animate-in fade-in duration-300">
-      <header className="px-6 py-6 border-b border-border bg-card sticky top-0 z-10">
+      <header className="px-6 pt-6 pb-4 border-b border-border bg-card sticky top-0 z-10">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">식단</h1>
           <div className="flex items-center gap-1">
@@ -276,10 +277,11 @@ export default function DietPage() {
           </div>
         </div>
         {/* 체중 입력 */}
-        <div className="flex items-center gap-2 mb-3">
-          <Scale size={13} className="text-muted" />
-          <span className="text-xs text-muted">체중</span>
-          {isWeightEditing ? (
+        <div className="flex items-center justify-between pt-2 pb-3 mb-1 border-b border-border/50">
+          <span className="text-xs font-medium text-muted">
+            {viewDateStr === realTodayRef.current ? "금일 체중" : "체중"}
+          </span>
+          <div className="flex items-center gap-2">
             <input
               type="number"
               value={weightDraft}
@@ -288,29 +290,20 @@ export default function DietPage() {
               max="299"
               onChange={(e) => setWeightDraft(e.target.value)}
               onBlur={commitWeight}
-              onKeyDown={(e) => { if (e.key === "Enter") commitWeight(); if (e.key === "Escape") setIsWeightEditing(false); }}
-              autoFocus
-              placeholder="0.0"
-              className="w-16 bg-background border border-accent rounded-lg px-2 py-0.5 text-xs text-center focus:outline-none"
+              onKeyDown={(e) => e.key === "Enter" && commitWeight()}
+              placeholder="00.0"
+              className="w-16 bg-background border border-border rounded-lg px-2 py-1 text-sm font-semibold text-right focus:outline-none focus:border-accent transition-colors"
             />
-          ) : (
-            <button
-              onClick={() => { setWeightDraft(weightForDate ? String(weightForDate) : ""); setIsWeightEditing(true); }}
-              className="flex items-center gap-1 text-xs font-semibold hover:text-accent transition-colors"
-            >
-              {weightForDate
-                ? <span className="text-foreground">{weightForDate}<span className="text-muted font-normal ml-0.5">kg</span></span>
-                : <span className="text-muted">기록하기</span>
-              }
-              <Pencil size={10} className="opacity-40" />
-            </button>
-          )}
+            <span className="text-xs text-muted">kg</span>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 mt-2">
           {/* 섭취 / 목표 칼로리 */}
           <div className="flex justify-between items-center">
-            <span className="text-sm text-muted">오늘 섭취</span>
+            <span className="text-sm text-muted">
+              {viewDateStr === realTodayRef.current ? "오늘 섭취" : "해당일 섭취"}
+            </span>
             <div className="flex items-baseline gap-1">
               <span className={`text-3xl font-extrabold ${isOverGoal ? "text-danger" : "text-accent"}`}>
                 {totalCalories}
