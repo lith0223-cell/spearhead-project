@@ -786,10 +786,10 @@ export default function HistoryPage() {
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                 <div className="flex items-center gap-2">
-                  <Utensils size={14} className="text-success" />
+                  <Utensils size={14} className="text-accent" />
                   <p className="text-sm font-semibold">식단 기록</p>
                 </div>
-                <button onClick={openDietAddModal} className="flex items-center gap-1 text-xs text-success hover:text-success/70 transition-colors">
+                <button onClick={openDietAddModal} className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors">
                   <Plus size={14} />추가
                 </button>
               </div>
@@ -875,45 +875,41 @@ export default function HistoryPage() {
       )}
       </div>
 
-      {/* 운동 수정 모달 */}
-      {editDraft && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setEditDraft(null)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col h-[85vh]" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-border shrink-0">
-              <h2 className="text-xl font-bold">운동 기록 수정</h2>
-              <button onClick={() => setEditDraft(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {editDraft.exercises.map((ex, exIdx) => (
-                <div key={ex.id} className="space-y-2">
-                  <p className="text-sm font-bold">{ex.name}</p>
-                  {ex.sets.map((set, setIdx) => (
-                    <div key={set.id} className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-muted w-5 text-center shrink-0">{setIdx + 1}</span>
-                      <input type="number" value={set.weight} onChange={(e) => handleEditSetChange(exIdx, setIdx, "weight", e.target.value)} placeholder="0"
-                        className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
-                      <span className="text-xs text-muted shrink-0">kg ×</span>
-                      <input type="number" value={set.reps} onChange={(e) => handleEditSetChange(exIdx, setIdx, "reps", e.target.value)} placeholder="0"
-                        className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
-                      <span className="text-xs text-muted shrink-0">회</span>
-                      <button onClick={() => removeEditSet(exIdx, setIdx)} disabled={ex.sets.length <= 1}
-                        className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-20 shrink-0"><Trash2 size={14} /></button>
-                    </div>
-                  ))}
-                  <button onClick={() => addEditSet(exIdx)} className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors">
-                    <Plus size={12} />세트 추가
-                  </button>
+      {/* 운동 수정 Drawer */}
+      <Drawer open={!!editDraft} onClose={() => setEditDraft(null)} height="85vh" zIndex={60}>
+        <div className="flex justify-between items-center shrink-0 px-6 pt-3 pb-3">
+          <h2 className="text-xl font-bold">운동 기록 수정</h2>
+          <button onClick={() => setEditDraft(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-5">
+          {editDraft?.exercises.map((ex, exIdx) => (
+            <div key={ex.id} className="space-y-2">
+              <p className="text-sm font-bold">{ex.name}</p>
+              {ex.sets.map((set, setIdx) => (
+                <div key={set.id} className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-muted w-5 text-center shrink-0">{setIdx + 1}</span>
+                  <input type="number" value={set.weight} onChange={(e) => handleEditSetChange(exIdx, setIdx, "weight", e.target.value)} placeholder="0"
+                    className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
+                  <span className="text-xs text-muted shrink-0">kg ×</span>
+                  <input type="number" value={set.reps} onChange={(e) => handleEditSetChange(exIdx, setIdx, "reps", e.target.value)} placeholder="0"
+                    className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
+                  <span className="text-xs text-muted shrink-0">회</span>
+                  <button onClick={() => removeEditSet(exIdx, setIdx)} disabled={ex.sets.length <= 1}
+                    className="p-1.5 text-muted hover:text-danger transition-colors disabled:opacity-20 shrink-0"><Trash2 size={14} /></button>
                 </div>
               ))}
-            </div>
-            <div className="px-6 pb-6 pt-2 shrink-0">
-              <button onClick={handleEditSave} className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform">
-                저장하기
+              <button onClick={() => addEditSet(exIdx)} className="flex items-center gap-1 text-xs text-accent hover:text-accent/70 transition-colors">
+                <Plus size={12} />세트 추가
               </button>
             </div>
-          </div>
+          ))}
         </div>
-      )}
+        <div className="shrink-0 px-6 pb-6 pt-2">
+          <button onClick={handleEditSave} className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform">
+            저장하기
+          </button>
+        </div>
+      </Drawer>
 
       {/* 운동 추가 모달 */}
       {isAddOpen && (

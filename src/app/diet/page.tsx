@@ -408,8 +408,14 @@ export default function DietPage() {
         })}
         {records.length === 0 && (
           <div className="flex flex-col items-center justify-center text-muted h-32 text-center">
-            <p>아직 기록된 식단이 없습니다.</p>
-            <p className="text-sm mt-1">하단의 + 버튼을 눌러 기록해보세요.</p>
+            {viewDateStr === realTodayRef.current ? (
+              <>
+                <p>아직 기록된 식단이 없습니다.</p>
+                <p className="text-sm mt-1">하단의 + 버튼을 눌러 기록해보세요.</p>
+              </>
+            ) : (
+              <p>이 날의 식단 기록이 없습니다.</p>
+            )}
           </div>
         )}
       </div>

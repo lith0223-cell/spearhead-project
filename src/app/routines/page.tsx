@@ -252,8 +252,8 @@ export default function RoutinesPage() {
   return (
     <main className="flex flex-col h-full animate-in fade-in duration-300">
       {/* 헤더 + 탭 */}
-      <header className="bg-card border-b border-border sticky top-0 z-10">
-        <div className="px-6 pt-6 pb-3 flex justify-between items-center">
+      <header className="bg-card border-b border-border sticky top-0 z-10 px-6 pt-6 pb-4">
+        <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold">운동</h1>
           <button
             onClick={activeTab === "routines" ? openAddModal : () => setIsAddExOpen(true)}
@@ -262,13 +262,13 @@ export default function RoutinesPage() {
             <Plus size={22} />
           </button>
         </div>
-        <div className="flex px-6 gap-1 pb-0">
+        <div className="flex gap-1 bg-background rounded-xl p-1">
           {(["routines", "exercises"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
-                activeTab === tab ? "border-accent text-accent" : "border-transparent text-muted hover:text-foreground"
+              className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted"
               }`}
             >
               {tab === "routines" ? `루틴 (${routines.length}/7)` : "종목"}
