@@ -12,6 +12,7 @@ import {
   getWeeklyWorkoutCount,
   getWorkoutDaysThisWeek,
   getLastWorkoutDaysAgo,
+  getLocalDateStr,
 } from "@/utils/storage";
 
 export default function Home() {
@@ -23,7 +24,7 @@ export default function Home() {
 
   useEffect(() => {
     initializeDummyData();
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocalDateStr();
     const diets = getDietRecordsByDate(today);
     let totalCarbs = 0, totalProtein = 0, totalFat = 0;
     diets.forEach((r) => r.items.forEach((item) => {

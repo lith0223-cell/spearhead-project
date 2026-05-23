@@ -293,6 +293,8 @@ export const getSessionsByExerciseName = (name: string): { date: string; sets: S
 const toDateStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+export const getLocalDateStr = (d: Date = new Date()) => toDateStr(d);
+
 export const getWorkoutStreak = (): number => {
   if (typeof window === "undefined") return 0;
   const sessions = getWorkoutSessions();

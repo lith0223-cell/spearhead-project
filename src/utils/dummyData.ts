@@ -1,5 +1,7 @@
 import { DietRecord, Routine, WorkoutSession } from "@/types";
 
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
 export const DUMMY_ROUTINES: Routine[] = [
   {
     id: "routine-1",
@@ -43,7 +45,7 @@ export const DUMMY_WORKOUT_SESSIONS: WorkoutSession[] = [
 export const DUMMY_DIET_RECORDS: DietRecord[] = [
   {
     id: "diet-1",
-    date: new Date().toISOString().split("T")[0],
+    date: todayStr(),
     mealType: "점심",
     items: [
       { id: "m1", name: "닭가슴살 볶음밥", carbs: 60, protein: 35, fat: 10 },

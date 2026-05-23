@@ -5,7 +5,7 @@ import { useTheme, type AccentColor, type ColorMode } from "@/providers/ThemePro
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import { Sun, Moon, Check, Play, Minus, Plus, Download, Upload, ChevronDown, User, Palette, Bell, Database } from "lucide-react";
 import { playBeep, resumeAudioContext, BEEP_TYPES, type BeepType } from "@/utils/audio";
-import { exportAllData, importAllData } from "@/utils/storage";
+import { exportAllData, importAllData, getLocalDateStr } from "@/utils/storage";
 
 const ACCENT_COLORS: { id: AccentColor; hex: string; label: string }[] = [
   { id: "cyan",   hex: "#00F2FF", label: "사이언"  },
@@ -93,7 +93,7 @@ export default function SettingsPage() {
 
   const handleExport = () => {
     const json = exportAllData();
-    const date = new Date().toISOString().split("T")[0].replace(/-/g, "");
+    const date = getLocalDateStr().replace(/-/g, "");
     const blob = new Blob([json], { type: "application/json" });
     const url  = URL.createObjectURL(blob);
     const a = document.createElement("a");

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, X, Trash2, Edit, Pencil, Star, Search, Check } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
-import { getDietRecordsByDate, addItemToDietRecord, calculateCalories, deleteDietItem, updateDietItem, getFoodPresets, saveFoodPreset, deleteFoodPreset, updateFoodPreset } from "@/utils/storage";
+import { getDietRecordsByDate, addItemToDietRecord, calculateCalories, deleteDietItem, updateDietItem, getFoodPresets, saveFoodPreset, deleteFoodPreset, updateFoodPreset, getLocalDateStr } from "@/utils/storage";
 import { DietRecord, FoodPreset, MealItem, MealType } from "@/types";
 
 export default function DietPage() {
@@ -36,7 +36,7 @@ export default function DietPage() {
   const PRESET_LIMIT = 4;
 
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocalDateStr();
     setTodayStr(today);
     setRecords(getDietRecordsByDate(today));
     const savedGoal = parseInt(localStorage.getItem("ph_calorie_goal") || "2000");
