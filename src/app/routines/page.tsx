@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Plus, Play, Trash2, Edit, X, GripVertical, Minus, Search, Check } from "lucide-react";
+import { Plus, Play, Trash2, Edit, X, GripVertical, Minus, Search, Check, Copy } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import {
@@ -177,6 +177,11 @@ export default function RoutinesPage() {
   const handleDelete = (id: string) => {
     if (confirm("정말 삭제하시겠습니까?")) { deleteRoutine(id); setRoutines(getRoutines()); }
   };
+  const handleCopy = (routine: Routine) => {
+    if (routines.length >= 7) { alert("루틴은 최대 7개까지만 생성 가능합니다."); return; }
+    saveRoutine({ ...routine, id: crypto.randomUUID(), name: `${routine.name} (복사)` });
+    setRoutines(getRoutines());
+  };
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const valid = exerciseConfigs.filter((c) => c.name.trim());
@@ -308,6 +313,7 @@ export default function RoutinesPage() {
                   </button>
                   <h2 className="flex-1 text-xl font-bold ml-2">{routine.name}</h2>
                   <div className="flex items-center gap-2">
+                    <button onClick={() => handleCopy(routine)} className="text-muted hover:text-foreground p-1" title="복사"><Copy size={16} /></button>
                     <button onClick={() => openEditModal(routine)} className="text-muted hover:text-foreground p-1"><Edit size={18} /></button>
                     <button onClick={() => handleDelete(routine.id)} className="text-muted hover:text-danger p-1"><Trash2 size={18} /></button>
                   </div>

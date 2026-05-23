@@ -341,6 +341,32 @@ export default function HistoryPage() {
     ? calculateCalories(Number(dietModal.carbs) || 0, Number(dietModal.protein) || 0, Number(dietModal.fat) || 0)
     : 0;
 
+  // 식단 주간 분석
+  const dietWeeklyPoints = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = toDateStr(d);
+      const dayRecords = dietRecords.filter(r => r.date === dateStr);
+      let carbs = 0, protein = 0, fat = 0;
+      dayRecords.forEach(r => r.items.forEach(item => { carbs += item.carbs; protein += item.protein; fat += item.fat; }));
+      return { date: `${d.getMonth() + 1}/${d.getDate()}`, calories: calculateCalories(carbs, protein, fat), carbs, protein, fat, hasData: dayRecords.length > 0 };
+    });
+  }, [dietRecords]);
+
+  const dietWeekAvg = useMemo(() => {
+    const days = dietWeeklyPoints.filter(p => p.hasData);
+    if (days.length === 0) return null;
+    return {
+      calories: Math.round(days.reduce((s, p) => s + p.calories, 0) / days.length),
+      carbs: Math.round(days.reduce((s, p) => s + p.carbs, 0) / days.length),
+      protein: Math.round(days.reduce((s, p) => s + p.protein, 0) / days.length),
+      fat: Math.round(days.reduce((s, p) => s + p.fat, 0) / days.length),
+      days: days.length,
+    };
+  }, [dietWeeklyPoints]);
+
   // 분석 탭용 데이터
   const allExerciseNames = useMemo(() => {
     const names = new Set<string>();
@@ -524,6 +550,45 @@ export default function HistoryPage() {
               )}
             </>
           )}
+
+          {/* 식단 분석 */}
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="px-4 pt-4 pb-3 border-b border-border flex items-center gap-2">
+              <Utensils size={14} className="text-accent" />
+              <p className="text-sm font-semibold">식단 분석 (최근 7일)</p>
+            </div>
+            {dietWeekAvg ? (
+              <div className="p-4 space-y-4">
+                {/* 칼로리 라인 차트 */}
+                <div>
+                  <p className="text-xs font-semibold text-muted mb-3">칼로리 추이 — 최근 7일</p>
+                  <SvgChart points={dietWeeklyPoints.filter(p => p.hasData).map(p => ({ date: p.date, value: p.calories }))} />
+                </div>
+                {/* 평균 요약 */}
+                <div>
+                  <p className="text-xs text-muted mb-2">일 평균 ({dietWeekAvg.days}일 기준)</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: "칼로리", value: dietWeekAvg.calories, unit: "kcal", color: "text-accent" },
+                      { label: "탄수화물", value: dietWeekAvg.carbs, unit: "g", color: "text-blue-400" },
+                      { label: "단백질", value: dietWeekAvg.protein, unit: "g", color: "text-emerald-400" },
+                      { label: "지방", value: dietWeekAvg.fat, unit: "g", color: "text-amber-400" },
+                    ].map(({ label, value, unit, color }) => (
+                      <div key={label} className="bg-background rounded-xl p-2.5 text-center">
+                        <p className="text-[10px] text-muted mb-1">{label}</p>
+                        <p className={`text-base font-extrabold leading-none ${color}`}>{value}</p>
+                        <p className="text-[9px] text-muted mt-0.5">{unit}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <p className="text-sm text-muted">최근 7일간 식단 기록이 없습니다</p>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <>

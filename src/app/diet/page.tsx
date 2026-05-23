@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, X, Trash2, Edit, Pencil, Star, Search, Check } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, X, Trash2, Edit, Pencil, Star, Search, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import { getDietRecordsByDate, addItemToDietRecord, calculateCalories, deleteDietItem, updateDietItem, getFoodPresets, saveFoodPreset, deleteFoodPreset, updateFoodPreset, getLocalDateStr } from "@/utils/storage";
@@ -11,7 +11,8 @@ export default function DietPage() {
   const { isActive } = useActiveWorkout();
   const [records, setRecords] = useState<DietRecord[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [todayStr, setTodayStr] = useState("");
+  const [viewDateStr, setViewDateStr] = useState("");
+  const realTodayRef = useRef("");
 
   // Form State
   const [mealType, setMealType] = useState<MealType>("점심");
@@ -37,7 +38,8 @@ export default function DietPage() {
 
   useEffect(() => {
     const today = getLocalDateStr();
-    setTodayStr(today);
+    realTodayRef.current = today;
+    setViewDateStr(today);
     setRecords(getDietRecordsByDate(today));
     const savedGoal = parseInt(localStorage.getItem("ph_calorie_goal") || "2000");
     setCalorieGoal(savedGoal);
@@ -46,8 +48,27 @@ export default function DietPage() {
   }, []);
 
   const refreshRecords = () => {
-    setRecords(getDietRecordsByDate(todayStr));
+    setRecords(getDietRecordsByDate(viewDateStr));
   };
+
+  const changeDate = (delta: number) => {
+    const d = new Date(viewDateStr + "T00:00:00");
+    d.setDate(d.getDate() + delta);
+    const next = getLocalDateStr(d);
+    if (next > realTodayRef.current) return;
+    setViewDateStr(next);
+    setRecords(getDietRecordsByDate(next));
+  };
+
+  const dateLabel = (() => {
+    if (!viewDateStr || !realTodayRef.current) return "";
+    if (viewDateStr === realTodayRef.current) return "오늘";
+    const d = new Date(viewDateStr + "T00:00:00");
+    const yesterday = new Date(realTodayRef.current + "T00:00:00");
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (viewDateStr === getLocalDateStr(yesterday)) return "어제";
+    return `${d.getMonth() + 1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]})`;
+  })();
 
   const commitGoal = () => {
     const val = Math.max(500, Math.min(9999, parseInt(goalDraft) || 2000));
@@ -110,7 +131,7 @@ export default function DietPage() {
       protein: preset.protein,
       fat: preset.fat,
     };
-    addItemToDietRecord(todayStr, mealType, newItem);
+    addItemToDietRecord(viewDateStr, mealType, newItem);
     refreshRecords();
     closeModal();
   };
@@ -207,7 +228,7 @@ export default function DietPage() {
       fat: Number(fat),
     };
 
-    addItemToDietRecord(todayStr, mealType, newItem);
+    addItemToDietRecord(viewDateStr, mealType, newItem);
 
     refreshRecords();
     setFoodName("");
@@ -220,7 +241,22 @@ export default function DietPage() {
   return (
     <main className="flex flex-col h-full animate-in fade-in duration-300">
       <header className="px-6 py-6 border-b border-border bg-card sticky top-0 z-10">
-        <h1 className="text-2xl font-bold mb-4">오늘의 식단</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">식단</h1>
+          <div className="flex items-center gap-1">
+            <button onClick={() => changeDate(-1)} className="p-1.5 text-muted hover:text-foreground active:scale-90 transition-all">
+              <ChevronLeft size={20} />
+            </button>
+            <span className="text-sm font-semibold min-w-[56px] text-center">{dateLabel}</span>
+            <button
+              onClick={() => changeDate(1)}
+              disabled={viewDateStr >= realTodayRef.current}
+              className="p-1.5 text-muted hover:text-foreground active:scale-90 transition-all disabled:opacity-30"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </div>
         <div className="flex flex-col gap-2">
           {/* 섭취 / 목표 칼로리 */}
           <div className="flex justify-between items-center">
