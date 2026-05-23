@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, X, Trash2, Edit, Pencil, Star, Search, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, X, Trash2, Edit, Pencil, Star, Search, Check, ChevronLeft, ChevronRight, Scale } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
-import { getDietRecordsByDate, addItemToDietRecord, calculateCalories, deleteDietItem, updateDietItem, getFoodPresets, saveFoodPreset, deleteFoodPreset, updateFoodPreset, getLocalDateStr } from "@/utils/storage";
+import { getDietRecordsByDate, addItemToDietRecord, calculateCalories, deleteDietItem, updateDietItem, getFoodPresets, saveFoodPreset, deleteFoodPreset, updateFoodPreset, getLocalDateStr, getWeightRecord, saveWeightRecord } from "@/utils/storage";
 import { DietRecord, FoodPreset, MealItem, MealType } from "@/types";
 
 export default function DietPage() {
@@ -34,6 +34,11 @@ export default function DietPage() {
   const [editDraft, setEditDraft] = useState({ name: "", carbs: "", protein: "", fat: "" });
   const [drawerTab, setDrawerTab] = useState<"presets" | "form">("presets");
 
+  // 체중 상태
+  const [weightForDate, setWeightForDate] = useState<number | null>(null);
+  const [isWeightEditing, setIsWeightEditing] = useState(false);
+  const [weightDraft, setWeightDraft] = useState("");
+
   const PRESET_LIMIT = 4;
 
   useEffect(() => {
@@ -41,6 +46,7 @@ export default function DietPage() {
     realTodayRef.current = today;
     setViewDateStr(today);
     setRecords(getDietRecordsByDate(today));
+    setWeightForDate(getWeightRecord(today));
     const savedGoal = parseInt(localStorage.getItem("ph_calorie_goal") || "2000");
     setCalorieGoal(savedGoal);
     setGoalDraft(String(savedGoal));
@@ -58,6 +64,18 @@ export default function DietPage() {
     if (next > realTodayRef.current) return;
     setViewDateStr(next);
     setRecords(getDietRecordsByDate(next));
+    setWeightForDate(getWeightRecord(next));
+    setIsWeightEditing(false);
+  };
+
+  const commitWeight = () => {
+    const val = parseFloat(weightDraft);
+    if (!isNaN(val) && val > 0 && val < 300) {
+      const rounded = Math.round(val * 10) / 10;
+      saveWeightRecord(viewDateStr, rounded);
+      setWeightForDate(rounded);
+    }
+    setIsWeightEditing(false);
   };
 
   const dateLabel = (() => {
@@ -257,6 +275,38 @@ export default function DietPage() {
             </button>
           </div>
         </div>
+        {/* 체중 입력 */}
+        <div className="flex items-center gap-2 mb-3">
+          <Scale size={13} className="text-muted" />
+          <span className="text-xs text-muted">체중</span>
+          {isWeightEditing ? (
+            <input
+              type="number"
+              value={weightDraft}
+              step="0.1"
+              min="1"
+              max="299"
+              onChange={(e) => setWeightDraft(e.target.value)}
+              onBlur={commitWeight}
+              onKeyDown={(e) => { if (e.key === "Enter") commitWeight(); if (e.key === "Escape") setIsWeightEditing(false); }}
+              autoFocus
+              placeholder="0.0"
+              className="w-16 bg-background border border-accent rounded-lg px-2 py-0.5 text-xs text-center focus:outline-none"
+            />
+          ) : (
+            <button
+              onClick={() => { setWeightDraft(weightForDate ? String(weightForDate) : ""); setIsWeightEditing(true); }}
+              className="flex items-center gap-1 text-xs font-semibold hover:text-accent transition-colors"
+            >
+              {weightForDate
+                ? <span className="text-foreground">{weightForDate}<span className="text-muted font-normal ml-0.5">kg</span></span>
+                : <span className="text-muted">기록하기</span>
+              }
+              <Pencil size={10} className="opacity-40" />
+            </button>
+          )}
+        </div>
+
         <div className="flex flex-col gap-2">
           {/* 섭취 / 목표 칼로리 */}
           <div className="flex justify-between items-center">

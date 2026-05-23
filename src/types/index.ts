@@ -76,3 +76,8 @@ export interface DietRecord {
   mealType: MealType;
   items: MealItem[];
 }
+
+export interface BodyWeightRecord {
+  date: string; // YYYY-MM-DD
+  weight: number; // kg
+}

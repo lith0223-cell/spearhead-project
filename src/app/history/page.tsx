@@ -19,8 +19,9 @@ import {
   saveFoodPreset,
   deleteFoodPreset,
   updateFoodPreset,
+  getAllWeightRecords,
 } from "@/utils/storage";
-import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord, SetRecord, FoodPreset } from "@/types";
+import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord, SetRecord, FoodPreset, BodyWeightRecord } from "@/types";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import { Drawer } from "@/components/ui/Drawer";
 
@@ -50,6 +51,7 @@ export default function HistoryPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(() => toDateStr(new Date()));
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [dietRecords, setDietRecords] = useState<DietRecord[]>([]);
+  const [weightRecords, setWeightRecords] = useState<BodyWeightRecord[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
 
   // 운동 수정 모달
@@ -83,6 +85,7 @@ export default function HistoryPage() {
   const refreshData = () => {
     setSessions(getWorkoutSessions());
     setDietRecords(getAllDietRecords());
+    setWeightRecords(getAllWeightRecords());
   };
 
   useEffect(() => {
@@ -367,6 +370,19 @@ export default function HistoryPage() {
     };
   }, [dietWeeklyPoints]);
 
+  const weightChartPoints = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 29);
+    const cutoffStr = toDateStr(cutoff);
+    return [...weightRecords]
+      .filter(r => r.date >= cutoffStr)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(r => {
+        const d = new Date(r.date + "T00:00:00");
+        return { date: `${d.getMonth() + 1}/${d.getDate()}`, value: r.weight };
+      });
+  }, [weightRecords]);
+
   // 분석 탭용 데이터
   const allExerciseNames = useMemo(() => {
     const names = new Set<string>();
@@ -586,6 +602,31 @@ export default function HistoryPage() {
             ) : (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <p className="text-sm text-muted">최근 7일간 식단 기록이 없습니다</p>
+              </div>
+            )}
+          </div>
+
+          {/* 체중 추이 */}
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="px-4 pt-4 pb-3 border-b border-border flex items-center gap-2">
+              <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="text-accent"><path d="M3 6h18M3 12h18M3 18h18" /><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none" /><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" /><circle cx="9" cy="18" r="2" fill="currentColor" stroke="none" /></svg>
+              <p className="text-sm font-semibold">체중 추이 (최근 30일)</p>
+            </div>
+            {weightChartPoints.length >= 2 ? (
+              <div className="p-4">
+                <SvgChart points={weightChartPoints} />
+                <div className="flex justify-between mt-2 text-xs text-muted">
+                  <span>최저 {Math.min(...weightChartPoints.map(p => p.value))}kg</span>
+                  <span>최고 {Math.max(...weightChartPoints.map(p => p.value))}kg</span>
+                  <span>최근 {weightChartPoints[weightChartPoints.length - 1].value}kg</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center gap-1">
+                <p className="text-sm text-muted">
+                  {weightChartPoints.length === 1 ? "2회 이상 기록하면 추이를 볼 수 있어요" : "식단 탭에서 체중을 기록해보세요"}
+                </p>
+                <p className="text-xs text-muted/60">날짜를 이동하며 매일 체중을 입력하세요</p>
               </div>
             )}
           </div>

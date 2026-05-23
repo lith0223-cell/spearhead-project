@@ -1,4 +1,4 @@
-import { DietRecord, ExerciseCategory, ExerciseTemplate, FoodPreset, MealItem, MealType, Routine, SetRecord, WorkoutSession } from "@/types";
+import { BodyWeightRecord, DietRecord, ExerciseCategory, ExerciseTemplate, FoodPreset, MealItem, MealType, Routine, SetRecord, WorkoutSession } from "@/types";
 import { DUMMY_DIET_RECORDS, DUMMY_ROUTINES, DUMMY_WORKOUT_SESSIONS } from "./dummyData";
 
 const STORAGE_KEYS = {
@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   HAS_INITIALIZED: "ph_initialized",
   EXERCISE_LIBRARY: "ph_exercise_library",
   FOOD_PRESETS: "ph_food_presets",
+  WEIGHTS: "ph_weights",
 };
 
 const DEFAULT_EXERCISE_LIBRARY: ExerciseTemplate[] = [
@@ -375,4 +376,29 @@ export const importAllData = (json: string) => {
   for (const [k, v] of Object.entries(data)) {
     if (k.startsWith("ph_")) localStorage.setItem(k, v);
   }
+};
+
+// --- Body Weight ---
+export const getAllWeightRecords = (): BodyWeightRecord[] => {
+  if (typeof window === "undefined") return [];
+  const data = localStorage.getItem(STORAGE_KEYS.WEIGHTS);
+  return data ? JSON.parse(data) : [];
+};
+
+export const getWeightRecord = (dateStr: string): number | null => {
+  const records = getAllWeightRecords();
+  const found = records.find(r => r.date === dateStr);
+  return found ? found.weight : null;
+};
+
+export const saveWeightRecord = (dateStr: string, weight: number) => {
+  if (typeof window === "undefined") return;
+  const records = getAllWeightRecords();
+  const idx = records.findIndex(r => r.date === dateStr);
+  if (idx >= 0) {
+    records[idx].weight = weight;
+  } else {
+    records.push({ date: dateStr, weight });
+  }
+  localStorage.setItem(STORAGE_KEYS.WEIGHTS, JSON.stringify(records));
 };
