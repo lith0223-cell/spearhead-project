@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight, ChevronDown, Dumbbell, Utensils, Trash2, Pencil, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Dumbbell, Utensils, Trash2, Pencil, Plus, X, Search, Star, Check } from "lucide-react";
 import {
   getWorkoutSessions,
   getAllDietRecords,
@@ -15,9 +15,14 @@ import {
   updateDietItem,
   addItemToDietRecord,
   getSessionsByExerciseName,
+  getFoodPresets,
+  saveFoodPreset,
+  deleteFoodPreset,
+  updateFoodPreset,
 } from "@/utils/storage";
-import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord, SetRecord } from "@/types";
+import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord, SetRecord, FoodPreset } from "@/types";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
+import { Drawer } from "@/components/ui/Drawer";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MEAL_TYPES: MealType[] = ["아침", "점심", "저녁", "간식"];
@@ -59,6 +64,13 @@ export default function HistoryPage() {
 
   // 식단 추가/수정 모달
   const [dietModal, setDietModal] = useState<DietModal | null>(null);
+  const [presets, setPresets] = useState<FoodPreset[]>([]);
+  const [presetSearch, setPresetSearch] = useState("");
+  const [showAllPresets, setShowAllPresets] = useState(false);
+  const [editingPreset, setEditingPreset] = useState<FoodPreset | null>(null);
+  const [presetEditDraft, setPresetEditDraft] = useState({ name: "", carbs: "", protein: "", fat: "" });
+  const [dietDrawerTab, setDietDrawerTab] = useState<"presets" | "form">("presets");
+  const PRESET_LIMIT = 4;
 
   // 탭
   const [activeTab, setActiveTab] = useState<"history" | "analytics">("history");
@@ -76,6 +88,7 @@ export default function HistoryPage() {
   useEffect(() => {
     refreshData();
     setRoutines(getRoutines());
+    setPresets(getFoodPresets());
   }, []);
 
   const sessionByDate = useMemo(() => {
@@ -239,8 +252,21 @@ export default function HistoryPage() {
   };
 
   // ── 식단 CRUD ──
+  const closeDietModal = () => {
+    setDietModal(null);
+    setShowAllPresets(false);
+    setPresetSearch("");
+    setEditingPreset(null);
+  };
+
   const openDietAddModal = () => {
+    const loaded = getFoodPresets();
+    setPresets(loaded);
     setDietModal({ mode: "add", mealType: "점심", foodName: "", carbs: "", protein: "", fat: "" });
+    setDietDrawerTab(loaded.length > 0 ? "presets" : "form");
+    setShowAllPresets(false);
+    setPresetSearch("");
+    setEditingPreset(null);
   };
 
   const openDietEditModal = (record: DietRecord, item: MealItem) => {
@@ -249,6 +275,10 @@ export default function HistoryPage() {
       mealType: record.mealType, foodName: item.name,
       carbs: String(item.carbs), protein: String(item.protein), fat: String(item.fat),
     });
+    setDietDrawerTab("form");
+    setShowAllPresets(false);
+    setPresetSearch("");
+    setEditingPreset(null);
   };
 
   const handleDietDelete = (recordId: string, itemId: string) => {
@@ -270,8 +300,42 @@ export default function HistoryPage() {
       });
     }
     refreshData();
-    setDietModal(null);
+    closeDietModal();
   };
+
+  const handleApplyAndRecord = (preset: FoodPreset) => {
+    if (!selectedDate || !dietModal) return;
+    addItemToDietRecord(selectedDate, dietModal.mealType, {
+      id: crypto.randomUUID(), name: preset.name, carbs: preset.carbs, protein: preset.protein, fat: preset.fat,
+    });
+    refreshData();
+    closeDietModal();
+  };
+
+  const handleSavePreset = () => {
+    if (!dietModal?.foodName.trim() || !dietModal.carbs || !dietModal.protein || !dietModal.fat) return;
+    if (presets.some(p => p.name === dietModal.foodName.trim())) return;
+    saveFoodPreset({ id: crypto.randomUUID(), name: dietModal.foodName.trim(), carbs: Number(dietModal.carbs), protein: Number(dietModal.protein), fat: Number(dietModal.fat) });
+    setPresets(getFoodPresets());
+  };
+
+  const handleDeletePreset = (id: string) => { deleteFoodPreset(id); setPresets(getFoodPresets()); };
+
+  const handleStartEditPreset = (p: FoodPreset) => {
+    setEditingPreset(p);
+    setPresetEditDraft({ name: p.name, carbs: String(p.carbs), protein: String(p.protein), fat: String(p.fat) });
+  };
+
+  const handleSavePresetEdit = () => {
+    if (!editingPreset || !presetEditDraft.name.trim()) return;
+    updateFoodPreset({ ...editingPreset, name: presetEditDraft.name.trim(), carbs: Number(presetEditDraft.carbs) || 0, protein: Number(presetEditDraft.protein) || 0, fat: Number(presetEditDraft.fat) || 0 });
+    setPresets(getFoodPresets());
+    setEditingPreset(null);
+  };
+
+  const filteredPresets = presets
+    .filter(p => p.name.toLowerCase().includes(presetSearch.toLowerCase()))
+    .slice(0, showAllPresets || presetSearch ? undefined : PRESET_LIMIT);
 
   const dietCalPreview = dietModal
     ? calculateCalories(Number(dietModal.carbs) || 0, Number(dietModal.protein) || 0, Number(dietModal.fat) || 0)
@@ -778,71 +842,179 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {/* 식단 추가/수정 모달 */}
-      {dietModal && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-6 animate-in fade-in" onClick={() => setDietModal(null)}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl animate-in slide-in-from-bottom-8 flex flex-col h-[85vh]" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center shrink-0 px-6 pt-6 pb-4 border-b border-border">
+      {/* 식단 추가/수정 Drawer */}
+      <Drawer open={!!dietModal} onClose={closeDietModal} height="85vh" zIndex={60}>
+        {dietModal && (
+          <>
+            <div className="flex justify-between items-center shrink-0 px-6 pt-3 pb-3">
               <h2 className="text-xl font-bold">{dietModal.mode === "edit" ? "식단 수정" : "식단 추가"}</h2>
-              <button onClick={() => setDietModal(null)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
+              <button onClick={closeDietModal} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {/* 끼니 선택 */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted">식사 종류</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {MEAL_TYPES.map((t) => (
-                    <button key={t} type="button"
-                      disabled={dietModal.mode === "edit"}
-                      onClick={() => setDietModal((p) => p ? { ...p, mealType: t } : p)}
-                      className={`py-2 rounded-xl text-sm font-medium transition-colors ${dietModal.mealType === t ? "bg-accent text-background" : "bg-background text-foreground border border-border"} disabled:opacity-50`}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 메뉴명 */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted">메뉴명</label>
-                <input type="text" required value={dietModal.foodName}
-                  onChange={(e) => setDietModal((p) => p ? { ...p, foodName: e.target.value } : p)}
-                  placeholder="예: 닭가슴살 샐러드"
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors" />
-              </div>
-
-              {/* 탄단지 */}
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: "탄수화물 (g)", key: "carbs" },
-                  { label: "단백질 (g)",   key: "protein" },
-                  { label: "지방 (g)",     key: "fat" },
-                ].map(({ label, key }) => (
-                  <div key={key} className="space-y-2">
-                    <label className="text-sm font-medium text-muted">{label}</label>
-                    <input type="number" value={dietModal[key as keyof DietModal] as string}
-                      onChange={(e) => setDietModal((p) => p ? { ...p, [key]: e.target.value } : p)}
-                      className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center focus:outline-none focus:border-accent" />
-                  </div>
+            {/* 탭 — 수정 모드 및 즐겨찾기 없을 때 숨김 */}
+            {dietModal.mode === "add" && presets.length > 0 && (
+              <div className="flex gap-1 shrink-0 px-6 pb-3">
+                {(["presets", "form"] as const).map((tab) => (
+                  <button key={tab} type="button" onClick={() => setDietDrawerTab(tab)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${dietDrawerTab === tab ? "bg-accent text-background" : "bg-background border border-border text-muted"}`}>
+                    {tab === "presets" ? "즐겨찾기" : "직접 입력"}
+                  </button>
                 ))}
               </div>
-            </div>
+            )}
 
-            <div className="shrink-0 px-6 pb-6 pt-4 border-t border-border space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-muted">예상 칼로리</span>
-                <span className="text-lg font-bold">{dietCalPreview} kcal</span>
+            {/* 즐겨찾기 탭 */}
+            {dietDrawerTab === "presets" && dietModal.mode === "add" && (
+              <div className="flex flex-col flex-1 min-h-0">
+                <div className="shrink-0 px-6 pb-3 space-y-2">
+                  <label className="text-sm font-medium text-muted">식사 종류</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {MEAL_TYPES.map((t) => (
+                      <button key={t} type="button"
+                        onClick={() => setDietModal((p) => p ? { ...p, mealType: t } : p)}
+                        className={`py-2 rounded-xl text-sm font-medium transition-colors ${dietModal.mealType === t ? "bg-accent text-background" : "bg-background border border-border text-foreground"}`}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {presets.length > PRESET_LIMIT && (
+                  <div className="shrink-0 px-6 pb-3">
+                    <div className="relative">
+                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                      <input type="text" value={presetSearch}
+                        onChange={(e) => { setPresetSearch(e.target.value); setShowAllPresets(false); }}
+                        placeholder="즐겨찾기 검색..."
+                        className="w-full bg-background border border-border rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-accent transition-colors" />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex-1 overflow-y-auto px-6 space-y-2 pb-4">
+                  {filteredPresets.length === 0 && (
+                    <p className="text-xs text-muted text-center py-6">검색 결과가 없습니다</p>
+                  )}
+                  {filteredPresets.map((p) =>
+                    editingPreset?.id === p.id ? (
+                      <div key={p.id} className="bg-background border border-accent rounded-xl px-4 py-3 space-y-2.5">
+                        <input autoFocus value={presetEditDraft.name}
+                          onChange={(e) => setPresetEditDraft((d) => ({ ...d, name: e.target.value }))}
+                          placeholder="메뉴명"
+                          className="w-full bg-card border border-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-accent transition-colors" />
+                        <div className="grid grid-cols-3 gap-2">
+                          {(["carbs", "protein", "fat"] as const).map((field) => (
+                            <div key={field} className="space-y-0.5">
+                              <label className="text-[10px] text-muted pl-1">
+                                {field === "carbs" ? "탄수화물" : field === "protein" ? "단백질" : "지방"}
+                              </label>
+                              <input type="number" value={presetEditDraft[field]}
+                                onChange={(e) => setPresetEditDraft((d) => ({ ...d, [field]: e.target.value }))}
+                                className="w-full bg-card border border-border rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:border-accent transition-colors" />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={handleSavePresetEdit}
+                            className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-accent text-background rounded-lg text-xs font-bold active:scale-95 transition-transform">
+                            <Check size={12} strokeWidth={3} /> 저장
+                          </button>
+                          <button type="button" onClick={() => setEditingPreset(null)}
+                            className="flex-1 py-1.5 bg-background border border-border rounded-lg text-xs active:scale-95 transition-transform">
+                            취소
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={p.id} className="flex items-center gap-2 bg-background border border-border rounded-xl px-4 py-3">
+                        <button type="button" onClick={() => handleApplyAndRecord(p)}
+                          className="flex-1 flex justify-between items-center min-w-0 text-left active:scale-[0.98] transition-transform">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm truncate">{p.name}</p>
+                            <p className="text-xs text-muted mt-0.5">탄 {p.carbs}g · 단 {p.protein}g · 지 {p.fat}g</p>
+                          </div>
+                          <span className="text-sm font-bold text-accent shrink-0 ml-3">
+                            {calculateCalories(p.carbs, p.protein, p.fat)}kcal
+                          </span>
+                        </button>
+                        <button type="button" onClick={() => handleStartEditPreset(p)} className="shrink-0 text-muted hover:text-accent transition-colors p-1"><Pencil size={13} /></button>
+                        <button type="button" onClick={() => handleDeletePreset(p.id)} className="shrink-0 text-muted hover:text-danger transition-colors p-1"><Trash2 size={13} /></button>
+                      </div>
+                    )
+                  )}
+                  {!presetSearch && !showAllPresets && presets.length > PRESET_LIMIT && (
+                    <button type="button" onClick={() => setShowAllPresets(true)}
+                      className="w-full text-xs text-muted hover:text-foreground py-2 transition-colors">
+                      + {presets.length - PRESET_LIMIT}개 더 보기
+                    </button>
+                  )}
+                </div>
               </div>
-              <button onClick={handleDietSubmit}
-                disabled={!dietModal.foodName || !dietModal.carbs || !dietModal.protein || !dietModal.fat}
-                className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform disabled:opacity-40">
-                {dietModal.mode === "edit" ? "수정하기" : "기록하기"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            )}
+
+            {/* 직접 입력 탭 / 수정 모드 */}
+            {(dietDrawerTab === "form" || dietModal.mode === "edit") && (
+              <div className="flex flex-col flex-1 min-h-0">
+                <div className="flex-1 overflow-y-auto px-6 space-y-5 pb-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted">식사 종류</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {MEAL_TYPES.map((t) => (
+                        <button key={t} type="button"
+                          disabled={dietModal.mode === "edit"}
+                          onClick={() => setDietModal((p) => p ? { ...p, mealType: t } : p)}
+                          className={`py-2 rounded-xl text-sm font-medium transition-colors ${dietModal.mealType === t ? "bg-accent text-background" : "bg-background text-foreground border border-border"} disabled:opacity-50`}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted">메뉴명</label>
+                    <input type="text" value={dietModal.foodName}
+                      onChange={(e) => setDietModal((p) => p ? { ...p, foodName: e.target.value } : p)}
+                      placeholder="예: 닭가슴살 샐러드"
+                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors" />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {([["탄수화물 (g)", "carbs"], ["단백질 (g)", "protein"], ["지방 (g)", "fat"]] as const).map(([label, key]) => (
+                      <div key={key} className="space-y-2">
+                        <label className="text-sm font-medium text-muted">{label}</label>
+                        <input type="number" value={dietModal[key] as string}
+                          onChange={(e) => setDietModal((p) => p ? { ...p, [key]: e.target.value } : p)}
+                          className="w-full bg-background border border-border rounded-xl px-3 py-2 text-center focus:outline-none focus:border-accent transition-colors" />
+                      </div>
+                    ))}
+                  </div>
+
+                  {dietModal.mode === "add" && (
+                    <button type="button" onClick={handleSavePreset}
+                      disabled={!dietModal.foodName.trim() || !dietModal.carbs || !dietModal.protein || !dietModal.fat || presets.some(p => p.name === dietModal.foodName.trim())}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-amber-400/60 text-amber-500 font-semibold text-sm bg-amber-400/5 hover:bg-amber-400/10 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100">
+                      <Star size={15} fill={dietModal.foodName.trim() && dietModal.carbs && dietModal.protein && dietModal.fat && !presets.some(p => p.name === dietModal.foodName.trim()) ? "currentColor" : "none"} />
+                      {presets.some(p => p.name === dietModal.foodName.trim()) ? "이미 즐겨찾기에 있음" : "즐겨찾기에 저장"}
+                    </button>
+                  )}
+                </div>
+
+                <div className="shrink-0 px-6 pb-6 pt-4 border-t border-border">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-sm font-medium text-muted">예상 칼로리</span>
+                    <span className="text-lg font-bold">{dietCalPreview} kcal</span>
+                  </div>
+                  <button onClick={handleDietSubmit}
+                    disabled={!dietModal.foodName || !dietModal.carbs || !dietModal.protein || !dietModal.fat}
+                    className="w-full bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform disabled:opacity-40">
+                    {dietModal.mode === "edit" ? "수정하기" : "기록하기"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </Drawer>
     </main>
   );
 }

@@ -61,13 +61,19 @@ export default function RoutinesPage() {
   // ── 루틴 카드 드래그앤드롭 ──
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [flashRoutineIdx, setFlashRoutineIdx] = useState<number | null>(null);
   const touchStartIndexRef = useRef<number | null>(null);
 
   // ── 종목 드래그앤드롭 (모달 내) ──
   const [exDragIdx, setExDragIdx] = useState<number | null>(null);
   const [exDragOverIdx, setExDragOverIdx] = useState<number | null>(null);
+  const [flashExIdx, setFlashExIdx] = useState<number | null>(null);
   const exTouchRef = useRef<number | null>(null);
   const exerciseListRef = useRef<HTMLDivElement>(null);
+
+  const vibrate = (pattern: number | number[]) => {
+    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(pattern);
+  };
 
   useEffect(() => {
     setRoutines(getRoutines());
@@ -83,12 +89,15 @@ export default function RoutinesPage() {
     next.splice(to, 0, moved);
     saveRoutinesOrder(next);
     setRoutines(next);
+    setFlashRoutineIdx(to);
+    vibrate([15, 60, 15]);
+    setTimeout(() => setFlashRoutineIdx(null), 700);
   };
-  const handleDragStart = (e: React.DragEvent, idx: number) => { setDragIndex(idx); e.dataTransfer.effectAllowed = "move"; };
+  const handleDragStart = (e: React.DragEvent, idx: number) => { setDragIndex(idx); e.dataTransfer.effectAllowed = "move"; vibrate(25); };
   const handleDragOver  = (e: React.DragEvent, idx: number) => { e.preventDefault(); if (dragOverIndex !== idx) setDragOverIndex(idx); };
   const handleDrop      = (e: React.DragEvent, idx: number) => { e.preventDefault(); if (dragIndex !== null) reorderRoutines(dragIndex, idx); setDragIndex(null); setDragOverIndex(null); };
   const handleDragEnd   = () => { setDragIndex(null); setDragOverIndex(null); };
-  const handleTouchStart = (e: React.TouchEvent, idx: number) => { touchStartIndexRef.current = idx; setDragIndex(idx); };
+  const handleTouchStart = (e: React.TouchEvent, idx: number) => { touchStartIndexRef.current = idx; setDragIndex(idx); vibrate(25); };
   const handleTouchMove  = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     Array.from(document.querySelectorAll("[data-ridx]")).forEach((card) => {
@@ -111,12 +120,15 @@ export default function RoutinesPage() {
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     setExerciseConfigs(next);
+    setFlashExIdx(to);
+    vibrate([15, 60, 15]);
+    setTimeout(() => setFlashExIdx(null), 700);
   };
-  const exDragStart = (idx: number) => (e: React.DragEvent) => { setExDragIdx(idx); e.dataTransfer.effectAllowed = "move"; };
+  const exDragStart = (idx: number) => (e: React.DragEvent) => { setExDragIdx(idx); e.dataTransfer.effectAllowed = "move"; vibrate(25); };
   const exDragOver  = (idx: number) => (e: React.DragEvent) => { e.preventDefault(); if (exDragOverIdx !== idx) setExDragOverIdx(idx); };
   const exDrop      = (idx: number) => (e: React.DragEvent) => { e.preventDefault(); if (exDragIdx !== null) reorderExercises(exDragIdx, idx); setExDragIdx(null); setExDragOverIdx(null); };
   const exDragEnd   = () => { setExDragIdx(null); setExDragOverIdx(null); };
-  const exTouchStart = (idx: number) => (e: React.TouchEvent) => { exTouchRef.current = idx; setExDragIdx(idx); };
+  const exTouchStart = (idx: number) => (e: React.TouchEvent) => { exTouchRef.current = idx; setExDragIdx(idx); vibrate(25); };
   const exTouchMove  = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     const els = exerciseListRef.current?.querySelectorAll("[data-ex-idx]") ?? [];
@@ -276,10 +288,14 @@ export default function RoutinesPage() {
                 onDragEnd={handleDragEnd}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
-                className={`bg-card border rounded-2xl p-5 shadow-sm transition-all select-none ${
-                  dragIndex === idx ? "opacity-40 scale-[0.97] border-border"
-                  : dragOverIndex === idx && dragIndex !== idx ? "border-accent scale-[1.02] shadow-lg shadow-accent/10"
-                  : "border-border"
+                className={`bg-card border rounded-2xl p-5 shadow-sm transition-all duration-150 select-none ${
+                  flashRoutineIdx === idx
+                    ? "border-accent bg-accent/10 shadow-lg shadow-accent/25"
+                    : dragIndex === idx
+                    ? "opacity-20 scale-95 border-border shadow-none"
+                    : dragOverIndex === idx && dragIndex !== idx
+                    ? "border-accent bg-accent/10 scale-[1.02] shadow-xl shadow-accent/20"
+                    : "border-border"
                 }`}
               >
                 <div className="flex justify-between items-start mb-1">
@@ -394,24 +410,29 @@ export default function RoutinesPage() {
                   onDragEnd={exDragEnd}
                   onTouchMove={exTouchMove}
                   onTouchEnd={exTouchEnd}
-                  className={`flex items-center gap-1.5 transition-all ${
-                    exDragIdx === idx ? "opacity-40 scale-[0.97]"
-                    : exDragOverIdx === idx && exDragIdx !== idx ? "scale-[1.02]" : ""
+                  className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 transition-all duration-150 select-none ${
+                    flashExIdx === idx
+                      ? "bg-accent/10 border-accent shadow-md shadow-accent/20"
+                      : exDragIdx === idx
+                      ? "opacity-20 scale-95 border-border bg-card shadow-none"
+                      : exDragOverIdx === idx && exDragIdx !== idx
+                      ? "bg-accent/10 border-accent scale-[1.02] shadow-lg shadow-accent/15"
+                      : "bg-card border-border shadow-sm"
                   }`}
                 >
                   <button
                     type="button"
                     onTouchStart={exTouchStart(idx)}
-                    className="text-muted hover:text-foreground cursor-grab active:cursor-grabbing touch-none p-1 shrink-0"
+                    className="text-muted hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
                     aria-label="순서 변경"
                   >
-                    <GripVertical size={14} />
+                    <GripVertical size={16} />
                   </button>
 
                   <button
                     type="button"
                     onClick={() => openPicker(idx)}
-                    className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2.5 py-2 text-sm text-left truncate hover:border-accent transition-colors"
+                    className="flex-1 min-w-0 text-sm font-medium text-left truncate hover:text-accent transition-colors"
                   >
                     {config.name || <span className="text-muted">종목 선택...</span>}
                   </button>
@@ -420,8 +441,10 @@ export default function RoutinesPage() {
                     type="button"
                     onClick={() => config.name.trim() && setConfigExIdx(idx)}
                     disabled={!config.name.trim()}
-                    className={`text-xs px-2 py-1 rounded-lg font-medium shrink-0 transition-colors ${
-                      config.sets.length > 0 ? "bg-accent/20 text-accent" : "bg-background border border-border text-muted hover:border-accent hover:text-accent"
+                    className={`text-xs px-2.5 py-1 rounded-lg font-semibold shrink-0 transition-colors ${
+                      config.sets.length > 0
+                        ? "bg-accent/20 text-accent"
+                        : "bg-background border border-border text-muted hover:border-accent hover:text-accent"
                     } disabled:opacity-30`}
                   >
                     {config.sets.length > 0 ? `${config.sets.length}세트` : "설정"}
@@ -430,7 +453,7 @@ export default function RoutinesPage() {
                   <button
                     type="button"
                     onClick={() => setExerciseConfigs((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-muted hover:text-danger p-1 shrink-0 transition-colors"
+                    className="text-muted hover:text-danger shrink-0 transition-colors"
                   >
                     <Trash2 size={14} />
                   </button>
