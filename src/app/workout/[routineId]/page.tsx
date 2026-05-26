@@ -19,6 +19,7 @@ import {
   requestNotificationPermission,
 } from "@/utils/notifications";
 import { ExerciseRecord, Routine, SetRecord, WorkoutSession } from "@/types";
+import { Drawer } from "@/components/ui/Drawer";
 
 const KG_TO_LB = 2.20462;
 const MAX_REST_SECONDS = 240;
@@ -631,7 +632,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
         {/* 금일 기록 */}
         {todayStats && (
           <div className="mt-4 p-4 bg-accent/10 border border-accent/20 rounded-2xl animate-in fade-in duration-300">
-            <p className="text-xs font-semibold text-muted mb-3">금일 기록</p>
+            <p className="text-sm font-semibold mb-3">금일 기록</p>
             {todayStats.isCardio ? (
               <div className="grid grid-cols-2 gap-2 text-center">
                 <div>
@@ -666,7 +667,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
         {recentSessions.length > 0 && (
           <div className="mt-4 bg-card border border-border rounded-2xl overflow-hidden">
             <div className="px-4 py-3 border-b border-border">
-              <p className="text-xs font-semibold text-muted">최근 기록</p>
+              <p className="text-sm font-semibold">최근 기록</p>
             </div>
             <div>
               {(() => {
@@ -707,78 +708,50 @@ export default function WorkoutPage({ params }: { params: Promise<{ routineId: s
       </main>
 
       {/* 이전 운동 복원 프롬프트 — Drawer */}
-      {showResumePrompt && (
-        <>
-          <div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={() => router.back()}
-          />
-          <div
-            className="fixed bottom-0 left-0 right-0 z-[51] max-w-md mx-auto bg-card rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 shrink-0">
-              <div className="w-10 h-1 bg-border rounded-full" />
-            </div>
-            <div className="p-6 pb-safe">
-              <h2 className="text-xl font-extrabold mb-2">진행 중인 운동이 있어요</h2>
-              <p className="text-sm text-muted mb-6">이전에 진행하던 운동 기록을 이어서 하시겠어요?</p>
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleResume}
-                  className="w-full py-4 bg-accent text-background rounded-2xl font-extrabold text-base active:scale-95 transition-transform"
-                >
-                  이어서 하기
-                </button>
-                <button
-                  onClick={handleFresh}
-                  className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
-                >
-                  새로 시작하기
-                </button>
-              </div>
-            </div>
+      <Drawer open={showResumePrompt} onClose={() => router.back()} height="auto" zIndex={50}>
+        <div className="p-6 pb-safe">
+          <h2 className="text-xl font-extrabold mb-2">진행 중인 운동이 있어요</h2>
+          <p className="text-sm text-muted mb-6">이전에 진행하던 운동 기록을 이어서 하시겠어요?</p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleResume}
+              className="w-full py-4 bg-accent text-background rounded-2xl font-extrabold text-base active:scale-95 transition-transform"
+            >
+              이어서 하기
+            </button>
+            <button
+              onClick={handleFresh}
+              className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
+            >
+              새로 시작하기
+            </button>
           </div>
-        </>
-      )}
+        </div>
+      </Drawer>
 
       {/* 운동 마무리 확인 Drawer */}
-      {showFinishConfirm && (
-        <>
-          <div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={() => setShowFinishConfirm(false)}
-          />
-          <div
-            className="fixed bottom-0 left-0 right-0 z-[51] max-w-md mx-auto bg-card rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 shrink-0">
-              <div className="w-10 h-1 bg-border rounded-full" />
-            </div>
-            <div className="p-6 pb-safe">
-              <h2 className="text-xl font-extrabold mb-2">지금 마무리할까요?</h2>
-              <p className="text-sm text-muted mb-6">
-                완료한 세트까지만 기록하고 운동을 종료합니다.
-              </p>
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => { setShowFinishConfirm(false); finishWorkout(); }}
-                  className="w-full py-4 bg-danger text-white rounded-2xl font-extrabold text-base active:scale-95 transition-transform"
-                >
-                  지금 마무리하기
-                </button>
-                <button
-                  onClick={() => setShowFinishConfirm(false)}
-                  className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
-                >
-                  계속하기
-                </button>
-              </div>
-            </div>
+      <Drawer open={showFinishConfirm} onClose={() => setShowFinishConfirm(false)} height="auto" zIndex={50}>
+        <div className="p-6 pb-safe">
+          <h2 className="text-xl font-extrabold mb-2">지금 마무리할까요?</h2>
+          <p className="text-sm text-muted mb-6">
+            완료한 세트까지만 기록하고 운동을 종료합니다.
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => { setShowFinishConfirm(false); finishWorkout(); }}
+              className="w-full py-4 bg-danger text-white rounded-2xl font-extrabold text-base active:scale-95 transition-transform"
+            >
+              지금 마무리하기
+            </button>
+            <button
+              onClick={() => setShowFinishConfirm(false)}
+              className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
+            >
+              계속하기
+            </button>
           </div>
-        </>
-      )}
+        </div>
+      </Drawer>
 
       {/* Bottom Fixed Area */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-card border-t border-border p-4 pb-safe space-y-3 shadow-2xl">

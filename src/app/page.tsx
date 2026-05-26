@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Dumbbell, Utensils } from "lucide-react";
+import { Dumbbell, Flame, Utensils } from "lucide-react";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import {
   initializeDummyData,
@@ -73,7 +73,7 @@ export default function Home() {
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
-              <Utensils size={14} className="text-success" />
+              <Utensils size={14} className="text-accent" />
               <p className="text-xs font-semibold text-muted">오늘의 식단</p>
             </div>
             <Link href="/diet" className="text-xs text-accent hover:text-accent/70 transition-colors">
@@ -145,7 +145,7 @@ export default function Home() {
           <div className="px-4 py-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <span className="text-lg">🔥</span>
+                <Flame size={20} className="text-accent" />
                 <span className="text-2xl font-extrabold text-accent">{workoutStats.streak}</span>
                 <span className="text-sm text-muted">일 연속</span>
               </div>

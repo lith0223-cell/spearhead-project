@@ -132,64 +132,66 @@ export default function SettingsPage() {
             </div>
             <ChevronDown size={16} className={`text-muted transition-transform duration-200 shrink-0 ${open.profile ? "rotate-180" : ""}`} />
           </button>
-          {open.profile && (
-            <div className="border-t border-border px-4 py-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold">체중</p>
-                  <p className="text-xs text-muted mt-0.5">칼로리 소모량 계산</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handleWeightChange(-1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
-                    <Minus size={14} />
-                  </button>
-                  <div className="flex items-center gap-0.5 w-20 justify-center">
-                    <input
-                      type="number"
-                      value={weightDraft}
-                      onChange={(e) => setWeightDraft(e.target.value)}
-                      onBlur={commitWeight}
-                      onKeyDown={(e) => e.key === "Enter" && (e.currentTarget.blur())}
-                      min={30}
-                      max={200}
-                      className="text-base font-extrabold w-12 text-right tabular-nums bg-transparent focus:outline-none focus:text-accent border-b border-border focus:border-accent transition-colors"
-                    />
-                    <span className="text-base font-extrabold text-muted shrink-0">kg</span>
+          <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${open.profile ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+            <div className="overflow-hidden">
+              <div className="border-t border-border px-4 py-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">체중</p>
+                    <p className="text-xs text-muted mt-0.5">칼로리 소모량 계산</p>
                   </div>
-                  <button onClick={() => handleWeightChange(1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold">키</p>
-                  <p className="text-xs text-muted mt-0.5">신체 정보 기록</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handleHeightChange(-1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
-                    <Minus size={14} />
-                  </button>
-                  <div className="flex items-center gap-0.5 w-20 justify-center">
-                    <input
-                      type="number"
-                      value={heightDraft}
-                      onChange={(e) => setHeightDraft(e.target.value)}
-                      onBlur={commitHeight}
-                      onKeyDown={(e) => e.key === "Enter" && (e.currentTarget.blur())}
-                      min={100}
-                      max={250}
-                      className="text-base font-extrabold w-12 text-right tabular-nums bg-transparent focus:outline-none focus:text-accent border-b border-border focus:border-accent transition-colors"
-                    />
-                    <span className="text-base font-extrabold text-muted shrink-0">cm</span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleWeightChange(-1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
+                      <Minus size={14} />
+                    </button>
+                    <div className="flex items-center gap-0.5 w-20 justify-center">
+                      <input
+                        type="number"
+                        value={weightDraft}
+                        onChange={(e) => setWeightDraft(e.target.value)}
+                        onBlur={commitWeight}
+                        onKeyDown={(e) => e.key === "Enter" && (e.currentTarget.blur())}
+                        min={30}
+                        max={200}
+                        className="text-base font-extrabold w-12 text-right tabular-nums bg-transparent focus:outline-none focus:text-accent border-b border-border focus:border-accent transition-colors"
+                      />
+                      <span className="text-base font-extrabold text-muted shrink-0">kg</span>
+                    </div>
+                    <button onClick={() => handleWeightChange(1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
+                      <Plus size={14} />
+                    </button>
                   </div>
-                  <button onClick={() => handleHeightChange(1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
-                    <Plus size={14} />
-                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">키</p>
+                    <p className="text-xs text-muted mt-0.5">신체 정보 기록</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleHeightChange(-1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
+                      <Minus size={14} />
+                    </button>
+                    <div className="flex items-center gap-0.5 w-20 justify-center">
+                      <input
+                        type="number"
+                        value={heightDraft}
+                        onChange={(e) => setHeightDraft(e.target.value)}
+                        onBlur={commitHeight}
+                        onKeyDown={(e) => e.key === "Enter" && (e.currentTarget.blur())}
+                        min={100}
+                        max={250}
+                        className="text-base font-extrabold w-12 text-right tabular-nums bg-transparent focus:outline-none focus:text-accent border-b border-border focus:border-accent transition-colors"
+                      />
+                      <span className="text-base font-extrabold text-muted shrink-0">cm</span>
+                    </div>
+                    <button onClick={() => handleHeightChange(1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-background border border-border text-muted active:scale-90 transition-all">
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* 컬러 설정 */}
@@ -205,46 +207,48 @@ export default function SettingsPage() {
             <span className="w-4 h-4 rounded-full shrink-0 mr-1 border border-white/20" style={{ backgroundColor: accentHex }} />
             <ChevronDown size={16} className={`text-muted transition-transform duration-200 shrink-0 ${open.color ? "rotate-180" : ""}`} />
           </button>
-          {open.color && (
-            <div className="border-t border-border px-4 py-4 space-y-5">
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-muted uppercase tracking-wider">테마 색상</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {ACCENT_COLORS.map(({ id, hex, label }) => {
-                    const active = currentAccent === id;
-                    return (
-                      <button key={id} onClick={() => handleAccentChange(id)}
-                        className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all active:scale-95 ${active ? "border-accent" : "border-border"}`}>
-                        <span className="w-7 h-7 rounded-full shrink-0" style={{ backgroundColor: hex }} />
-                        <span className="text-sm font-medium">{label}</span>
-                        {active && (
-                          <span className="ml-auto w-4 h-4 rounded-full flex items-center justify-center bg-accent shrink-0">
-                            <Check size={10} strokeWidth={3} className="text-background" />
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+          <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${open.color ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+            <div className="overflow-hidden">
+              <div className="border-t border-border px-4 py-4 space-y-5">
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-muted uppercase tracking-wider">테마 색상</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ACCENT_COLORS.map(({ id, hex, label }) => {
+                      const active = currentAccent === id;
+                      return (
+                        <button key={id} onClick={() => handleAccentChange(id)}
+                          className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all active:scale-95 ${active ? "border-accent" : "border-border"}`}>
+                          <span className="w-7 h-7 rounded-full shrink-0" style={{ backgroundColor: hex }} />
+                          <span className="text-sm font-medium">{label}</span>
+                          {active && (
+                            <span className="ml-auto w-4 h-4 rounded-full flex items-center justify-center bg-accent shrink-0">
+                              <Check size={10} strokeWidth={3} className="text-background" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-muted uppercase tracking-wider">화면 모드</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {COLOR_MODES.map(({ id, label, Icon }) => {
-                    const active = currentMode === id;
-                    return (
-                      <button key={id} onClick={() => handleModeChange(id)}
-                        className={`flex flex-col items-center gap-2 py-4 rounded-xl border-2 transition-all active:scale-95 ${active ? "border-accent" : "border-border"}`}>
-                        <Icon size={24} className={active ? "text-accent" : "text-muted"} />
-                        <span className={`text-sm font-medium ${active ? "text-foreground" : "text-muted"}`}>{label}</span>
-                        {active && <span className="w-1.5 h-1.5 rounded-full bg-accent" />}
-                      </button>
-                    );
-                  })}
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-muted uppercase tracking-wider">화면 모드</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {COLOR_MODES.map(({ id, label, Icon }) => {
+                      const active = currentMode === id;
+                      return (
+                        <button key={id} onClick={() => handleModeChange(id)}
+                          className={`flex flex-col items-center gap-2 py-4 rounded-xl border-2 transition-all active:scale-95 ${active ? "border-accent" : "border-border"}`}>
+                          <Icon size={24} className={active ? "text-accent" : "text-muted"} />
+                          <span className={`text-sm font-medium ${active ? "text-foreground" : "text-muted"}`}>{label}</span>
+                          {active && <span className="w-1.5 h-1.5 rounded-full bg-accent" />}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* 알림음 설정 */}
@@ -259,42 +263,44 @@ export default function SettingsPage() {
             </div>
             <ChevronDown size={16} className={`text-muted transition-transform duration-200 shrink-0 ${open.sound ? "rotate-180" : ""}`} />
           </button>
-          {open.sound && (
-            <div className="border-t border-border px-4 py-4 space-y-4">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">볼륨</span>
-                  <span className="text-sm font-bold text-accent">{volumePct}%</span>
+          <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${open.sound ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+            <div className="overflow-hidden">
+              <div className="border-t border-border px-4 py-4 space-y-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">볼륨</span>
+                    <span className="text-sm font-bold text-accent">{volumePct}%</span>
+                  </div>
+                  <input type="range" min={0} max={100} value={volumePct}
+                    onChange={(e) => handleVolumeChange(Number(e.target.value) / 100)}
+                    style={{ accentColor: "var(--color-accent)" }}
+                    className="w-full h-2 rounded-full cursor-pointer" />
                 </div>
-                <input type="range" min={0} max={100} value={volumePct}
-                  onChange={(e) => handleVolumeChange(Number(e.target.value) / 100)}
-                  style={{ accentColor: "var(--color-accent)" }}
-                  className="w-full h-2 rounded-full cursor-pointer" />
-              </div>
-              <div className="space-y-2">
-                {BEEP_TYPES.map(({ id, label, desc }) => {
-                  const active = beepType === id;
-                  return (
-                    <button key={id} onClick={() => handleBeepTypeChange(id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all active:scale-95 ${active ? "border-accent bg-card" : "border-border bg-background"}`}>
-                      <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${active ? "bg-accent" : "border border-border bg-card"}`}>
-                        <Play size={12} fill="currentColor" className={active ? "text-background" : "text-muted"} />
-                      </span>
-                      <span className="flex-1 text-left">
-                        <span className="text-sm font-semibold block">{label}</span>
-                        <span className="text-xs text-muted">{desc}</span>
-                      </span>
-                      {active && (
-                        <span className="w-4 h-4 rounded-full flex items-center justify-center bg-accent shrink-0">
-                          <Check size={10} strokeWidth={3} className="text-background" />
+                <div className="space-y-2">
+                  {BEEP_TYPES.map(({ id, label, desc }) => {
+                    const active = beepType === id;
+                    return (
+                      <button key={id} onClick={() => handleBeepTypeChange(id)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all active:scale-95 ${active ? "border-accent bg-card" : "border-border bg-background"}`}>
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${active ? "bg-accent" : "border border-border bg-card"}`}>
+                          <Play size={12} fill="currentColor" className={active ? "text-background" : "text-muted"} />
                         </span>
-                      )}
-                    </button>
-                  );
-                })}
+                        <span className="flex-1 text-left">
+                          <span className="text-sm font-semibold block">{label}</span>
+                          <span className="text-xs text-muted">{desc}</span>
+                        </span>
+                        {active && (
+                          <span className="w-4 h-4 rounded-full flex items-center justify-center bg-accent shrink-0">
+                            <Check size={10} strokeWidth={3} className="text-background" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* 데이터 관리 */}
@@ -309,32 +315,34 @@ export default function SettingsPage() {
             </div>
             <ChevronDown size={16} className={`text-muted transition-transform duration-200 shrink-0 ${open.data ? "rotate-180" : ""}`} />
           </button>
-          {open.data && (
-            <div className="border-t border-border divide-y divide-border">
-              <button onClick={handleExport} className="w-full flex items-center gap-3 px-4 py-4 hover:bg-background transition-colors active:scale-[0.98]">
-                <span className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                  <Download size={15} className="text-accent" />
-                </span>
-                <div className="text-left">
-                  <p className="text-sm font-semibold">데이터 내보내기</p>
-                  <p className="text-xs text-muted mt-0.5">루틴·운동·식단 기록을 JSON 파일로 저장</p>
+          <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${open.data ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+            <div className="overflow-hidden">
+              <div className="border-t border-border divide-y divide-border">
+                <button onClick={handleExport} className="w-full flex items-center gap-3 px-4 py-4 hover:bg-background transition-colors active:scale-[0.98]">
+                  <span className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                    <Download size={15} className="text-accent" />
+                  </span>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold">데이터 내보내기</p>
+                    <p className="text-xs text-muted mt-0.5">루틴·운동·식단 기록을 JSON 파일로 저장</p>
+                  </div>
+                </button>
+                <label className="w-full flex items-center gap-3 px-4 py-4 hover:bg-background transition-colors cursor-pointer active:scale-[0.98]">
+                  <span className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                    <Upload size={15} className="text-accent" />
+                  </span>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold">데이터 불러오기</p>
+                    <p className="text-xs text-muted mt-0.5">이전에 저장한 백업 파일을 복원</p>
+                  </div>
+                  <input type="file" accept=".json" className="hidden" onChange={handleImport} />
+                </label>
+                <div className="px-4 py-2.5">
+                  <p className="text-xs text-muted">불러오기 시 현재 데이터를 덮어씁니다.</p>
                 </div>
-              </button>
-              <label className="w-full flex items-center gap-3 px-4 py-4 hover:bg-background transition-colors cursor-pointer active:scale-[0.98]">
-                <span className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                  <Upload size={15} className="text-accent" />
-                </span>
-                <div className="text-left">
-                  <p className="text-sm font-semibold">데이터 불러오기</p>
-                  <p className="text-xs text-muted mt-0.5">이전에 저장한 백업 파일을 복원</p>
-                </div>
-                <input type="file" accept=".json" className="hidden" onChange={handleImport} />
-              </label>
-              <div className="px-4 py-2.5">
-                <p className="text-xs text-muted">불러오기 시 현재 데이터를 덮어씁니다.</p>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
       </div>
