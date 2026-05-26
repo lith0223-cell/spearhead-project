@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useLayoutEffect, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
+import { ACTIVE_WORKOUT_EVENT, getActiveWorkout } from "@/utils/storage";
 
 interface ActiveWorkoutCtx {
   isActive: boolean;
@@ -14,17 +15,10 @@ export function useActiveWorkout() {
 }
 
 function readIsActive(): boolean {
-  try {
-    const saved = localStorage.getItem("ph_active_workout");
-    if (saved) {
-      const data = JSON.parse(saved);
-      const hasProgress = data.exercisesData?.some(
-        (ex: { sets: { isCompleted: boolean }[] }) => ex.sets.some((s) => s.isCompleted)
-      );
-      return !!(data.routineId && hasProgress);
-    }
-  } catch {}
-  return false;
+  const data = getActiveWorkout();
+  if (!data) return false;
+  const hasProgress = data.exercisesData?.some((ex) => ex.sets.some((s) => s.isCompleted));
+  return !!(data.routineId && hasProgress);
 }
 
 export function ActiveWorkoutProvider({ children }: { children: React.ReactNode }) {
@@ -39,8 +33,13 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
   }, [check, pathname]);
 
   useEffect(() => {
+    // 같은 탭에서의 변경은 커스텀 이벤트로, 다른 탭은 storage 이벤트로 감지
+    window.addEventListener(ACTIVE_WORKOUT_EVENT, check);
     window.addEventListener("storage", check);
-    return () => window.removeEventListener("storage", check);
+    return () => {
+      window.removeEventListener(ACTIVE_WORKOUT_EVENT, check);
+      window.removeEventListener("storage", check);
+    };
   }, [check]);
 
   return <Ctx.Provider value={{ isActive }}>{children}</Ctx.Provider>;

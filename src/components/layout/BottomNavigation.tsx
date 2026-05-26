@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { Home, Dumbbell, Utensils, CalendarDays, Settings, Pause, Play, ChevronRight } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { ACTIVE_WORKOUT_EVENT, getActiveWorkout, updateActiveWorkoutStartTime } from "@/utils/storage";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -30,35 +31,37 @@ export function BottomNavigation() {
 
   useEffect(() => {
     const check = () => {
-      try {
-        const saved = localStorage.getItem("ph_active_workout");
-        if (saved) {
-          const data = JSON.parse(saved);
-          const hasProgress = data.exercisesData?.some((ex: { sets: { isCompleted: boolean }[] }) =>
-            ex.sets.some((s) => s.isCompleted)
-          );
-          if (data.routineId && data.routineName && hasProgress) {
-            setActiveWorkout({ routineId: data.routineId, routineName: data.routineName, startTime: data.startTime });
-            const pausedRaw = localStorage.getItem(PAUSE_KEY);
-            if (pausedRaw) {
-              const pausedSec = parseInt(pausedRaw);
+      const data = getActiveWorkout();
+      if (data) {
+        const hasProgress = data.exercisesData?.some((ex) => ex.sets.some((s) => s.isCompleted));
+        if (data.routineId && data.routineName && hasProgress) {
+          setActiveWorkout({ routineId: data.routineId, routineName: data.routineName, startTime: data.startTime });
+          const pausedRaw = localStorage.getItem(PAUSE_KEY);
+          if (pausedRaw) {
+            const pausedSec = parseInt(pausedRaw);
+            if (!isNaN(pausedSec)) {
               setIsPaused(true);
               setPausedElapsedSec(pausedSec);
               setElapsed(pausedSec);
-            } else {
-              setIsPaused(false);
-              setPausedElapsedSec(0);
+              return;
             }
-            return;
           }
+          setIsPaused(false);
+          setPausedElapsedSec(0);
+          return;
         }
-      } catch {}
+      }
       setActiveWorkout(null);
       setIsPaused(false);
     };
     check();
+    // 같은 탭의 변경은 커스텀 이벤트로, 다른 탭은 storage 이벤트로 감지
+    window.addEventListener(ACTIVE_WORKOUT_EVENT, check);
     window.addEventListener("storage", check);
-    return () => window.removeEventListener("storage", check);
+    return () => {
+      window.removeEventListener(ACTIVE_WORKOUT_EVENT, check);
+      window.removeEventListener("storage", check);
+    };
   }, [pathname]);
 
   useEffect(() => {
@@ -74,15 +77,8 @@ export function BottomNavigation() {
     if (isPaused) {
       // 재개: startTime을 현재 기준으로 재계산
       const newStartTime = Date.now() - pausedElapsedSec * 1000;
-      try {
-        const saved = localStorage.getItem("ph_active_workout");
-        if (saved) {
-          const data = JSON.parse(saved);
-          data.startTime = newStartTime;
-          localStorage.setItem("ph_active_workout", JSON.stringify(data));
-          setActiveWorkout((prev) => prev ? { ...prev, startTime: newStartTime } : null);
-        }
-      } catch {}
+      updateActiveWorkoutStartTime(newStartTime);
+      setActiveWorkout((prev) => prev ? { ...prev, startTime: newStartTime } : null);
       localStorage.removeItem(PAUSE_KEY);
       setIsPaused(false);
     } else {

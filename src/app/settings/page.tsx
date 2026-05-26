@@ -146,7 +146,7 @@ export default function SettingsPage() {
                     </button>
                     <div className="flex items-center gap-0.5 w-20 justify-center">
                       <input
-                        type="number"
+                        type="number" inputMode="numeric"
                         value={weightDraft}
                         onChange={(e) => setWeightDraft(e.target.value)}
                         onBlur={commitWeight}
@@ -173,7 +173,7 @@ export default function SettingsPage() {
                     </button>
                     <div className="flex items-center gap-0.5 w-20 justify-center">
                       <input
-                        type="number"
+                        type="number" inputMode="numeric"
                         value={heightDraft}
                         onChange={(e) => setHeightDraft(e.target.value)}
                         onBlur={commitHeight}

@@ -1,4 +1,4 @@
-import { BodyWeightRecord, DietRecord, ExerciseCategory, ExerciseTemplate, FoodPreset, MealItem, MealType, Routine, SetRecord, WorkoutSession } from "@/types";
+import { BodyWeightRecord, DietRecord, ExerciseRecord, ExerciseTemplate, FoodPreset, MealItem, MealType, Routine, SetRecord, WorkoutSession } from "@/types";
 import { DUMMY_DIET_RECORDS, DUMMY_ROUTINES, DUMMY_WORKOUT_SESSIONS } from "./dummyData";
 
 const STORAGE_KEYS = {
@@ -9,7 +9,22 @@ const STORAGE_KEYS = {
   EXERCISE_LIBRARY: "ph_exercise_library",
   FOOD_PRESETS: "ph_food_presets",
   WEIGHTS: "ph_weights",
+  ACTIVE_WORKOUT: "ph_active_workout",
 };
+
+export const ACTIVE_WORKOUT_EVENT = "ph:active-workout-changed";
+
+// localStorage JSON 파싱을 안전하게 수행. 손상되거나 없으면 fallback 반환.
+function safeParse<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const data = localStorage.getItem(key);
+    if (data === null) return fallback;
+    return JSON.parse(data) as T;
+  } catch {
+    return fallback;
+  }
+}
 
 const DEFAULT_EXERCISE_LIBRARY: ExerciseTemplate[] = [
   { id: "ex-001", name: "바벨 벤치프레스",      category: "가슴" },
@@ -55,11 +70,7 @@ export const initializeDummyData = () => {
 };
 
 // --- Routines ---
-export const getRoutines = (): Routine[] => {
-  if (typeof window === "undefined") return [];
-  const data = localStorage.getItem(STORAGE_KEYS.ROUTINES);
-  return data ? JSON.parse(data) : [];
-};
+export const getRoutines = (): Routine[] => safeParse<Routine[]>(STORAGE_KEYS.ROUTINES, []);
 
 export const saveRoutine = (routine: Routine) => {
   if (typeof window === "undefined") return;
@@ -88,11 +99,7 @@ export const saveRoutinesOrder = (orderedRoutines: Routine[]) => {
 };
 
 // --- Workout Sessions ---
-export const getWorkoutSessions = (): WorkoutSession[] => {
-  if (typeof window === "undefined") return [];
-  const data = localStorage.getItem(STORAGE_KEYS.SESSIONS);
-  return data ? JSON.parse(data) : [];
-};
+export const getWorkoutSessions = (): WorkoutSession[] => safeParse<WorkoutSession[]>(STORAGE_KEYS.SESSIONS, []);
 
 export const saveWorkoutSession = (session: WorkoutSession) => {
   if (typeof window === "undefined") return;
@@ -136,31 +143,22 @@ export const getLastSessionByExercise = (exerciseName: string): WorkoutSession |
 };
 
 // --- Diet ---
-export const getAllDietRecords = (): DietRecord[] => {
-  if (typeof window === "undefined") return [];
-  const data = localStorage.getItem(STORAGE_KEYS.DIETS);
-  return data ? JSON.parse(data) : [];
-};
+export const getAllDietRecords = (): DietRecord[] => safeParse<DietRecord[]>(STORAGE_KEYS.DIETS, []);
 
 export const getDietRecordsByDate = (dateString: string): DietRecord[] => {
-  if (typeof window === "undefined") return [];
-  const data = localStorage.getItem(STORAGE_KEYS.DIETS);
-  const allDiets: DietRecord[] = data ? JSON.parse(data) : [];
-  return allDiets.filter((d) => d.date === dateString);
+  return getAllDietRecords().filter((d) => d.date === dateString);
 };
 
 export const saveDietRecord = (record: DietRecord) => {
   if (typeof window === "undefined") return;
-  const data = localStorage.getItem(STORAGE_KEYS.DIETS);
-  const allDiets: DietRecord[] = data ? JSON.parse(data) : [];
+  const allDiets = getAllDietRecords();
   allDiets.push(record);
   localStorage.setItem(STORAGE_KEYS.DIETS, JSON.stringify(allDiets));
 };
 
 export const deleteDietItem = (recordId: string, itemId: string) => {
   if (typeof window === "undefined") return;
-  const data = localStorage.getItem(STORAGE_KEYS.DIETS);
-  const allDiets: DietRecord[] = data ? JSON.parse(data) : [];
+  const allDiets = getAllDietRecords();
   const record = allDiets.find(d => d.id === recordId);
   if (record) {
     record.items = record.items.filter(item => item.id !== itemId);
@@ -186,8 +184,7 @@ export const addItemToDietRecord = (date: string, mealType: MealType, item: Meal
 
 export const updateDietItem = (recordId: string, updatedItem: MealItem) => {
   if (typeof window === "undefined") return;
-  const data = localStorage.getItem(STORAGE_KEYS.DIETS);
-  const allDiets: DietRecord[] = data ? JSON.parse(data) : [];
+  const allDiets = getAllDietRecords();
   const record = allDiets.find(d => d.id === recordId);
   if (record) {
     const idx = record.items.findIndex(item => item.id === updatedItem.id);
@@ -206,7 +203,12 @@ export const getExerciseLibrary = (): ExerciseTemplate[] => {
     localStorage.setItem(STORAGE_KEYS.EXERCISE_LIBRARY, JSON.stringify(DEFAULT_EXERCISE_LIBRARY));
     return DEFAULT_EXERCISE_LIBRARY;
   }
-  return JSON.parse(data);
+  try {
+    return JSON.parse(data) as ExerciseTemplate[];
+  } catch {
+    localStorage.setItem(STORAGE_KEYS.EXERCISE_LIBRARY, JSON.stringify(DEFAULT_EXERCISE_LIBRARY));
+    return DEFAULT_EXERCISE_LIBRARY;
+  }
 };
 
 export const saveExerciseToLibrary = (ex: ExerciseTemplate) => {
@@ -252,11 +254,7 @@ export const calculateCalories = (carbs: number, protein: number, fat: number): 
 };
 
 // --- Food Presets ---
-export const getFoodPresets = (): FoodPreset[] => {
-  if (typeof window === "undefined") return [];
-  const data = localStorage.getItem(STORAGE_KEYS.FOOD_PRESETS);
-  return data ? JSON.parse(data) : [];
-};
+export const getFoodPresets = (): FoodPreset[] => safeParse<FoodPreset[]>(STORAGE_KEYS.FOOD_PRESETS, []);
 
 export const saveFoodPreset = (preset: FoodPreset) => {
   if (typeof window === "undefined") return;
@@ -372,18 +370,57 @@ export const exportAllData = (): string => {
 
 export const importAllData = (json: string) => {
   if (typeof window === "undefined") return;
-  const data = JSON.parse(json) as Record<string, string>;
-  for (const [k, v] of Object.entries(data)) {
-    if (k.startsWith("ph_")) localStorage.setItem(k, v);
+  let data: Record<string, string>;
+  try {
+    data = JSON.parse(json) as Record<string, string>;
+  } catch {
+    throw new Error("백업 파일이 손상되어 불러올 수 없습니다.");
   }
+  if (!data || typeof data !== "object") {
+    throw new Error("백업 파일 형식이 올바르지 않습니다.");
+  }
+  for (const [k, v] of Object.entries(data)) {
+    if (k.startsWith("ph_") && typeof v === "string") localStorage.setItem(k, v);
+  }
+  // 데이터 갱신을 다른 컴포넌트에 알림
+  window.dispatchEvent(new Event(ACTIVE_WORKOUT_EVENT));
+};
+
+// --- Active Workout (same-tab event 발행) ---
+export interface ActiveWorkoutData {
+  routineId: string;
+  routineName: string;
+  exercisesData: ExerciseRecord[];
+  currentExIndex: number;
+  startTime: number;
+}
+
+export const getActiveWorkout = (): ActiveWorkoutData | null =>
+  safeParse<ActiveWorkoutData | null>(STORAGE_KEYS.ACTIVE_WORKOUT, null);
+
+export const setActiveWorkout = (data: ActiveWorkoutData) => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_KEYS.ACTIVE_WORKOUT, JSON.stringify(data));
+  window.dispatchEvent(new Event(ACTIVE_WORKOUT_EVENT));
+};
+
+export const clearActiveWorkout = () => {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_KEYS.ACTIVE_WORKOUT);
+  window.dispatchEvent(new Event(ACTIVE_WORKOUT_EVENT));
+};
+
+export const updateActiveWorkoutStartTime = (newStartTime: number) => {
+  if (typeof window === "undefined") return;
+  const existing = getActiveWorkout();
+  if (!existing) return;
+  existing.startTime = newStartTime;
+  localStorage.setItem(STORAGE_KEYS.ACTIVE_WORKOUT, JSON.stringify(existing));
+  window.dispatchEvent(new Event(ACTIVE_WORKOUT_EVENT));
 };
 
 // --- Body Weight ---
-export const getAllWeightRecords = (): BodyWeightRecord[] => {
-  if (typeof window === "undefined") return [];
-  const data = localStorage.getItem(STORAGE_KEYS.WEIGHTS);
-  return data ? JSON.parse(data) : [];
-};
+export const getAllWeightRecords = (): BodyWeightRecord[] => safeParse<BodyWeightRecord[]>(STORAGE_KEYS.WEIGHTS, []);
 
 export const getWeightRecord = (dateStr: string): number | null => {
   const records = getAllWeightRecords();

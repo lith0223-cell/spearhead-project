@@ -45,7 +45,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className="h-full antialiased" data-mode="dark" data-accent="cyan">
+    <html
+      lang="ko"
+      className="h-full antialiased"
+      data-mode="dark"
+      data-accent="cyan"
+      suppressHydrationWarning
+    >
       <head>
         {/* 테마 깜빡임 방지: 첫 페인트 전 localStorage에서 테마 복원 */}
         <script

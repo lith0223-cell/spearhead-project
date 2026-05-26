@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spearhead Final Logo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@700;900&display=swap');
+
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #0f0f0f;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 50px 20px;
+            margin: 0;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        h1 {
+            font-family: 'Syncopate', sans-serif;
+            letter-spacing: 4px;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .desc {
+            color: #888;
+            font-size: 1rem;
+        }
+
+        .container {
+            background: #1a1a1a;
+            padding: 50px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid #333;
+        }
+
+        h2 {
+            margin-bottom: 40px;
+            color: #fff;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            width: 100%;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            padding-bottom: 20px;
+        }
+
+        .logo-box {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px 40px;
+            background: #000;
+            border-radius: 16px;
+            width: 90%;
+            margin-bottom: 30px;
+        }
+
+        .logo-box.white {
+            background: #fff;
+            color: #000;
+        }
+
+        /* 심볼 디자인 */
+        .symbol {
+            width: 180px;
+            height: 180px;
+        }
+
+        .symbol-small {
+            width: 80px;
+            height: 80px;
+        }
+
+        .text-logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .text-logo-container.horizontal {
+            flex-direction: row;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .brand-text {
+            font-family: 'Syncopate', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+
+        .brand-text.horizontal-text {
+            font-size: 2.5rem;
+        }
+
+        /* 화이트 테마용 클래스 */
+        .white .brand-text {
+            color: #000;
+        }
+        
+        .white path {
+            fill: #000;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>SPEARHEAD</h1>
+        <div class="desc">Original (Sharp) 형태 + Aero (Split) 결합 최종 디자인</div>
+    </div>
+
+    <!-- 1. 심볼 마크 단독 -->
+    <div class="container">
+        <h2>1. Symbol Mark (심볼 단독)</h2>
+        
+        <div class="logo-box">
+            <svg class="symbol" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Original의 날렵함을 유지하면서 Aero 스플릿 적용 -->
+                <path d="M 48 10 Q 33 60 8 90 Q 28 75 33 70 Q 43 55 48 45 Z" fill="#ffffff"/>
+                <path d="M 52 10 Q 67 60 92 90 Q 72 75 67 70 Q 57 55 52 45 Z" fill="#ffffff"/>
+            </svg>
+        </div>
+
+        <div class="logo-box white">
+            <svg class="symbol" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 48 10 Q 33 60 8 90 Q 28 75 33 70 Q 43 55 48 45 Z" fill="#000000"/>
+                <path d="M 52 10 Q 67 60 92 90 Q 72 75 67 70 Q 57 55 52 45 Z" fill="#000000"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- 2. 수직 조합 (Vertical Lockup) -->
+    <div class="container">
+        <h2>2. Vertical Lockup (수직 조합)</h2>
+        
+        <div class="logo-box">
+            <div class="text-logo-container">
+                <svg class="symbol" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width: 140px; height: 140px; margin-bottom: 10px;">
+                    <path d="M 48 10 Q 33 60 8 90 Q 28 75 33 70 Q 43 55 48 45 Z" fill="#ffffff"/>
+                    <path d="M 52 10 Q 67 60 92 90 Q 72 75 67 70 Q 57 55 52 45 Z" fill="#ffffff"/>
+                </svg>
+                <div class="brand-text">SPEARHEAD</div>
+            </div>
+        </div>
+
+        <div class="logo-box white">
+            <div class="text-logo-container">
+                <svg class="symbol" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width: 140px; height: 140px; margin-bottom: 10px;">
+                    <path d="M 48 10 Q 33 60 8 90 Q 28 75 33 70 Q 43 55 48 45 Z" fill="#000000"/>
+                    <path d="M 52 10 Q 67 60 92 90 Q 72 75 67 70 Q 57 55 52 45 Z" fill="#000000"/>
+                </svg>
+                <div class="brand-text">SPEARHEAD</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 수평 조합 (Horizontal Lockup) -->
+    <div class="container">
+        <h2>3. Horizontal Lockup (수평 조합)</h2>
+        
+        <div class="logo-box" style="padding: 50px 30px;">
+            <div class="text-logo-container horizontal">
+                <svg class="symbol-small" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 48 10 Q 33 60 8 90 Q 28 75 33 70 Q 43 55 48 45 Z" fill="#ffffff"/>
+                    <path d="M 52 10 Q 67 60 92 90 Q 72 75 67 70 Q 57 55 52 45 Z" fill="#ffffff"/>
+                </svg>
+                <div class="brand-text horizontal-text">SPEARHEAD</div>
+            </div>
+        </div>
+
+        <div class="logo-box white" style="padding: 50px 30px;">
+            <div class="text-logo-container horizontal">
+                <svg class="symbol-small" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 48 10 Q 33 60 8 90 Q 28 75 33 70 Q 43 55 48 45 Z" fill="#000000"/>
+                    <path d="M 52 10 Q 67 60 92 90 Q 72 75 67 70 Q 57 55 52 45 Z" fill="#000000"/>
+                </svg>
+                <div class="brand-text horizontal-text">SPEARHEAD</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

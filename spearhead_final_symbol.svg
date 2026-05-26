@@ -1,0 +1,7 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Spearhead Final Symbol (Left Side) -->
+    <path d="M 48 10 Q 33 60 8 90 Q 28 75 33 70 Q 43 55 48 45 Z" fill="#000000"/>
+    
+    <!-- Spearhead Final Symbol (Right Side) -->
+    <path d="M 52 10 Q 67 60 92 90 Q 72 75 67 70 Q 57 55 52 45 Z" fill="#000000"/>
+</svg>
