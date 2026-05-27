@@ -541,7 +541,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
 
                 <div className="flex-1 flex justify-center px-1">
                   <input
-                    type="number" inputMode="decimal"
+                    type="text" inputMode="decimal"
                     value={set.weight || ""}
                     onChange={(e) => updateSet(currentExIndex, sIdx, "weight", Number(e.target.value))}
                     onFocus={(e) => e.target.select()}
@@ -553,7 +553,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
 
                 <div className="flex-1 flex justify-center px-1">
                   <input
-                    type="number" inputMode="decimal"
+                    type="text" inputMode="decimal"
                     value={set.reps || ""}
                     onChange={(e) => updateSet(currentExIndex, sIdx, "reps", Number(e.target.value))}
                     onFocus={(e) => e.target.select()}

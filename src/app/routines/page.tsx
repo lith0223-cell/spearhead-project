@@ -657,16 +657,16 @@ export default function RoutinesPage() {
                     <span className="text-xs font-bold text-muted w-5 text-center shrink-0">{sIdx + 1}</span>
                     {isCardioConfig ? (
                       <>
-                        <input type="number" inputMode="decimal" value={set.weight || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "weight", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
+                        <input type="text" inputMode="decimal" value={set.weight || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "weight", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
                         <span className="text-xs text-muted shrink-0">km</span>
-                        <input type="number" inputMode="decimal" value={set.reps || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "reps", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
+                        <input type="text" inputMode="decimal" value={set.reps || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "reps", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
                         <span className="text-xs text-muted shrink-0">분</span>
                       </>
                     ) : (
                       <>
-                        <input type="number" inputMode="decimal" value={set.weight || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "weight", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
+                        <input type="text" inputMode="decimal" value={set.weight || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "weight", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
                         <span className="text-xs text-muted shrink-0">kg ×</span>
-                        <input type="number" inputMode="decimal" value={set.reps || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "reps", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
+                        <input type="text" inputMode="decimal" value={set.reps || ""} onChange={(e) => updateConfigSet(configExIdx, sIdx, "reps", Number(e.target.value))} onFocus={(e) => e.target.select()} placeholder="0" className="flex-1 min-w-0 text-center bg-card border border-border rounded-lg px-2 py-2 text-sm font-bold focus:outline-none focus:border-accent" />
                         <span className="text-xs text-muted shrink-0">회</span>
                       </>
                     )}

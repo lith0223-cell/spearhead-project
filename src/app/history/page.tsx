@@ -14,6 +14,8 @@ import {
   deleteDietItem,
   getSessionsByExerciseName,
   getAllWeightRecords,
+  estimateRoutineCalories,
+  getLastSessionByExercise,
 } from "@/utils/storage";
 import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord, BodyWeightRecord } from "@/types";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
@@ -37,6 +39,7 @@ export default function HistoryPage() {
   const [dietRecords, setDietRecords] = useState<DietRecord[]>([]);
   const [weightRecords, setWeightRecords] = useState<BodyWeightRecord[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
+  const [userWeight, setUserWeight] = useState(70);
 
   // 운동 수정 모달
   const [editDraft, setEditDraft] = useState<WorkoutSession | null>(null);
@@ -71,6 +74,7 @@ export default function HistoryPage() {
   useEffect(() => {
     refreshData();
     setRoutines(getRoutines());
+    setUserWeight(parseInt(localStorage.getItem("ph_user_weight") || "70"));
 
     // 자정 경계 갱신 — 앱이 켜진 채 날짜가 바뀌어도 todayStr이 정확히 유지되도록 today를 1분마다 재계산
     const refreshToday = () => {
@@ -204,7 +208,41 @@ export default function HistoryPage() {
     const routine = routines.find((r) => r.id === routineId);
     if (!routine) return;
     setAddRoutineId(routineId);
-    setAddExData(routine.exercises.map((name) => ({ name, sets: [{ id: crypto.randomUUID(), weight: "", reps: "" }] })));
+
+    // 1순위: exerciseConfigs에 세트 정보가 있으면 그대로 불러옴
+    // 2순위: 이전 운동 기록이 있으면 마지막 기록의 세트를 불러옴
+    // 3순위: 빈 1세트
+    const exData = routine.exercises.map((name) => {
+      const config = routine.exerciseConfigs?.find((c) => c.name === name);
+      if (config && config.sets.length > 0) {
+        return {
+          name,
+          sets: config.sets.map((s) => ({
+            id: crypto.randomUUID(),
+            weight: s.weight ? String(s.weight) : "",
+            reps: s.reps ? String(s.reps) : "",
+          })),
+        };
+      }
+      const lastSession = getLastSessionByExercise(name);
+      const lastEx = lastSession?.exercises.find((e) => e.name === name);
+      if (lastEx && lastEx.sets.length > 0) {
+        const completedSets = lastEx.sets.filter((s) => s.isCompleted && (s.weight > 0 || s.reps > 0));
+        if (completedSets.length > 0) {
+          return {
+            name,
+            sets: completedSets.map((s) => ({
+              id: crypto.randomUUID(),
+              weight: s.weight ? String(s.weight) : "",
+              reps: s.reps ? String(s.reps) : "",
+            })),
+          };
+        }
+      }
+      return { name, sets: [{ id: crypto.randomUUID(), weight: "", reps: "" }] };
+    });
+
+    setAddExData(exData);
     setAddStep(2);
   };
 
@@ -821,10 +859,10 @@ export default function HistoryPage() {
               {ex.sets.map((set, setIdx) => (
                 <div key={set.id} className="flex items-center gap-2">
                   <span className="text-sm font-bold text-muted w-5 text-center shrink-0">{setIdx + 1}</span>
-                  <input type="number" inputMode="decimal" value={set.weight} onChange={(e) => handleEditSetChange(exIdx, setIdx, "weight", e.target.value)} placeholder="0"
+                  <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => handleEditSetChange(exIdx, setIdx, "weight", e.target.value)} placeholder="0"
                     className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
                   <span className="text-xs text-muted shrink-0">kg ×</span>
-                  <input type="number" inputMode="decimal" value={set.reps} onChange={(e) => handleEditSetChange(exIdx, setIdx, "reps", e.target.value)} placeholder="0"
+                  <input type="text" inputMode="decimal" value={set.reps} onChange={(e) => handleEditSetChange(exIdx, setIdx, "reps", e.target.value)} placeholder="0"
                     className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
                   <span className="text-xs text-muted shrink-0">회</span>
                   <button onClick={() => removeEditSet(exIdx, setIdx)} disabled={ex.sets.length <= 1}
@@ -858,13 +896,22 @@ export default function HistoryPage() {
                 {routines.length === 0 ? (
                   <p className="text-xs text-muted text-center py-8">등록된 루틴이 없습니다</p>
                 ) : (
-                  routines.map((r) => (
-                    <button key={r.id} onClick={() => selectRoutineForAdd(r.id)}
-                      className="w-full text-left bg-background border border-border rounded-xl px-4 py-3 hover:border-accent transition-colors active:scale-[0.98]">
-                      <p className="font-semibold text-sm">{r.name}</p>
-                      <p className="text-xs text-muted mt-0.5">{r.exercises.join(" · ")}</p>
-                    </button>
-                  ))
+                  routines.map((r) => {
+                    const tSets = r.exerciseConfigs?.reduce((s, c) => s + c.sets.length, 0) ?? 0;
+                    const kcal = estimateRoutineCalories(r, userWeight);
+                    const parts = [
+                      `${r.exercises.length}종목`,
+                      ...(tSets > 0 ? [`${tSets}세트`] : []),
+                      ...(kcal > 0 ? [`약 ${kcal}kcal`] : []),
+                    ];
+                    return (
+                      <button key={r.id} onClick={() => selectRoutineForAdd(r.id)}
+                        className="w-full text-left bg-background border border-border rounded-xl px-4 py-3 hover:border-accent transition-colors active:scale-[0.98]">
+                        <p className="font-semibold text-sm">{r.name}</p>
+                        <p className="text-xs text-muted mt-0.5">{parts.join(" · ")}</p>
+                      </button>
+                    );
+                  })
                 )}
               </div>
             ) : (
@@ -876,10 +923,10 @@ export default function HistoryPage() {
                       {ex.sets.map((set, setIdx) => (
                         <div key={set.id} className="flex items-center gap-2">
                           <span className="text-sm font-bold text-muted w-5 text-center shrink-0">{setIdx + 1}</span>
-                          <input type="number" inputMode="decimal" value={set.weight} onChange={(e) => updateAddSet(exIdx, setIdx, "weight", e.target.value)} placeholder="0"
+                          <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => updateAddSet(exIdx, setIdx, "weight", e.target.value)} placeholder="0"
                             className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
                           <span className="text-xs text-muted shrink-0">kg ×</span>
-                          <input type="number" inputMode="decimal" value={set.reps} onChange={(e) => updateAddSet(exIdx, setIdx, "reps", e.target.value)} placeholder="0"
+                          <input type="text" inputMode="decimal" value={set.reps} onChange={(e) => updateAddSet(exIdx, setIdx, "reps", e.target.value)} placeholder="0"
                             className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
                           <span className="text-xs text-muted shrink-0">회</span>
                           <button onClick={() => removeAddSet(exIdx, setIdx)} disabled={ex.sets.length <= 1}
