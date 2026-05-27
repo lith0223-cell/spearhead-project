@@ -58,14 +58,18 @@ const DEFAULT_EXERCISE_LIBRARY: ExerciseTemplate[] = [
   { id: "ex-029", name: "로잉머신",            category: "유산소" },
 ];
 
+// 더미 데이터가 바뀔 때 이 버전을 올리면 기존 캐시가 자동으로 교체됩니다
+const DUMMY_DATA_VERSION = "v4";
+
 // --- Initialization ---
 export const initializeDummyData = () => {
   if (typeof window === "undefined") return;
-  if (!localStorage.getItem(STORAGE_KEYS.HAS_INITIALIZED)) {
+  if (localStorage.getItem(STORAGE_KEYS.HAS_INITIALIZED) !== DUMMY_DATA_VERSION) {
     localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(DUMMY_ROUTINES));
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DUMMY_WORKOUT_SESSIONS));
     localStorage.setItem(STORAGE_KEYS.DIETS, JSON.stringify(DUMMY_DIET_RECORDS));
-    localStorage.setItem(STORAGE_KEYS.HAS_INITIALIZED, "true");
+    // 운동 라이브러리는 사용자가 커스텀했을 수 있으므로 재설정하지 않음
+    localStorage.setItem(STORAGE_KEYS.HAS_INITIALIZED, DUMMY_DATA_VERSION);
   }
 };
 
