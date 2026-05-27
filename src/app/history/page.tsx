@@ -25,12 +25,6 @@ import { DietItemDrawer, type DietItemDrawerEditing } from "@/components/ui/Diet
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MEAL_TYPES: MealType[] = ["아침", "점심", "저녁", "간식"];
 
-const WEIGHT_MODE_CYCLE: WeightMode[] = ["weighted", "bodyweight", "assisted"];
-const nextWeightMode = (mode: WeightMode): WeightMode => {
-  const idx = WEIGHT_MODE_CYCLE.indexOf(mode);
-  return WEIGHT_MODE_CYCLE[(idx + 1) % WEIGHT_MODE_CYCLE.length];
-};
-
 function toDateStr(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
@@ -56,6 +50,9 @@ export default function HistoryPage() {
   const [addExData, setAddExData] = useState<
     { name: string; sets: { id: string; weight: string; reps: string; weightMode?: WeightMode }[] }[]
   >([]);
+
+  // 세트 모드 선택
+  const [addModePicker, setAddModePicker] = useState<{ exIdx: number; setIdx: number; current: WeightMode } | null>(null);
 
   // 식단 추가/수정 모달
   const [isDietOpen, setIsDietOpen] = useState(false);
@@ -291,20 +288,19 @@ export default function HistoryPage() {
     });
   };
 
-  const updateAddSetMode = (exIdx: number, setIdx: number) => {
+  const applyAddSetMode = (exIdx: number, setIdx: number, mode: WeightMode) => {
     setAddExData((prev) => {
       const next = [...prev];
       const sets = [...next[exIdx].sets];
-      const current = sets[setIdx].weightMode ?? "weighted";
-      const newMode = nextWeightMode(current);
       sets[setIdx] = {
         ...sets[setIdx],
-        weightMode: newMode,
-        weight: newMode === "bodyweight" ? "" : sets[setIdx].weight,
+        weightMode: mode,
+        weight: mode === "bodyweight" ? "" : sets[setIdx].weight,
       };
       next[exIdx] = { ...next[exIdx], sets };
       return next;
     });
+    setAddModePicker(null);
   };
 
   const handleAddSave = () => {
@@ -985,7 +981,7 @@ export default function HistoryPage() {
                         <div key={set.id} className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => updateAddSetMode(exIdx, setIdx)}
+                            onClick={() => setAddModePicker({ exIdx, setIdx, current: set.weightMode ?? "weighted" })}
                             className={`text-xs font-bold w-5 text-center shrink-0 leading-none transition-colors ${
                               set.weightMode === "bodyweight" ? "text-blue-400" :
                               set.weightMode === "assisted" ? "text-purple-400" :
@@ -1036,6 +1032,45 @@ export default function HistoryPage() {
           </div>
         </div>
       )}
+
+      {/* 세트 모드 선택 Bottom Sheet */}
+      <Drawer open={!!addModePicker} onClose={() => setAddModePicker(null)} height="auto" zIndex={80}>
+        <div className="px-6 pt-5 pb-8">
+          <h3 className="text-base font-bold mb-0.5">세트 모드</h3>
+          <p className="text-xs text-muted mb-4">
+            {addModePicker ? `${addExData[addModePicker.exIdx]?.name ?? ""} — ${addModePicker.setIdx + 1}세트` : ""}
+          </p>
+          <div className="space-y-2">
+            {([
+              { mode: "weighted" as WeightMode,  label: "가중",  desc: "추가 무게를 달고 하는 운동",             color: "text-foreground" },
+              { mode: "bodyweight" as WeightMode, label: "맨몸",  desc: "체중만으로 하는 운동 (무게 미입력)",      color: "text-blue-400"   },
+              { mode: "assisted" as WeightMode,   label: "보조",  desc: "밴드·머신으로 체중 일부를 보조받는 운동", color: "text-purple-400" },
+            ]).map(({ mode, label, desc, color }) => {
+              const isSelected = (addModePicker?.current ?? "weighted") === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => addModePicker && applyAddSetMode(addModePicker.exIdx, addModePicker.setIdx, mode)}
+                  className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all active:scale-[0.98] ${
+                    isSelected ? "border-accent bg-accent/10" : "border-border bg-card"
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    isSelected ? "border-accent" : "border-border"
+                  }`}>
+                    {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-accent" />}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className={`text-sm font-bold ${isSelected ? color : "text-foreground"}`}>{label}</p>
+                    <p className="text-xs text-muted mt-0.5">{desc}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </Drawer>
 
       {/* 식단 추가/수정 Drawer (공통 컴포넌트) */}
       {selectedDate && (

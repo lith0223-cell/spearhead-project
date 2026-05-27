@@ -26,11 +26,6 @@ import { Drawer } from "@/components/ui/Drawer";
 
 const KG_TO_LB = 2.20462;
 
-const WEIGHT_MODE_CYCLE: WeightMode[] = ["weighted", "bodyweight", "assisted"];
-const nextWeightMode = (mode: WeightMode | undefined): WeightMode => {
-  const idx = WEIGHT_MODE_CYCLE.indexOf(mode ?? "weighted");
-  return WEIGHT_MODE_CYCLE[(idx + 1) % WEIGHT_MODE_CYCLE.length];
-};
 const MAX_REST_SECONDS = 240;
 const REST_STEP = 30;
 const DEFAULT_REST = 60;
@@ -50,6 +45,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const [summary, setSummary] = useState<{ exercises: number; sets: number; durationSec: number; calories: number; volumeDiff: number | null } | null>(null);
 
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+  const [modePickerState, setModePickerState] = useState<{ exIdx: number; setIdx: number; current: WeightMode } | null>(null);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerInitial, setTimerInitial] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -329,20 +325,19 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     );
   };
 
-  const updateSetMode = (exIdx: number, setIdx: number) => {
+  const applySetMode = (exIdx: number, setIdx: number, mode: WeightMode) => {
     setExercisesData((prev) =>
       prev.map((ex, ei) =>
         ei !== exIdx ? ex :
         {
           ...ex,
-          sets: ex.sets.map((s, si) => {
-            if (si !== setIdx) return s;
-            const newMode = nextWeightMode(s.weightMode);
-            return { ...s, weightMode: newMode, weight: newMode === "bodyweight" ? 0 : s.weight };
-          }),
+          sets: ex.sets.map((s, si) =>
+            si !== setIdx ? s : { ...s, weightMode: mode, weight: mode === "bodyweight" ? 0 : s.weight }
+          ),
         }
       )
     );
+    setModePickerState(null);
   };
 
   const addSet = (exIdx: number) => {
@@ -561,17 +556,17 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
               <div className={`flex items-center p-2.5 rounded-2xl border transition-all ${set.isCompleted ? "bg-success/10 border-success/30" : "bg-card border-border"}`}>
                 <button
                   type="button"
-                  onClick={() => !set.isCompleted && updateSetMode(currentExIndex, sIdx)}
-                  className={`w-8 text-center font-bold text-xs leading-none shrink-0 transition-colors ${
+                  onClick={() => !set.isCompleted && setModePickerState({ exIdx: currentExIndex, setIdx: sIdx, current: set.weightMode ?? "weighted" })}
+                  className={`w-8 text-center font-bold text-xs leading-none shrink-0 transition-colors active:scale-90 ${
                     set.isCompleted
                       ? "text-success cursor-default"
                       : set.weightMode === "bodyweight"
-                      ? "text-blue-400 active:scale-90"
+                      ? "text-blue-400"
                       : set.weightMode === "assisted"
-                      ? "text-purple-400 active:scale-90"
-                      : "text-muted active:scale-90"
+                      ? "text-purple-400"
+                      : "text-muted"
                   }`}
-                  title={set.isCompleted ? undefined : "탭하여 모드 변경 (가중→맨몸→보조)"}
+                  title={set.isCompleted ? undefined : "탭하여 모드 변경"}
                 >
                   {set.weightMode === "bodyweight" ? "BW" : set.weightMode === "assisted" ? "AS" : sIdx + 1}
                 </button>
@@ -795,6 +790,45 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
             >
               계속하기
             </button>
+          </div>
+        </div>
+      </Drawer>
+
+      {/* 세트 모드 선택 Bottom Sheet */}
+      <Drawer open={!!modePickerState} onClose={() => setModePickerState(null)} height="auto" zIndex={70}>
+        <div className="px-6 pt-5 pb-8">
+          <h3 className="text-base font-bold mb-0.5">세트 모드</h3>
+          <p className="text-xs text-muted mb-4">
+            {modePickerState ? `${exercisesData[modePickerState.exIdx]?.name ?? ""} — ${modePickerState.setIdx + 1}세트` : ""}
+          </p>
+          <div className="space-y-2">
+            {([
+              { mode: "weighted" as WeightMode,  label: "가중",  desc: "추가 무게를 달고 하는 운동",          color: "text-foreground" },
+              { mode: "bodyweight" as WeightMode, label: "맨몸",  desc: "체중만으로 하는 운동 (무게 미입력)",   color: "text-blue-400"   },
+              { mode: "assisted" as WeightMode,   label: "보조",  desc: "밴드·머신으로 체중 일부를 보조받는 운동", color: "text-purple-400" },
+            ]).map(({ mode, label, desc, color }) => {
+              const isSelected = (modePickerState?.current ?? "weighted") === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => modePickerState && applySetMode(modePickerState.exIdx, modePickerState.setIdx, mode)}
+                  className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all active:scale-[0.98] ${
+                    isSelected ? "border-accent bg-accent/10" : "border-border bg-card"
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    isSelected ? "border-accent" : "border-border"
+                  }`}>
+                    {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-accent" />}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className={`text-sm font-bold ${isSelected ? color : "text-foreground"}`}>{label}</p>
+                    <p className="text-xs text-muted mt-0.5">{desc}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       </Drawer>
