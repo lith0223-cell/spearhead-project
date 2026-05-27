@@ -11,6 +11,8 @@ import {
   calculate1RM,
   saveWorkoutSession,
   saveRoutine,
+  getExerciseLibrary,
+  updateExerciseInLibrary,
   getActiveWorkout,
   setActiveWorkout,
   clearActiveWorkout,
@@ -364,8 +366,22 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
 
   const handleConfirmUpdate = () => {
     if (!pendingUpdatedRoutine) return;
+
+    // 1. 루틴 exerciseConfigs 갱신
     saveRoutine(pendingUpdatedRoutine);
     setRoutine(pendingUpdatedRoutine);
+
+    // 2. 종목 라이브러리 defaultSets 동기화
+    //    루틴에서 업데이트된 세트 정보를 각 종목의 기본 세트에도 반영
+    const lib = getExerciseLibrary();
+    pendingUpdatedRoutine.exerciseConfigs?.forEach((cfg) => {
+      if (cfg.sets.length === 0) return;
+      const ex = lib.find((e) => e.name === cfg.name);
+      if (ex) {
+        updateExerciseInLibrary({ ...ex, defaultSets: cfg.sets });
+      }
+    });
+
     setShowUpdateDiff(false);
     setShowUpdatePrompt(false);
     setRoutineUpdated(true);
