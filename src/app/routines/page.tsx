@@ -295,7 +295,12 @@ export default function RoutinesPage() {
   };
   const handlePickerAddNew = () => {
     if (!pickerNewName.trim()) return;
-    const newEx: ExerciseTemplate = { id: crypto.randomUUID(), name: pickerNewName.trim(), category: pickerNewCat };
+    const trimmedName = pickerNewName.trim();
+    if (library.some((e) => e.name === trimmedName)) {
+      alert("이미 등록된 종목 이름입니다.");
+      return;
+    }
+    const newEx: ExerciseTemplate = { id: crypto.randomUUID(), name: trimmedName, category: pickerNewCat };
     saveExerciseToLibrary(newEx);
     setLibrary(getExerciseLibrary());
     handlePickExercise(newEx);
@@ -318,13 +323,19 @@ export default function RoutinesPage() {
     .filter((ex) => libCat === "전체" || ex.category === libCat)
     .sort(libCat === "전체" ? sortByCategory : () => 0);
   const handleAddExerciseToLibrary = () => {
-    if (!newExName.trim()) return;
-    const newEx: ExerciseTemplate = { id: crypto.randomUUID(), name: newExName.trim(), category: newExCat };
+    const trimmedName = newExName.trim();
+    if (!trimmedName) return;
+    if (library.some((e) => e.name === trimmedName)) {
+      alert("이미 등록된 종목 이름입니다.");
+      return;
+    }
+    const newEx: ExerciseTemplate = { id: crypto.randomUUID(), name: trimmedName, category: newExCat };
     saveExerciseToLibrary(newEx);
     setLibrary(getExerciseLibrary());
     setNewExName(""); setIsAddExOpen(false);
   };
   const handleDeleteFromLibrary = (id: string) => {
+    if (!confirm("이 종목을 라이브러리에서 삭제하시겠습니까?")) return;
     deleteExerciseFromLibrary(id);
     setLibrary(getExerciseLibrary());
   };

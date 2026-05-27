@@ -67,6 +67,8 @@ export default function Home() {
   const todayStr = new Intl.DateTimeFormat("ko-KR", {
     month: "long", day: "numeric", weekday: "long",
   }).format(new Date());
+  // 오늘의 요일 인덱스 (0=월 ~ 6=일, 화면 배열 기준)
+  const todayWeekdayIdx = (new Date().getDay() + 6) % 7;
 
   const isOverGoal = calorieGoal > 0 && stats.calories > calorieGoal;
   const goalPercent = calorieGoal > 0 ? Math.min((stats.calories / calorieGoal) * 100, 100) : 0;
@@ -159,9 +161,15 @@ export default function Home() {
           <div className="px-4 py-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <Flame size={20} className="text-accent" />
-                <span className="text-2xl font-extrabold text-accent">{workoutStats.streak}</span>
-                <span className="text-sm text-muted">일 연속</span>
+                <Flame size={20} className={workoutStats.streak > 0 ? "text-accent" : "text-muted"} />
+                {workoutStats.streak > 0 ? (
+                  <>
+                    <span className="text-2xl font-extrabold text-accent">{workoutStats.streak}</span>
+                    <span className="text-sm text-muted">일 연속</span>
+                  </>
+                ) : (
+                  <span className="text-sm text-muted font-semibold">오늘 첫 운동을 시작해보세요!</span>
+                )}
               </div>
               <div className="text-right">
                 <span className="text-2xl font-extrabold">{workoutStats.weeklyCount}</span>
@@ -169,18 +177,23 @@ export default function Home() {
               </div>
             </div>
             <div className="flex justify-between items-center pt-1">
-              {["월","화","수","목","금","토","일"].map((day, i) => (
-                <div key={i} className="flex flex-col items-center gap-1.5">
-                  <span className="text-[10px] text-muted font-medium">{day}</span>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
-                    workoutStats.weekDays[i]
-                      ? "bg-accent text-background"
-                      : "bg-background border border-border text-muted"
-                  }`}>
-                    {workoutStats.weekDays[i] ? "✓" : ""}
+              {["월","화","수","목","금","토","일"].map((day, i) => {
+                const isToday = i === todayWeekdayIdx;
+                return (
+                  <div key={i} className="flex flex-col items-center gap-1.5">
+                    <span className={`text-[10px] font-medium ${isToday ? "text-accent font-bold" : "text-muted"}`}>{day}</span>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
+                      workoutStats.weekDays[i]
+                        ? "bg-accent text-background"
+                        : isToday
+                        ? "bg-background border-2 border-accent text-accent"
+                        : "bg-background border border-border text-muted"
+                    }`}>
+                      {workoutStats.weekDays[i] ? "✓" : ""}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

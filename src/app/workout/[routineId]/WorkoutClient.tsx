@@ -50,7 +50,6 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const [summary, setSummary] = useState<{ exercises: number; sets: number; durationSec: number; calories: number; volumeDiff: number | null } | null>(null);
 
   // 루틴 업데이트 관련 상태
-  const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
   const [showUpdateDiff, setShowUpdateDiff] = useState(false);
   const [pendingUpdatedRoutine, setPendingUpdatedRoutine] = useState<Routine | null>(null);
   const [routineUpdated, setRoutineUpdated] = useState(false);
@@ -77,6 +76,8 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const savedExDataRef = useRef<ExerciseRecord[]>([]);
   const savedExIndexRef = useRef(0);
   const workoutStartTimeRef = useRef<number | null>(null);
+  // 운동 완료 후 자동저장 useEffect 재실행 방지
+  const workoutFinishedRef = useRef(false);
 
   // 타이머 tick — ref 기반이므로 stale closure 없음
   const tick = () => {
@@ -213,6 +214,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
 
   // 진행 중 운동 세션 자동 저장
   useEffect(() => {
+    if (workoutFinishedRef.current) return; // 운동 완료 후 재저장 방지
     if (!routine || exercisesData.length === 0 || showResumePrompt) return;
     const hasProgress = exercisesData.some((ex) => ex.sets.some((s) => s.isCompleted));
     if (!hasProgress) return;
@@ -383,7 +385,6 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     });
 
     setShowUpdateDiff(false);
-    setShowUpdatePrompt(false);
     setRoutineUpdated(true);
     setPendingUpdatedRoutine(null);
   };
@@ -470,6 +471,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
 
   const finishWorkout = () => {
     if (!routine) return;
+    workoutFinishedRef.current = true; // 자동 저장 useEffect 재실행 방지
     const exercisesInKg = exercisesData.map((ex) => ({
       ...ex,
       sets: ex.sets.map((s) => ({
@@ -519,13 +521,13 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       : null;
     setSummary({ exercises: completedExercises, sets: totalSets, durationSec, calories: Math.round(calories), volumeDiff });
 
-    // 루틴 업데이트 프롬프트 (완료된 세트가 있을 때만)
+    // 루틴 업데이트 데이터 준비 (완료된 세트가 있을 때만) — 자동 프롬프트 없이, 요약 화면의 버튼으로 열기
     const hasCompletedSets = exercisesInKg.some((ex) => ex.sets.some((s) => s.isCompleted));
     if (hasCompletedSets) {
       const updatedRoutine = buildUpdatedRoutine(exercisesInKg);
       if (updatedRoutine) {
         setPendingUpdatedRoutine(updatedRoutine);
-        setShowUpdatePrompt(true);
+        // setShowUpdatePrompt(true) 제거: 요약 화면이 먼저 표시되어야 함
       }
     }
   };
@@ -1293,33 +1295,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       </div>
     )}
 
-    {/* 루틴 업데이트 프롬프트 (요약 위에 z=105) */}
-    <Drawer open={showUpdatePrompt} onClose={() => {}} height="auto" zIndex={105}>
-      <div className="p-6 pb-safe">
-        <h2 className="text-xl font-extrabold mb-2">루틴을 업데이트할까요?</h2>
-        <p className="text-sm text-muted mb-6">
-          이번 운동 기록으로{" "}
-          <span className="text-foreground font-semibold">'{routine?.name}'</span>{" "}
-          루틴의 세트 정보를 업데이트합니다.
-        </p>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowUpdatePrompt(false)}
-            className="flex-1 py-4 bg-background border border-border rounded-2xl font-bold active:scale-95 transition-transform"
-          >
-            건너뛰기
-          </button>
-          <button
-            onClick={() => { setShowUpdatePrompt(false); setShowUpdateDiff(true); }}
-            className="flex-[2] py-4 bg-accent text-background rounded-2xl font-extrabold active:scale-95 transition-transform"
-          >
-            업데이트
-          </button>
-        </div>
-      </div>
-    </Drawer>
-
-    {/* 변경 내용 확인 Drawer (z=110) */}
+    {/* 변경 내용 확인 Drawer (요약 화면에서 "루틴 업데이트" 버튼으로 열림, z=110) */}
     <Drawer open={showUpdateDiff} onClose={() => setShowUpdateDiff(false)} height="80vh" zIndex={110}>
       <div className="flex justify-between items-center px-6 pt-4 pb-2 shrink-0">
         <h2 className="text-xl font-bold">변경 내용 확인</h2>
