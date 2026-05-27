@@ -17,13 +17,19 @@ import {
   estimateRoutineCalories,
   getLastSessionByExercise,
 } from "@/utils/storage";
-import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord, BodyWeightRecord } from "@/types";
+import { WorkoutSession, DietRecord, MealType, MealItem, Routine, ExerciseRecord, BodyWeightRecord, WeightMode } from "@/types";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import { Drawer } from "@/components/ui/Drawer";
 import { DietItemDrawer, type DietItemDrawerEditing } from "@/components/ui/DietItemDrawer";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MEAL_TYPES: MealType[] = ["아침", "점심", "저녁", "간식"];
+
+const WEIGHT_MODE_CYCLE: WeightMode[] = ["weighted", "bodyweight", "assisted"];
+const nextWeightMode = (mode: WeightMode): WeightMode => {
+  const idx = WEIGHT_MODE_CYCLE.indexOf(mode);
+  return WEIGHT_MODE_CYCLE[(idx + 1) % WEIGHT_MODE_CYCLE.length];
+};
 
 function toDateStr(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -48,7 +54,7 @@ export default function HistoryPage() {
   const [addStep, setAddStep] = useState<1 | 2>(1);
   const [addRoutineId, setAddRoutineId] = useState<string>("");
   const [addExData, setAddExData] = useState<
-    { name: string; sets: { id: string; weight: string; reps: string }[] }[]
+    { name: string; sets: { id: string; weight: string; reps: string; weightMode?: WeightMode }[] }[]
   >([]);
 
   // 식단 추가/수정 모달
@@ -219,8 +225,9 @@ export default function HistoryPage() {
           name,
           sets: config.sets.map((s) => ({
             id: crypto.randomUUID(),
-            weight: s.weight ? String(s.weight) : "",
+            weight: s.weightMode === "bodyweight" ? "" : (s.weight ? String(s.weight) : ""),
             reps: s.reps ? String(s.reps) : "",
+            weightMode: s.weightMode,
           })),
         };
       }
@@ -233,13 +240,14 @@ export default function HistoryPage() {
             name,
             sets: completedSets.map((s) => ({
               id: crypto.randomUUID(),
-              weight: s.weight ? String(s.weight) : "",
+              weight: s.weightMode === "bodyweight" ? "" : (s.weight ? String(s.weight) : ""),
               reps: s.reps ? String(s.reps) : "",
+              weightMode: s.weightMode,
             })),
           };
         }
       }
-      return { name, sets: [{ id: crypto.randomUUID(), weight: "", reps: "" }] };
+      return { name, sets: [{ id: crypto.randomUUID(), weight: "", reps: "", weightMode: undefined }] };
     });
 
     setAddExData(exData);
@@ -251,7 +259,15 @@ export default function HistoryPage() {
       const next = [...prev];
       const ex = { ...next[exIdx], sets: [...next[exIdx].sets] };
       const last = ex.sets[ex.sets.length - 1];
-      ex.sets = [...ex.sets, { id: crypto.randomUUID(), weight: last?.weight ?? "", reps: last?.reps ?? "" }];
+      ex.sets = [
+        ...ex.sets,
+        {
+          id: crypto.randomUUID(),
+          weight: last?.weightMode === "bodyweight" ? "" : (last?.weight ?? ""),
+          reps: last?.reps ?? "",
+          weightMode: last?.weightMode,
+        },
+      ];
       next[exIdx] = ex;
       return next;
     });
@@ -275,13 +291,37 @@ export default function HistoryPage() {
     });
   };
 
+  const updateAddSetMode = (exIdx: number, setIdx: number) => {
+    setAddExData((prev) => {
+      const next = [...prev];
+      const sets = [...next[exIdx].sets];
+      const current = sets[setIdx].weightMode ?? "weighted";
+      const newMode = nextWeightMode(current);
+      sets[setIdx] = {
+        ...sets[setIdx],
+        weightMode: newMode,
+        weight: newMode === "bodyweight" ? "" : sets[setIdx].weight,
+      };
+      next[exIdx] = { ...next[exIdx], sets };
+      return next;
+    });
+  };
+
   const handleAddSave = () => {
     if (!selectedDate) return;
     const exercises: ExerciseRecord[] = addExData
       .map((ex) => ({
         id: ex.name, name: ex.name,
-        sets: ex.sets.filter((s) => s.weight !== "" && s.reps !== "")
-          .map((s) => ({ id: s.id, weight: Number(s.weight), reps: Number(s.reps), isCompleted: true, restTime: 60 })),
+        sets: ex.sets
+          .filter((s) => s.reps !== "")
+          .map((s) => ({
+            id: s.id,
+            weight: s.weightMode === "bodyweight" ? 0 : Number(s.weight),
+            reps: Number(s.reps),
+            isCompleted: true,
+            restTime: 60,
+            weightMode: s.weightMode,
+          })),
       }))
       .filter((ex) => ex.sets.length > 0);
     if (exercises.length === 0) return;
@@ -734,6 +774,10 @@ export default function HistoryPage() {
                                   <span className="text-foreground font-semibold">
                                     {isCardio
                                       ? `${(s.weight || 0).toFixed(1)}km × ${s.reps}분`
+                                      : s.weightMode === "bodyweight"
+                                      ? `${s.reps}회`
+                                      : s.weightMode === "assisted"
+                                      ? `보조 ${s.weight}kg × ${s.reps}회`
                                       : `${s.weight}kg × ${s.reps}회`}
                                   </span>
                                 </span>
@@ -858,10 +902,27 @@ export default function HistoryPage() {
               <p className="text-sm font-bold">{ex.name}</p>
               {ex.sets.map((set, setIdx) => (
                 <div key={set.id} className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-muted w-5 text-center shrink-0">{setIdx + 1}</span>
-                  <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => handleEditSetChange(exIdx, setIdx, "weight", e.target.value)} placeholder="0"
-                    className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
-                  <span className="text-xs text-muted shrink-0">kg ×</span>
+                  <span className={`text-xs font-bold w-5 text-center shrink-0 leading-none ${
+                    set.weightMode === "bodyweight" ? "text-blue-400" :
+                    set.weightMode === "assisted" ? "text-purple-400" :
+                    "text-muted"
+                  }`}>
+                    {set.weightMode === "bodyweight" ? "BW" : set.weightMode === "assisted" ? "AS" : setIdx + 1}
+                  </span>
+                  {set.weightMode === "assisted" && (
+                    <span className="text-[10px] font-bold text-purple-400 shrink-0">보조</span>
+                  )}
+                  {set.weightMode !== "bodyweight" ? (
+                    <input type="text" inputMode="decimal" value={set.weight}
+                      onChange={(e) => handleEditSetChange(exIdx, setIdx, "weight", e.target.value)}
+                      placeholder="0"
+                      className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
+                  ) : (
+                    <span className="flex-1 text-center text-sm text-muted opacity-40">—</span>
+                  )}
+                  {set.weightMode !== "bodyweight" && (
+                    <span className="text-xs text-muted shrink-0">kg ×</span>
+                  )}
                   <input type="text" inputMode="decimal" value={set.reps} onChange={(e) => handleEditSetChange(exIdx, setIdx, "reps", e.target.value)} placeholder="0"
                     className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
                   <span className="text-xs text-muted shrink-0">회</span>
@@ -922,11 +983,38 @@ export default function HistoryPage() {
                       <p className="text-sm font-bold">{ex.name}</p>
                       {ex.sets.map((set, setIdx) => (
                         <div key={set.id} className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-muted w-5 text-center shrink-0">{setIdx + 1}</span>
-                          <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => updateAddSet(exIdx, setIdx, "weight", e.target.value)} placeholder="0"
-                            className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
-                          <span className="text-xs text-muted shrink-0">kg ×</span>
-                          <input type="text" inputMode="decimal" value={set.reps} onChange={(e) => updateAddSet(exIdx, setIdx, "reps", e.target.value)} placeholder="0"
+                          <button
+                            type="button"
+                            onClick={() => updateAddSetMode(exIdx, setIdx)}
+                            className={`text-xs font-bold w-5 text-center shrink-0 leading-none transition-colors ${
+                              set.weightMode === "bodyweight" ? "text-blue-400" :
+                              set.weightMode === "assisted" ? "text-purple-400" :
+                              "text-muted"
+                            }`}
+                            title="탭하여 모드 변경"
+                          >
+                            {set.weightMode === "bodyweight" ? "BW" : set.weightMode === "assisted" ? "AS" : setIdx + 1}
+                          </button>
+                          {set.weightMode !== "bodyweight" && (
+                            <>
+                              {set.weightMode === "assisted" && (
+                                <span className="text-[10px] font-bold text-purple-400 shrink-0">보조</span>
+                              )}
+                              <input type="text" inputMode="decimal"
+                                value={set.weight}
+                                onChange={(e) => updateAddSet(exIdx, setIdx, "weight", e.target.value)}
+                                placeholder="0"
+                                className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
+                              <span className="text-xs text-muted shrink-0">kg ×</span>
+                            </>
+                          )}
+                          {set.weightMode === "bodyweight" && (
+                            <span className="flex-1 text-center text-sm text-muted opacity-40">—</span>
+                          )}
+                          <input type="text" inputMode="decimal"
+                            value={set.reps}
+                            onChange={(e) => updateAddSet(exIdx, setIdx, "reps", e.target.value)}
+                            placeholder="0"
                             className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
                           <span className="text-xs text-muted shrink-0">회</span>
                           <button onClick={() => removeAddSet(exIdx, setIdx)} disabled={ex.sets.length <= 1}

@@ -1,5 +1,7 @@
 export type WeightUnit = "kg" | "lb";
 
+export type WeightMode = "weighted" | "bodyweight" | "assisted";
+
 // 종목 카테고리
 export type ExerciseCategory = "가슴" | "등" | "어깨" | "팔" | "하체" | "코어" | "유산소" | "기타";
 
@@ -9,6 +11,7 @@ export interface SetRecord {
   reps: number;
   isCompleted: boolean;
   restTime?: number; // 세트별 휴식 시간(초), 미지정 시 기본값 사용
+  weightMode?: WeightMode; // undefined = weighted (기존 데이터 호환)
 }
 
 export interface ExerciseRecord {
@@ -21,6 +24,7 @@ export interface RoutineSetTemplate {
   weight: number;
   reps: number;
   restTime: number;
+  weightMode?: WeightMode;
 }
 
 export interface RoutineExerciseConfig {

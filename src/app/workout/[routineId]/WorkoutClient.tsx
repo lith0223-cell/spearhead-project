@@ -21,10 +21,16 @@ import {
   cancelRestNotification,
   requestNotificationPermission,
 } from "@/utils/notifications";
-import { ExerciseRecord, Routine, SetRecord, WorkoutSession } from "@/types";
+import { ExerciseRecord, Routine, SetRecord, WorkoutSession, WeightMode } from "@/types";
 import { Drawer } from "@/components/ui/Drawer";
 
 const KG_TO_LB = 2.20462;
+
+const WEIGHT_MODE_CYCLE: WeightMode[] = ["weighted", "bodyweight", "assisted"];
+const nextWeightMode = (mode: WeightMode | undefined): WeightMode => {
+  const idx = WEIGHT_MODE_CYCLE.indexOf(mode ?? "weighted");
+  return WEIGHT_MODE_CYCLE[(idx + 1) % WEIGHT_MODE_CYCLE.length];
+};
 const MAX_REST_SECONDS = 240;
 const REST_STEP = 30;
 const DEFAULT_REST = 60;
@@ -127,10 +133,11 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       if (routineConfig && routineConfig.sets.length > 0) {
         sets = routineConfig.sets.map((s) => ({
           id: crypto.randomUUID(),
-          weight: s.weight,
+          weight: s.weightMode === "bodyweight" ? 0 : s.weight,
           reps: s.reps,
           isCompleted: false,
           restTime: s.restTime,
+          weightMode: s.weightMode,
         }));
       } else if (lastEx && lastEx.sets.length > 0) {
         sets = lastEx.sets.map((s) => ({
@@ -322,6 +329,22 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     );
   };
 
+  const updateSetMode = (exIdx: number, setIdx: number) => {
+    setExercisesData((prev) =>
+      prev.map((ex, ei) =>
+        ei !== exIdx ? ex :
+        {
+          ...ex,
+          sets: ex.sets.map((s, si) => {
+            if (si !== setIdx) return s;
+            const newMode = nextWeightMode(s.weightMode);
+            return { ...s, weightMode: newMode, weight: newMode === "bodyweight" ? 0 : s.weight };
+          }),
+        }
+      )
+    );
+  };
+
   const addSet = (exIdx: number) => {
     setExercisesData((prev) => {
       const next = [...prev];
@@ -336,10 +359,11 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
                 ...ex.sets,
                 {
                   id: crypto.randomUUID(),
-                  weight: last?.weight ?? 0,
+                  weight: last?.weightMode === "bodyweight" ? 0 : (last?.weight ?? 0),
                   reps: last?.reps ?? 0,
                   isCompleted: false,
                   restTime: last?.restTime ?? DEFAULT_REST,
+                  weightMode: last?.weightMode,
                 },
               ],
             }
@@ -535,19 +559,40 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
           {currentExercise.sets.map((set, sIdx) => (
             <div key={set.id}>
               <div className={`flex items-center p-2.5 rounded-2xl border transition-all ${set.isCompleted ? "bg-success/10 border-success/30" : "bg-card border-border"}`}>
-                <span className={`w-8 text-center font-bold text-sm ${set.isCompleted ? "text-success" : "text-muted"}`}>
-                  {sIdx + 1}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => !set.isCompleted && updateSetMode(currentExIndex, sIdx)}
+                  className={`w-8 text-center font-bold text-xs leading-none shrink-0 transition-colors ${
+                    set.isCompleted
+                      ? "text-success cursor-default"
+                      : set.weightMode === "bodyweight"
+                      ? "text-blue-400 active:scale-90"
+                      : set.weightMode === "assisted"
+                      ? "text-purple-400 active:scale-90"
+                      : "text-muted active:scale-90"
+                  }`}
+                  title={set.isCompleted ? undefined : "탭하여 모드 변경 (가중→맨몸→보조)"}
+                >
+                  {set.weightMode === "bodyweight" ? "BW" : set.weightMode === "assisted" ? "AS" : sIdx + 1}
+                </button>
 
-                <div className="flex-1 flex justify-center px-1">
+                <div className="flex-1 flex justify-center items-center px-1 gap-1">
+                  {set.weightMode === "assisted" && (
+                    <span className="text-[10px] font-bold text-purple-400 shrink-0">보조</span>
+                  )}
                   <input
                     type="text" inputMode="decimal"
-                    value={set.weight || ""}
+                    value={set.weightMode === "bodyweight" ? "" : (set.weight || "")}
                     onChange={(e) => updateSet(currentExIndex, sIdx, "weight", Number(e.target.value))}
                     onFocus={(e) => e.target.select()}
-                    placeholder="0"
-                    className={`w-14 text-center bg-transparent text-lg font-bold focus:outline-none focus:text-accent transition-colors ${set.isCompleted ? "text-success opacity-80" : ""}`}
-                    disabled={set.isCompleted}
+                    placeholder={set.weightMode === "bodyweight" ? "—" : "0"}
+                    disabled={set.isCompleted || set.weightMode === "bodyweight"}
+                    className={`w-14 text-center bg-transparent text-lg font-bold focus:outline-none transition-colors ${
+                      set.isCompleted ? "text-success opacity-80" :
+                      set.weightMode === "bodyweight" ? "text-muted opacity-40 cursor-not-allowed" :
+                      set.weightMode === "assisted" ? "focus:text-purple-400" :
+                      "focus:text-accent"
+                    }`}
                   />
                 </div>
 
@@ -609,10 +654,14 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
               {lastEx?.sets[sIdx] && (
                 <p className="text-xs text-muted mt-1 pr-1 text-right">
                   지난번:{" "}
-                  {unit === "lb"
-                    ? Math.round(lastEx.sets[sIdx].weight * KG_TO_LB)
-                    : lastEx.sets[sIdx].weight}
-                  {unit} × {lastEx.sets[sIdx].reps}회
+                  {(() => {
+                    const s = lastEx.sets[sIdx];
+                    const mode = s.weightMode;
+                    if (mode === "bodyweight") return `${s.reps}회`;
+                    const w = unit === "lb" ? Math.round(s.weight * KG_TO_LB) : s.weight;
+                    const prefix = mode === "assisted" ? "보조 " : "";
+                    return `${prefix}${w}${unit} × ${s.reps}회`;
+                  })()}
                 </p>
               )}
             </div>
