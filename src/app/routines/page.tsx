@@ -53,6 +53,10 @@ export default function RoutinesPage() {
   const [configSetModePicker, setConfigSetModePicker] = useState<{ exIdx: number; setIdx: number; current: WeightMode } | null>(null);
   const [configRestPickerState, setConfigRestPickerState] = useState<{ exIdx: number; setIdx: number } | null>(null);
 
+  // ── 소수점 입력을 위한 draft 상태 ──
+  const [configInputDrafts, setConfigInputDrafts] = useState<Record<string, string>>({});
+  const [libDetailInputDrafts, setLibDetailInputDrafts] = useState<Record<string, string>>({});
+
   // ── 종목 상세 (기본 세트 설정) ──
   const [libDetailEx, setLibDetailEx] = useState<ExerciseTemplate | null>(null);
   const [libDetailSets, setLibDetailSets] = useState<RoutineSetTemplate[]>([]);
@@ -90,6 +94,10 @@ export default function RoutinesPage() {
     setLibrary(getExerciseLibrary());
     setUserWeight(parseInt(localStorage.getItem("ph_user_weight") || "70"));
   }, []);
+
+  // Drawer 열릴 때 draft 초기화
+  useEffect(() => { setConfigInputDrafts({}); }, [configExIdx]);
+  useEffect(() => { setLibDetailInputDrafts({}); }, [libDetailEx]);
 
   // ── 루틴 카드 드래그앤드롭 ──
   const reorderRoutines = (from: number, to: number) => {
@@ -786,16 +794,26 @@ export default function RoutinesPage() {
                     {/* 무게/거리 */}
                     {isCardioConfig ? (
                       <input type="text" inputMode="decimal"
-                        value={set.weight || ""}
-                        onChange={(e) => updateConfigSet(configExIdx, sIdx, "weight", Number(e.target.value))}
-                        onFocus={(e) => e.target.select()} placeholder="0"
+                        value={`cw-${sIdx}` in configInputDrafts ? configInputDrafts[`cw-${sIdx}`] : (set.weight || "")}
+                        onChange={(e) => setConfigInputDrafts((p) => ({ ...p, [`cw-${sIdx}`]: e.target.value }))}
+                        onFocus={(e) => { e.target.select(); setConfigInputDrafts((p) => ({ ...p, [`cw-${sIdx}`]: set.weight > 0 ? String(set.weight) : "" })); }}
+                        onBlur={() => {
+                          const k = `cw-${sIdx}`;
+                          if (k in configInputDrafts) { const n = parseFloat(configInputDrafts[k]); updateConfigSet(configExIdx, sIdx, "weight", isNaN(n) ? 0 : n); setConfigInputDrafts((p) => { const x = {...p}; delete x[k]; return x; }); }
+                        }}
+                        placeholder="0"
                         className="flex-1 min-w-0 text-center rounded-xl py-2.5 text-lg font-bold bg-background focus:outline-none focus:ring-1 focus:ring-accent text-foreground"
                       />
                     ) : set.weightMode !== "bodyweight" ? (
                       <input type="text" inputMode="decimal"
-                        value={set.weight || ""}
-                        onChange={(e) => updateConfigSet(configExIdx, sIdx, "weight", Number(e.target.value))}
-                        onFocus={(e) => e.target.select()} placeholder="0"
+                        value={`cw-${sIdx}` in configInputDrafts ? configInputDrafts[`cw-${sIdx}`] : (set.weight || "")}
+                        onChange={(e) => setConfigInputDrafts((p) => ({ ...p, [`cw-${sIdx}`]: e.target.value }))}
+                        onFocus={(e) => { e.target.select(); setConfigInputDrafts((p) => ({ ...p, [`cw-${sIdx}`]: set.weight > 0 ? String(set.weight) : "" })); }}
+                        onBlur={() => {
+                          const k = `cw-${sIdx}`;
+                          if (k in configInputDrafts) { const n = parseFloat(configInputDrafts[k]); updateConfigSet(configExIdx, sIdx, "weight", isNaN(n) ? 0 : n); setConfigInputDrafts((p) => { const x = {...p}; delete x[k]; return x; }); }
+                        }}
+                        placeholder="0"
                         className={`flex-1 min-w-0 text-center rounded-xl py-2.5 text-lg font-bold bg-background focus:outline-none focus:ring-1 text-foreground ${
                           set.weightMode === "assisted" ? "focus:ring-purple-400" : "focus:ring-accent"
                         }`}
@@ -808,9 +826,14 @@ export default function RoutinesPage() {
 
                     {/* 횟수/시간 */}
                     <input type="text" inputMode="decimal"
-                      value={set.reps || ""}
-                      onChange={(e) => updateConfigSet(configExIdx, sIdx, "reps", Number(e.target.value))}
-                      onFocus={(e) => e.target.select()} placeholder="0"
+                      value={`cr-${sIdx}` in configInputDrafts ? configInputDrafts[`cr-${sIdx}`] : (set.reps || "")}
+                      onChange={(e) => setConfigInputDrafts((p) => ({ ...p, [`cr-${sIdx}`]: e.target.value }))}
+                      onFocus={(e) => { e.target.select(); setConfigInputDrafts((p) => ({ ...p, [`cr-${sIdx}`]: set.reps > 0 ? String(set.reps) : "" })); }}
+                      onBlur={() => {
+                        const k = `cr-${sIdx}`;
+                        if (k in configInputDrafts) { const n = parseFloat(configInputDrafts[k]); updateConfigSet(configExIdx, sIdx, "reps", isNaN(n) ? 0 : n); setConfigInputDrafts((p) => { const x = {...p}; delete x[k]; return x; }); }
+                      }}
+                      placeholder="0"
                       className="flex-1 min-w-0 text-center rounded-xl py-2.5 text-lg font-bold bg-background focus:outline-none focus:ring-1 focus:ring-accent text-foreground"
                     />
 
@@ -960,16 +983,26 @@ export default function RoutinesPage() {
 
                     {isCardio ? (
                       <input type="text" inputMode="decimal"
-                        value={set.weight || ""}
-                        onChange={(e) => updateLibDetailSet(sIdx, "weight", Number(e.target.value))}
-                        onFocus={(e) => e.target.select()} placeholder="0"
+                        value={`lw-${sIdx}` in libDetailInputDrafts ? libDetailInputDrafts[`lw-${sIdx}`] : (set.weight || "")}
+                        onChange={(e) => setLibDetailInputDrafts((p) => ({ ...p, [`lw-${sIdx}`]: e.target.value }))}
+                        onFocus={(e) => { e.target.select(); setLibDetailInputDrafts((p) => ({ ...p, [`lw-${sIdx}`]: set.weight > 0 ? String(set.weight) : "" })); }}
+                        onBlur={() => {
+                          const k = `lw-${sIdx}`;
+                          if (k in libDetailInputDrafts) { const n = parseFloat(libDetailInputDrafts[k]); updateLibDetailSet(sIdx, "weight", isNaN(n) ? 0 : n); setLibDetailInputDrafts((p) => { const x = {...p}; delete x[k]; return x; }); }
+                        }}
+                        placeholder="0"
                         className="flex-1 min-w-0 text-center rounded-xl py-2.5 text-lg font-bold bg-background focus:outline-none focus:ring-1 focus:ring-accent text-foreground"
                       />
                     ) : set.weightMode !== "bodyweight" ? (
                       <input type="text" inputMode="decimal"
-                        value={set.weight || ""}
-                        onChange={(e) => updateLibDetailSet(sIdx, "weight", Number(e.target.value))}
-                        onFocus={(e) => e.target.select()} placeholder="0"
+                        value={`lw-${sIdx}` in libDetailInputDrafts ? libDetailInputDrafts[`lw-${sIdx}`] : (set.weight || "")}
+                        onChange={(e) => setLibDetailInputDrafts((p) => ({ ...p, [`lw-${sIdx}`]: e.target.value }))}
+                        onFocus={(e) => { e.target.select(); setLibDetailInputDrafts((p) => ({ ...p, [`lw-${sIdx}`]: set.weight > 0 ? String(set.weight) : "" })); }}
+                        onBlur={() => {
+                          const k = `lw-${sIdx}`;
+                          if (k in libDetailInputDrafts) { const n = parseFloat(libDetailInputDrafts[k]); updateLibDetailSet(sIdx, "weight", isNaN(n) ? 0 : n); setLibDetailInputDrafts((p) => { const x = {...p}; delete x[k]; return x; }); }
+                        }}
+                        placeholder="0"
                         className={`flex-1 min-w-0 text-center rounded-xl py-2.5 text-lg font-bold bg-background focus:outline-none focus:ring-1 text-foreground ${
                           set.weightMode === "assisted" ? "focus:ring-purple-400" : "focus:ring-accent"
                         }`}
@@ -981,9 +1014,14 @@ export default function RoutinesPage() {
                     )}
 
                     <input type="text" inputMode="decimal"
-                      value={set.reps || ""}
-                      onChange={(e) => updateLibDetailSet(sIdx, "reps", Number(e.target.value))}
-                      onFocus={(e) => e.target.select()} placeholder="0"
+                      value={`lr-${sIdx}` in libDetailInputDrafts ? libDetailInputDrafts[`lr-${sIdx}`] : (set.reps || "")}
+                      onChange={(e) => setLibDetailInputDrafts((p) => ({ ...p, [`lr-${sIdx}`]: e.target.value }))}
+                      onFocus={(e) => { e.target.select(); setLibDetailInputDrafts((p) => ({ ...p, [`lr-${sIdx}`]: set.reps > 0 ? String(set.reps) : "" })); }}
+                      onBlur={() => {
+                        const k = `lr-${sIdx}`;
+                        if (k in libDetailInputDrafts) { const n = parseFloat(libDetailInputDrafts[k]); updateLibDetailSet(sIdx, "reps", isNaN(n) ? 0 : n); setLibDetailInputDrafts((p) => { const x = {...p}; delete x[k]; return x; }); }
+                      }}
+                      placeholder="0"
                       className="flex-1 min-w-0 text-center rounded-xl py-2.5 text-lg font-bold bg-background focus:outline-none focus:ring-1 focus:ring-accent text-foreground"
                     />
 

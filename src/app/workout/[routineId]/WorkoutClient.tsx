@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, MoreHorizontal, Minus, Plus, Square, Timer, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, MoreHorizontal, Minus, Plus, Square, Timer, Trash2, X } from "lucide-react";
 import {
   getRoutines,
   getLastSessionByExercise,
@@ -10,6 +10,7 @@ import {
   getWorkoutSessions,
   calculate1RM,
   saveWorkoutSession,
+  saveRoutine,
   getActiveWorkout,
   setActiveWorkout,
   clearActiveWorkout,
@@ -21,7 +22,7 @@ import {
   cancelRestNotification,
   requestNotificationPermission,
 } from "@/utils/notifications";
-import { ExerciseRecord, Routine, SetRecord, WorkoutSession, WeightMode } from "@/types";
+import { ExerciseRecord, Routine, RoutineExerciseConfig, RoutineSetTemplate, SetRecord, WorkoutSession, WeightMode } from "@/types";
 import { Drawer } from "@/components/ui/Drawer";
 
 const KG_TO_LB = 2.20462;
@@ -45,6 +46,15 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const [rpePickerState, setRpePickerState] = useState<{ exIdx: number; setIdx: number } | null>(null);
   const [restPickerState, setRestPickerState] = useState<{ exIdx: number; setIdx: number } | null>(null);
   const [summary, setSummary] = useState<{ exercises: number; sets: number; durationSec: number; calories: number; volumeDiff: number | null } | null>(null);
+
+  // 루틴 업데이트 관련 상태
+  const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
+  const [showUpdateDiff, setShowUpdateDiff] = useState(false);
+  const [pendingUpdatedRoutine, setPendingUpdatedRoutine] = useState<Routine | null>(null);
+  const [routineUpdated, setRoutineUpdated] = useState(false);
+
+  // 소수점 입력을 위한 draft 상태
+  const [inputDrafts, setInputDrafts] = useState<Record<string, string>>({});
 
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [modePickerState, setModePickerState] = useState<{ exIdx: number; setIdx: number; current: WeightMode } | null>(null);
@@ -101,6 +111,11 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
+
+  // 운동 전환 시 입력 draft 초기화 (소수점 입력 버그 방지)
+  useEffect(() => {
+    setInputDrafts({});
+  }, [currentExIndex]);
 
   useEffect(() => {
     const routines = getRoutines();
@@ -317,6 +332,46 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     });
   };
 
+  // ── 루틴 업데이트 헬퍼 ──
+  const buildUpdatedRoutine = (exercisesInKg: ExerciseRecord[]): Routine | null => {
+    if (!routine) return null;
+    const newConfigs: RoutineExerciseConfig[] = routine.exercises.map((exName) => {
+      const workoutEx = exercisesInKg.find((ex) => ex.name === exName);
+      const oldConfig = routine.exerciseConfigs?.find((c) => c.name === exName);
+      if (workoutEx) {
+        const completedSets: RoutineSetTemplate[] = workoutEx.sets
+          .filter((s) => s.isCompleted)
+          .map((s) => ({
+            weight: s.weight,
+            reps: s.reps,
+            restTime: s.restTime ?? DEFAULT_REST,
+            weightMode: s.weightMode,
+          }));
+        if (completedSets.length > 0) {
+          return { name: exName, category: oldConfig?.category, sets: completedSets };
+        }
+      }
+      return oldConfig ?? { name: exName, sets: [] };
+    });
+    return { ...routine, exerciseConfigs: newConfigs };
+  };
+
+  const formatSetTemplate = (s: RoutineSetTemplate): string => {
+    if (s.weightMode === "bodyweight") return `맨몸 × ${s.reps}회`;
+    if (s.weightMode === "assisted") return `AS ${s.weight}kg × ${s.reps}회`;
+    return `${s.weight}kg × ${s.reps}회`;
+  };
+
+  const handleConfirmUpdate = () => {
+    if (!pendingUpdatedRoutine) return;
+    saveRoutine(pendingUpdatedRoutine);
+    setRoutine(pendingUpdatedRoutine);
+    setShowUpdateDiff(false);
+    setShowUpdatePrompt(false);
+    setRoutineUpdated(true);
+    setPendingUpdatedRoutine(null);
+  };
+
   const updateSet = (exIdx: number, setIdx: number, field: "weight" | "reps", value: number) => {
     setExercisesData((prev) =>
       prev.map((ex, ei) =>
@@ -447,6 +502,16 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       ? Math.round(((curVolume - prevVolume) / prevVolume) * 100)
       : null;
     setSummary({ exercises: completedExercises, sets: totalSets, durationSec, calories: Math.round(calories), volumeDiff });
+
+    // 루틴 업데이트 프롬프트 (완료된 세트가 있을 때만)
+    const hasCompletedSets = exercisesInKg.some((ex) => ex.sets.some((s) => s.isCompleted));
+    if (hasCompletedSets) {
+      const updatedRoutine = buildUpdatedRoutine(exercisesInKg);
+      if (updatedRoutine) {
+        setPendingUpdatedRoutine(updatedRoutine);
+        setShowUpdatePrompt(true);
+      }
+    }
   };
 
   const todayStats = useMemo(() => {
@@ -478,6 +543,25 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     if (!ex) return [];
     return getRecentSessionsByExercise(ex.name, 7);
   }, [exercisesData, currentExIndex]);
+
+  // 루틴 업데이트 diff 계산
+  const routineDiff = useMemo(() => {
+    if (!routine || !pendingUpdatedRoutine?.exerciseConfigs) return [];
+    return pendingUpdatedRoutine.exerciseConfigs
+      .map((newCfg) => {
+        const oldCfg = routine.exerciseConfigs?.find((c) => c.name === newCfg.name);
+        return { exName: newCfg.name, oldSets: oldCfg?.sets ?? [], newSets: newCfg.sets };
+      })
+      .filter((d) => {
+        if (d.newSets.length === 0 && d.oldSets.length === 0) return false;
+        if (d.newSets.length !== d.oldSets.length) return true;
+        return d.newSets.some((ns, i) => {
+          const os = d.oldSets[i];
+          if (!os) return true;
+          return ns.weight !== os.weight || ns.reps !== os.reps || ns.weightMode !== os.weightMode;
+        });
+      });
+  }, [routine, pendingUpdatedRoutine]);
 
   if (!routine || exercisesData.length === 0) return null;
 
@@ -592,9 +676,20 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
                   {set.weightMode !== "bodyweight" ? (
                     <input
                       type="text" inputMode="decimal"
-                      value={set.weight || ""}
-                      onChange={(e) => updateSet(currentExIndex, sIdx, "weight", Number(e.target.value))}
-                      onFocus={(e) => e.target.select()}
+                      value={`w-${sIdx}` in inputDrafts ? inputDrafts[`w-${sIdx}`] : (set.weight || "")}
+                      onChange={(e) => setInputDrafts((prev) => ({ ...prev, [`w-${sIdx}`]: e.target.value }))}
+                      onFocus={(e) => {
+                        e.target.select();
+                        setInputDrafts((prev) => ({ ...prev, [`w-${sIdx}`]: set.weight > 0 ? String(set.weight) : "" }));
+                      }}
+                      onBlur={() => {
+                        const key = `w-${sIdx}`;
+                        if (key in inputDrafts) {
+                          const num = parseFloat(inputDrafts[key]);
+                          updateSet(currentExIndex, sIdx, "weight", isNaN(num) ? 0 : num);
+                          setInputDrafts((prev) => { const n = { ...prev }; delete n[key]; return n; });
+                        }
+                      }}
                       placeholder="0"
                       className={`flex-1 min-w-0 text-center rounded-xl py-2.5 text-lg font-bold focus:outline-none transition-colors ${
                         set.isCompleted
@@ -616,9 +711,20 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
                   {/* 횟수 — 항상 editable, 완료 시 success 색 */}
                   <input
                     type="text" inputMode="decimal"
-                    value={set.reps || ""}
-                    onChange={(e) => updateSet(currentExIndex, sIdx, "reps", Number(e.target.value))}
-                    onFocus={(e) => e.target.select()}
+                    value={`r-${sIdx}` in inputDrafts ? inputDrafts[`r-${sIdx}`] : (set.reps || "")}
+                    onChange={(e) => setInputDrafts((prev) => ({ ...prev, [`r-${sIdx}`]: e.target.value }))}
+                    onFocus={(e) => {
+                      e.target.select();
+                      setInputDrafts((prev) => ({ ...prev, [`r-${sIdx}`]: set.reps > 0 ? String(set.reps) : "" }));
+                    }}
+                    onBlur={() => {
+                      const key = `r-${sIdx}`;
+                      if (key in inputDrafts) {
+                        const num = parseFloat(inputDrafts[key]);
+                        updateSet(currentExIndex, sIdx, "reps", isNaN(num) ? 0 : num);
+                        setInputDrafts((prev) => { const n = { ...prev }; delete n[key]; return n; });
+                      }
+                    }}
                     placeholder="0"
                     className={`flex-1 min-w-0 text-center rounded-xl py-2.5 text-lg font-bold focus:outline-none transition-colors ${
                       set.isCompleted
@@ -1153,6 +1259,14 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
             </div>
           )}
 
+          {pendingUpdatedRoutine && !routineUpdated && (
+            <button
+              onClick={() => setShowUpdateDiff(true)}
+              className="w-full py-3.5 bg-card border border-border font-bold rounded-2xl text-sm active:scale-95 transition-transform"
+            >
+              루틴 업데이트
+            </button>
+          )}
           <button
             onClick={() => router.push("/")}
             className="w-full py-4 bg-accent text-background font-extrabold rounded-2xl active:scale-95 transition-transform shadow-lg shadow-accent/30"
@@ -1162,6 +1276,92 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         </div>
       </div>
     )}
+
+    {/* 루틴 업데이트 프롬프트 (요약 위에 z=105) */}
+    <Drawer open={showUpdatePrompt} onClose={() => {}} height="auto" zIndex={105}>
+      <div className="p-6 pb-safe">
+        <h2 className="text-xl font-extrabold mb-2">루틴을 업데이트할까요?</h2>
+        <p className="text-sm text-muted mb-6">
+          이번 운동 기록으로{" "}
+          <span className="text-foreground font-semibold">'{routine?.name}'</span>{" "}
+          루틴의 세트 정보를 업데이트합니다.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowUpdatePrompt(false)}
+            className="flex-1 py-4 bg-background border border-border rounded-2xl font-bold active:scale-95 transition-transform"
+          >
+            건너뛰기
+          </button>
+          <button
+            onClick={() => { setShowUpdatePrompt(false); setShowUpdateDiff(true); }}
+            className="flex-[2] py-4 bg-accent text-background rounded-2xl font-extrabold active:scale-95 transition-transform"
+          >
+            업데이트
+          </button>
+        </div>
+      </div>
+    </Drawer>
+
+    {/* 변경 내용 확인 Drawer (z=110) */}
+    <Drawer open={showUpdateDiff} onClose={() => setShowUpdateDiff(false)} height="80vh" zIndex={110}>
+      <div className="flex justify-between items-center px-6 pt-4 pb-2 shrink-0">
+        <h2 className="text-xl font-bold">변경 내용 확인</h2>
+        <button onClick={() => setShowUpdateDiff(false)} className="p-2 -mr-2 text-muted hover:text-foreground">
+          <X size={24} />
+        </button>
+      </div>
+      <p className="text-xs text-muted px-6 pb-3 shrink-0">
+        변경된 항목은 <span className="text-accent font-semibold">초록색</span>으로 표시됩니다.
+      </p>
+      <div className="flex-1 overflow-y-auto px-6 pb-2">
+        {routineDiff.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-40">
+            <p className="text-sm text-muted text-center">기존 루틴과 동일한 기록이에요</p>
+            <p className="text-xs text-muted mt-1">업데이트해도 변경 내용이 없습니다</p>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {routineDiff.map(({ exName, oldSets, newSets }) => (
+              <div key={exName}>
+                <p className="text-sm font-bold mb-2">{exName}</p>
+                <div className="bg-card rounded-xl border border-border overflow-hidden">
+                  {Array.from({ length: Math.max(oldSets.length, newSets.length) }).map((_, i) => {
+                    const os = oldSets[i];
+                    const ns = newSets[i];
+                    const changed = !os || !ns || os.weight !== ns.weight || os.reps !== ns.reps || os.weightMode !== ns.weightMode || os.weightMode !== ns.weightMode;
+                    return (
+                      <div key={i} className={`flex items-center gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-border" : ""}`}>
+                        <span className="text-xs font-medium text-muted w-10 shrink-0">{i + 1}세트</span>
+                        <span className="flex-1 text-xs text-muted">{os ? formatSetTemplate(os) : "없음"}</span>
+                        <span className="text-muted text-xs shrink-0">→</span>
+                        <span className={`flex-1 text-xs text-right font-semibold ${ns ? (changed ? "text-accent" : "text-foreground") : "text-danger"}`}>
+                          {ns ? formatSetTemplate(ns) : "삭제"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-border">
+        <button
+          onClick={() => setShowUpdateDiff(false)}
+          className="flex-1 py-4 bg-background border border-border rounded-2xl font-bold active:scale-95 transition-transform"
+        >
+          건너뛰기
+        </button>
+        <button
+          onClick={handleConfirmUpdate}
+          className="flex-[2] py-4 bg-accent text-background rounded-2xl font-extrabold active:scale-95 transition-transform"
+        >
+          업데이트 확인
+        </button>
+      </div>
+    </Drawer>
     </>
   );
 }
