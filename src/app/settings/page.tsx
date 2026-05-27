@@ -345,6 +345,13 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* 앱 정보 */}
+        <div className="flex flex-col items-center gap-1 pt-2 pb-2">
+          <p className="text-xs font-bold text-muted tracking-widest uppercase">Spearhead</p>
+          <p className="text-xs text-muted">v0.1.0</p>
+          <p className="text-xs text-muted">© 2026 이태한. All rights reserved.</p>
+        </div>
+
       </div>
     </main>
   );
