@@ -24,28 +24,42 @@ export default function Home() {
 
   useEffect(() => {
     initializeDummyData();
-    const today = getLocalDateStr();
-    const diets = getDietRecordsByDate(today);
-    let totalCarbs = 0, totalProtein = 0, totalFat = 0;
-    diets.forEach((r) => r.items.forEach((item) => {
-      totalCarbs += item.carbs;
-      totalProtein += item.protein;
-      totalFat += item.fat;
-    }));
-    setStats({
-      calories: calculateCalories(totalCarbs, totalProtein, totalFat),
-      carbs: totalCarbs,
-      protein: totalProtein,
-      fat: totalFat,
-    });
-    setCalorieGoal(parseInt(localStorage.getItem("ph_calorie_goal") || "2000"));
-    setWorkoutStats({
-      streak: getWorkoutStreak(),
-      weeklyCount: getWeeklyWorkoutCount(),
-      daysAgo: getLastWorkoutDaysAgo(),
-      weekDays: getWorkoutDaysThisWeek(),
-    });
+
+    const refresh = () => {
+      const today = getLocalDateStr();
+      const diets = getDietRecordsByDate(today);
+      let totalCarbs = 0, totalProtein = 0, totalFat = 0;
+      diets.forEach((r) => r.items.forEach((item) => {
+        totalCarbs += item.carbs;
+        totalProtein += item.protein;
+        totalFat += item.fat;
+      }));
+      setStats({
+        calories: calculateCalories(totalCarbs, totalProtein, totalFat),
+        carbs: totalCarbs,
+        protein: totalProtein,
+        fat: totalFat,
+      });
+      setCalorieGoal(parseInt(localStorage.getItem("ph_calorie_goal") || "2000"));
+      setWorkoutStats({
+        streak: getWorkoutStreak(),
+        weeklyCount: getWeeklyWorkoutCount(),
+        daysAgo: getLastWorkoutDaysAgo(),
+        weekDays: getWorkoutDaysThisWeek(),
+      });
+    };
+
+    refresh();
     setMounted(true);
+
+    // 자정 경과 또는 포그라운드 복귀 시 통계 재계산
+    const interval = setInterval(refresh, 60_000);
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   if (!mounted) return null;

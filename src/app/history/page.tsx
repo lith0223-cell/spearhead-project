@@ -51,8 +51,10 @@ export default function HistoryPage() {
     { name: string; sets: { id: string; weight: string; reps: string; weightMode?: WeightMode }[] }[]
   >([]);
 
-  // 세트 모드 선택
+  // 세트 모드 선택 — 추가 모달용
   const [addModePicker, setAddModePicker] = useState<{ exIdx: number; setIdx: number; current: WeightMode } | null>(null);
+  // 세트 모드 선택 — 수정 Drawer용
+  const [editModePicker, setEditModePicker] = useState<{ exIdx: number; setIdx: number; current: WeightMode } | null>(null);
 
   // 식단 추가/수정 모달
   const [isDietOpen, setIsDietOpen] = useState(false);
@@ -131,7 +133,9 @@ export default function HistoryPage() {
   };
 
   const todayStr = toDateStr(today);
-  const selectedSessions = selectedDate ? (sessionByDate[selectedDate] ?? []) : [];
+  const selectedSessions = selectedDate
+    ? (sessionByDate[selectedDate] ?? []).slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    : [];
   const selectedDiets = selectedDate ? (dietByDate[selectedDate] ?? []) : [];
 
   const totalNutrition = useMemo(() => {
@@ -162,6 +166,17 @@ export default function HistoryPage() {
   };
 
   const openEditModal = (session: WorkoutSession) => setEditDraft(structuredClone(session));
+
+  const handleEditModeChange = (exIdx: number, setIdx: number, mode: WeightMode) => {
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      const next = structuredClone(prev);
+      next.exercises[exIdx].sets[setIdx].weightMode = mode;
+      if (mode === "bodyweight") next.exercises[exIdx].sets[setIdx].weight = 0;
+      return next;
+    });
+    setEditModePicker(null);
+  };
 
   const handleEditSetChange = (exIdx: number, setIdx: number, field: "weight" | "reps", value: string) => {
     setEditDraft((prev) => {
@@ -898,23 +913,27 @@ export default function HistoryPage() {
               <p className="text-sm font-bold">{ex.name}</p>
               {ex.sets.map((set, setIdx) => (
                 <div key={set.id} className="flex items-center gap-2">
-                  <span className={`text-xs font-bold w-5 text-center shrink-0 leading-none ${
-                    set.weightMode === "bodyweight" ? "text-blue-400" :
-                    set.weightMode === "assisted" ? "text-purple-400" :
-                    "text-muted"
-                  }`}>
+                  {/* 모드 버튼 — 탭하여 변경 */}
+                  <button
+                    type="button"
+                    onClick={() => setEditModePicker({ exIdx, setIdx, current: set.weightMode ?? "weighted" })}
+                    className={`text-xs font-bold w-7 h-7 flex items-center justify-center rounded-lg shrink-0 transition-colors active:scale-90 ${
+                      set.weightMode === "bodyweight" ? "bg-blue-500/15 text-blue-400" :
+                      set.weightMode === "assisted"   ? "bg-purple-500/15 text-purple-400" :
+                      "bg-background border border-border text-muted"
+                    }`}
+                  >
                     {set.weightMode === "bodyweight" ? "BW" : set.weightMode === "assisted" ? "AS" : setIdx + 1}
-                  </span>
-                  {set.weightMode === "assisted" && (
-                    <span className="text-[10px] font-bold text-purple-400 shrink-0">보조</span>
-                  )}
+                  </button>
                   {set.weightMode !== "bodyweight" ? (
                     <input type="text" inputMode="decimal" value={set.weight}
                       onChange={(e) => handleEditSetChange(exIdx, setIdx, "weight", e.target.value)}
                       placeholder="0"
                       className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 py-2 text-sm font-bold text-center focus:outline-none focus:border-accent transition-colors" />
                   ) : (
-                    <span className="flex-1 text-center text-sm text-muted opacity-40">—</span>
+                    <div className="flex-1 flex items-center justify-center py-2 bg-background border border-border rounded-lg">
+                      <span className="text-sm text-muted/40 font-bold">—</span>
+                    </div>
                   )}
                   {set.weightMode !== "bodyweight" && (
                     <span className="text-xs text-muted shrink-0">kg ×</span>
@@ -993,9 +1012,6 @@ export default function HistoryPage() {
                           </button>
                           {set.weightMode !== "bodyweight" && (
                             <>
-                              {set.weightMode === "assisted" && (
-                                <span className="text-[10px] font-bold text-purple-400 shrink-0">보조</span>
-                              )}
                               <input type="text" inputMode="decimal"
                                 value={set.weight}
                                 onChange={(e) => updateAddSet(exIdx, setIdx, "weight", e.target.value)}
@@ -1052,6 +1068,47 @@ export default function HistoryPage() {
                   key={mode}
                   type="button"
                   onClick={() => addModePicker && applyAddSetMode(addModePicker.exIdx, addModePicker.setIdx, mode)}
+                  className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all active:scale-[0.98] ${
+                    isSelected ? "border-accent bg-accent/10" : "border-border bg-card"
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    isSelected ? "border-accent" : "border-border"
+                  }`}>
+                    {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-accent" />}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className={`text-sm font-bold ${isSelected ? color : "text-foreground"}`}>{label}</p>
+                    <p className="text-xs text-muted mt-0.5">{desc}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </Drawer>
+
+      {/* 운동 수정 Drawer — 세트 모드 선택 */}
+      <Drawer open={!!editModePicker} onClose={() => setEditModePicker(null)} height="auto" zIndex={70}>
+        <div className="px-6 pt-5 pb-8">
+          <h3 className="text-base font-bold mb-0.5">세트 모드</h3>
+          <p className="text-xs text-muted mb-4">
+            {editModePicker && editDraft
+              ? `${editDraft.exercises[editModePicker.exIdx]?.name ?? ""} — ${editModePicker.setIdx + 1}세트`
+              : ""}
+          </p>
+          <div className="space-y-2">
+            {([
+              { mode: "weighted" as WeightMode,  label: "가중",  desc: "추가 무게를 달고 하는 운동",             color: "text-foreground" },
+              { mode: "bodyweight" as WeightMode, label: "맨몸",  desc: "체중만으로 하는 운동 (무게 미입력)",      color: "text-blue-400"   },
+              { mode: "assisted" as WeightMode,   label: "보조",  desc: "밴드·머신으로 체중 일부를 보조받는 운동", color: "text-purple-400" },
+            ]).map(({ mode, label, desc, color }) => {
+              const isSelected = (editModePicker?.current ?? "weighted") === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => editModePicker && handleEditModeChange(editModePicker.exIdx, editModePicker.setIdx, mode)}
                   className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all active:scale-[0.98] ${
                     isSelected ? "border-accent bg-accent/10" : "border-border bg-card"
                   }`}

@@ -218,6 +218,14 @@ export const saveExerciseToLibrary = (ex: ExerciseTemplate) => {
   localStorage.setItem(STORAGE_KEYS.EXERCISE_LIBRARY, JSON.stringify(lib));
 };
 
+export const updateExerciseInLibrary = (ex: ExerciseTemplate) => {
+  if (typeof window === "undefined") return;
+  const lib = getExerciseLibrary();
+  const idx = lib.findIndex((e) => e.id === ex.id);
+  if (idx >= 0) lib[idx] = ex;
+  localStorage.setItem(STORAGE_KEYS.EXERCISE_LIBRARY, JSON.stringify(lib));
+};
+
 export const deleteExerciseFromLibrary = (id: string) => {
   if (typeof window === "undefined") return;
   const lib = getExerciseLibrary().filter((e) => e.id !== id);

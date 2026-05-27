@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, Minus, Pencil, Plus, Square, Timer, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, MoreHorizontal, Minus, Plus, Square, Timer, Trash2 } from "lucide-react";
 import {
   getRoutines,
   getLastSessionByExercise,
@@ -40,8 +40,10 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const [currentExIndex, setCurrentExIndex] = useState(0);
   const [exercisesData, setExercisesData] = useState<ExerciseRecord[]>([]);
   const [unit, setUnit] = useState<"kg" | "lb">("kg");
-  const [isEditMode, setIsEditMode] = useState(false);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const [optionsState, setOptionsState] = useState<{ exIdx: number; setIdx: number } | null>(null);
+  const [rpePickerState, setRpePickerState] = useState<{ exIdx: number; setIdx: number } | null>(null);
+  const [restPickerState, setRestPickerState] = useState<{ exIdx: number; setIdx: number } | null>(null);
   const [summary, setSummary] = useState<{ exercises: number; sets: number; durationSec: number; calories: number; volumeDiff: number | null } | null>(null);
 
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
@@ -340,6 +342,26 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     setModePickerState(null);
   };
 
+  const setSetRpe = (exIdx: number, setIdx: number, rpe: number | undefined) => {
+    setExercisesData((prev) =>
+      prev.map((ex, ei) =>
+        ei !== exIdx ? ex :
+        { ...ex, sets: ex.sets.map((s, si) => si !== setIdx ? s : { ...s, rpe }) }
+      )
+    );
+    setRpePickerState(null);
+  };
+
+  const setSetRestTimeAbsolute = (exIdx: number, setIdx: number, seconds: number) => {
+    setExercisesData((prev) => {
+      const next = [...prev];
+      const sets = [...next[exIdx].sets];
+      sets[setIdx] = { ...sets[setIdx], restTime: Math.max(REST_STEP, Math.min(MAX_REST_SECONDS, seconds)) };
+      next[exIdx] = { ...next[exIdx], sets };
+      return next;
+    });
+  };
+
   const addSet = (exIdx: number) => {
     setExercisesData((prev) => {
       const next = [...prev];
@@ -468,7 +490,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
 
   return (
     <>
-    <div className="flex flex-col h-[100dvh] bg-background">
+    <div className="flex flex-col h-[100dvh] bg-background overflow-x-hidden">
       <header className="px-6 py-4 flex items-center justify-between sticky top-0 bg-background z-20">
         <button onClick={() => router.back()} className="p-2 -ml-2 text-muted hover:text-foreground">
           <ChevronLeft size={24} />
@@ -533,134 +555,144 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         </div>
 
         {/* Sets */}
-        <div className="space-y-3">
-          <div className="flex text-xs font-medium text-muted px-2 mb-2 items-center">
-            <span className="w-8 text-center">{isCardioExercise ? "구간" : "세트"}</span>
-            <span className="flex-1 text-center">{isCardioExercise ? "거리 (km)" : `무게 (${unit})`}</span>
-            <span className="flex-1 text-center">{isCardioExercise ? "시간 (분)" : "횟수"}</span>
-            {!isCardioExercise && <span className="w-24 text-center">휴식</span>}
-            <span className={`${isCardioExercise ? "w-10" : "w-10"} text-center`}>완료</span>
-            <button
-              onClick={() => setIsEditMode((p) => !p)}
-              title={isEditMode ? "편집 완료" : "세트 편집 (삭제 활성화)"}
-              className={`w-8 flex items-center justify-center rounded transition-colors ${
-                isEditMode ? "text-danger" : "text-muted hover:text-foreground"
-              }`}
-            >
-              <Pencil size={13} />
-            </button>
+        <div className="space-y-1">
+          {/* 컬럼 헤더 — gap-2 동일하게 맞춤 */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-10 text-center text-xs font-medium text-muted">{isCardioExercise ? "구간" : "세트"}</span>
+            <span className="flex-1 text-center text-xs font-medium text-muted">{isCardioExercise ? "거리(km)" : `무게(${unit})`}</span>
+            <span className="flex-1 text-center text-xs font-medium text-muted">{isCardioExercise ? "시간(분)" : "횟수"}</span>
+            <span className="w-10 text-center text-xs font-medium text-muted">완료</span>
+            <span className="w-8" />
           </div>
 
-          {currentExercise.sets.map((set, sIdx) => (
-            <div key={set.id}>
-              <div className={`flex items-center p-2.5 rounded-2xl border transition-all ${set.isCompleted ? "bg-success/10 border-success/30" : "bg-card border-border"}`}>
-                <button
-                  type="button"
-                  onClick={() => !set.isCompleted && setModePickerState({ exIdx: currentExIndex, setIdx: sIdx, current: set.weightMode ?? "weighted" })}
-                  className={`w-8 text-center font-bold text-xs leading-none shrink-0 transition-colors active:scale-90 ${
-                    set.isCompleted
-                      ? "text-success cursor-default"
-                      : set.weightMode === "bodyweight"
-                      ? "text-blue-400"
-                      : set.weightMode === "assisted"
-                      ? "text-purple-400"
-                      : "text-muted"
-                  }`}
-                  title={set.isCompleted ? undefined : "탭하여 모드 변경"}
-                >
-                  {set.weightMode === "bodyweight" ? "BW" : set.weightMode === "assisted" ? "AS" : sIdx + 1}
-                </button>
-
-                <div className="flex-1 flex justify-center items-center px-1 gap-1">
-                  {set.weightMode === "assisted" && (
-                    <span className="text-[10px] font-bold text-purple-400 shrink-0">보조</span>
-                  )}
-                  <input
-                    type="text" inputMode="decimal"
-                    value={set.weightMode === "bodyweight" ? "" : (set.weight || "")}
-                    onChange={(e) => updateSet(currentExIndex, sIdx, "weight", Number(e.target.value))}
-                    onFocus={(e) => e.target.select()}
-                    placeholder={set.weightMode === "bodyweight" ? "—" : "0"}
-                    disabled={set.isCompleted || set.weightMode === "bodyweight"}
-                    className={`w-14 text-center bg-transparent text-lg font-bold focus:outline-none transition-colors ${
-                      set.isCompleted ? "text-success opacity-80" :
-                      set.weightMode === "bodyweight" ? "text-muted opacity-40 cursor-not-allowed" :
-                      set.weightMode === "assisted" ? "focus:text-purple-400" :
-                      "focus:text-accent"
+          {currentExercise.sets.map((set, sIdx) => {
+            const lastSet = lastEx?.sets[sIdx];
+            return (
+              <div key={set.id} className="mb-2">
+                {/* ── 세트 메인 행 ── */}
+                <div className="flex items-center gap-2 py-0.5">
+                  {/* 모드 버튼 — 완료 여부 무관하게 항상 클릭 가능 */}
+                  <button
+                    type="button"
+                    onClick={() => setModePickerState({ exIdx: currentExIndex, setIdx: sIdx, current: set.weightMode ?? "weighted" })}
+                    className={`w-10 h-10 flex items-center justify-center rounded-xl text-xs font-bold shrink-0 transition-all active:scale-90 ${
+                      set.isCompleted
+                        ? set.weightMode === "bodyweight" ? "bg-blue-500/20 text-blue-300"
+                          : set.weightMode === "assisted" ? "bg-purple-500/20 text-purple-300"
+                          : "bg-success/15 text-success"
+                        : set.weightMode === "bodyweight" ? "bg-blue-500/15 text-blue-400"
+                        : set.weightMode === "assisted" ? "bg-purple-500/15 text-purple-400"
+                        : "bg-card text-muted"
                     }`}
-                  />
-                </div>
+                  >
+                    {set.weightMode === "bodyweight" ? "BW" : set.weightMode === "assisted" ? "AS" : sIdx + 1}
+                  </button>
 
-                <div className="flex-1 flex justify-center px-1">
+                  {/* 무게 — 항상 editable, 완료 시 success 색 */}
+                  {set.weightMode !== "bodyweight" ? (
+                    <input
+                      type="text" inputMode="decimal"
+                      value={set.weight || ""}
+                      onChange={(e) => updateSet(currentExIndex, sIdx, "weight", Number(e.target.value))}
+                      onFocus={(e) => e.target.select()}
+                      placeholder="0"
+                      className={`flex-1 min-w-0 text-center rounded-xl py-2.5 text-lg font-bold focus:outline-none transition-colors ${
+                        set.isCompleted
+                          ? "bg-success/10 text-success focus:ring-1 focus:ring-success/40"
+                          : set.weightMode === "assisted"
+                          ? "bg-card focus:ring-1 focus:ring-purple-400 text-foreground"
+                          : "bg-card focus:ring-1 focus:ring-accent text-foreground"
+                      }`}
+                    />
+                  ) : (
+                    /* 맨몸 — 항상 dash 박스 */
+                    <div className={`flex-1 flex items-center justify-center py-2.5 rounded-xl ${
+                      set.isCompleted ? "bg-success/10" : "bg-card"
+                    }`}>
+                      <span className={`text-lg font-bold ${set.isCompleted ? "text-success/50" : "text-muted/40"}`}>—</span>
+                    </div>
+                  )}
+
+                  {/* 횟수 — 항상 editable, 완료 시 success 색 */}
                   <input
                     type="text" inputMode="decimal"
                     value={set.reps || ""}
                     onChange={(e) => updateSet(currentExIndex, sIdx, "reps", Number(e.target.value))}
                     onFocus={(e) => e.target.select()}
                     placeholder="0"
-                    className={`w-14 text-center bg-transparent text-lg font-bold focus:outline-none focus:text-accent transition-colors ${set.isCompleted ? "text-success opacity-80" : ""}`}
-                    disabled={set.isCompleted}
+                    className={`flex-1 min-w-0 text-center rounded-xl py-2.5 text-lg font-bold focus:outline-none transition-colors ${
+                      set.isCompleted
+                        ? "bg-success/10 text-success focus:ring-1 focus:ring-success/40"
+                        : "bg-card focus:ring-1 focus:ring-accent text-foreground"
+                    }`}
                   />
+
+                  {/* 완료 / RPE 버튼 — RPE는 완료 전에도 표시 */}
+                  <button
+                    onClick={() => handleSetToggle(currentExIndex, sIdx)}
+                    className={`w-10 h-10 flex items-center justify-center rounded-xl shrink-0 transition-all active:scale-90 ${
+                      set.isCompleted && !set.rpe
+                        ? "bg-success text-white shadow-md shadow-success/30"
+                        : set.isCompleted && set.rpe
+                        ? "bg-success/10 border border-success/25"
+                        : "bg-card border-2 border-border hover:border-accent"
+                    }`}
+                  >
+                    {set.rpe ? (
+                      <span className={`text-sm font-extrabold leading-none ${
+                        set.rpe >= 8 ? "text-danger"
+                        : set.rpe >= 6 ? "text-amber-400"
+                        : set.isCompleted ? "text-success"
+                        : "text-muted"
+                      }`}>{set.rpe}</span>
+                    ) : set.isCompleted ? (
+                      <Check strokeWidth={3} size={16} />
+                    ) : null}
+                  </button>
+
+                  {/* ··· 추가 기능 버튼 */}
+                  <button
+                    type="button"
+                    onClick={() => setOptionsState({ exIdx: currentExIndex, setIdx: sIdx })}
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground transition-colors shrink-0"
+                  >
+                    <MoreHorizontal size={16} />
+                  </button>
                 </div>
 
+                {/* ── 세트 하단: 지난번(RPE 포함) + 타이머 아이콘 ── */}
                 {!isCardioExercise && (
-                  <div className="w-24 flex items-center justify-center gap-1">
+                  <div className="flex items-center justify-between min-h-[20px] mt-0.5">
+                    <p className="text-xs text-muted">
+                      {lastSet ? (() => {
+                        const mode = lastSet.weightMode;
+                        const rpeStr = lastSet.rpe ? ` · RPE ${lastSet.rpe}` : "";
+                        if (mode === "bodyweight") return `지난번: ${lastSet.reps}회${rpeStr}`;
+                        const w = unit === "lb" ? Math.round(lastSet.weight * KG_TO_LB) : lastSet.weight;
+                        return `지난번: ${mode === "assisted" ? "AS " : ""}${w}${unit} × ${lastSet.reps}회${rpeStr}`;
+                      })() : ""}
+                    </p>
                     <button
                       type="button"
-                      onClick={() => updateSetRestTime(currentExIndex, sIdx, -REST_STEP)}
-                      disabled={set.isCompleted || (set.restTime || DEFAULT_REST) <= REST_STEP}
-                      className="w-6 h-6 flex items-center justify-center text-muted hover:text-foreground disabled:opacity-20"
+                      onClick={() => !set.isCompleted && setRestPickerState({ exIdx: currentExIndex, setIdx: sIdx })}
+                      disabled={set.isCompleted}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-muted hover:text-accent disabled:opacity-30 active:scale-90 transition-all"
                     >
-                      <Minus size={12} />
-                    </button>
-                    <span className="text-xs font-bold text-muted whitespace-nowrap">
-                      {formatRestTime(set.restTime || DEFAULT_REST)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => updateSetRestTime(currentExIndex, sIdx, REST_STEP)}
-                      disabled={set.isCompleted || (set.restTime || DEFAULT_REST) >= MAX_REST_SECONDS}
-                      className="w-6 h-6 flex items-center justify-center text-muted hover:text-foreground disabled:opacity-20"
-                    >
-                      <Plus size={12} />
+                      <Timer size={12} />
+                      <span className="text-xs font-bold whitespace-nowrap">{set.restTime || DEFAULT_REST}초</span>
                     </button>
                   </div>
                 )}
 
-                <button
-                  onClick={() => handleSetToggle(currentExIndex, sIdx)}
-                  className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-90 ${set.isCompleted ? "bg-success text-white shadow-lg shadow-success/30" : "bg-background border-2 border-border text-muted hover:border-accent"}`}
-                >
-                  {set.isCompleted ? <Check strokeWidth={3} size={18} /> : null}
-                </button>
-
-                {isEditMode ? (
-                  <button
-                    onClick={() => deleteSet(currentExIndex, sIdx)}
-                    disabled={currentExercise.sets.length <= 1 || set.isCompleted}
-                    className="w-8 flex items-center justify-center text-danger disabled:opacity-20 transition-colors animate-in fade-in duration-150"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                ) : (
-                  <div className="w-8" />
+                {/* 유산소: 지난번 표시 */}
+                {isCardioExercise && lastSet && (
+                  <p className="text-xs text-muted mt-0.5">
+                    지난번: {(lastSet.weight || 0).toFixed(1)}km × {lastSet.reps}분
+                  </p>
                 )}
               </div>
-              {lastEx?.sets[sIdx] && (
-                <p className="text-xs text-muted mt-1 pr-1 text-right">
-                  지난번:{" "}
-                  {(() => {
-                    const s = lastEx.sets[sIdx];
-                    const mode = s.weightMode;
-                    if (mode === "bodyweight") return `${s.reps}회`;
-                    const w = unit === "lb" ? Math.round(s.weight * KG_TO_LB) : s.weight;
-                    const prefix = mode === "assisted" ? "보조 " : "";
-                    return `${prefix}${w}${unit} × ${s.reps}회`;
-                  })()}
-                </p>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <button
@@ -833,6 +865,161 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         </div>
       </Drawer>
 
+      {/* ··· 세트 옵션 Bottom Sheet */}
+      <Drawer open={!!optionsState} onClose={() => setOptionsState(null)} height="auto" zIndex={70}>
+        {optionsState && (() => {
+          const targetSet = exercisesData[optionsState.exIdx]?.sets[optionsState.setIdx];
+          return (
+            <div className="px-6 pt-5 pb-8 space-y-2">
+              <p className="text-sm font-bold text-muted mb-3">
+                {exercisesData[optionsState.exIdx]?.name} — {optionsState.setIdx + 1}세트
+              </p>
+
+              {/* RPE 설정 */}
+              <button
+                type="button"
+                onClick={() => {
+                  setRpePickerState({ exIdx: optionsState.exIdx, setIdx: optionsState.setIdx });
+                  setOptionsState(null);
+                }}
+                className="w-full flex items-center justify-between gap-3 p-4 rounded-2xl border border-border bg-card active:scale-[0.98] transition-transform"
+              >
+                <div className="text-left">
+                  <p className="text-sm font-bold">RPE 설정</p>
+                  <p className="text-xs text-muted mt-0.5">주관적 운동 강도 (1–10)</p>
+                </div>
+                {targetSet?.rpe ? (
+                  <span className="text-lg font-extrabold text-accent">{targetSet.rpe}</span>
+                ) : (
+                  <span className="text-xs text-muted">미설정</span>
+                )}
+              </button>
+
+              {/* 세트 삭제 */}
+              <button
+                type="button"
+                onClick={() => {
+                  deleteSet(optionsState.exIdx, optionsState.setIdx);
+                  setOptionsState(null);
+                }}
+                disabled={exercisesData[optionsState.exIdx]?.sets.length <= 1 || targetSet?.isCompleted}
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-danger/30 bg-danger/5 text-danger disabled:opacity-30 active:scale-[0.98] transition-transform"
+              >
+                <Trash2 size={16} />
+                <span className="text-sm font-bold">세트 삭제</span>
+              </button>
+            </div>
+          );
+        })()}
+      </Drawer>
+
+      {/* RPE 선택 Bottom Sheet */}
+      <Drawer open={!!rpePickerState} onClose={() => setRpePickerState(null)} height="auto" zIndex={75}>
+        {rpePickerState && (() => {
+          const currentRpe = exercisesData[rpePickerState.exIdx]?.sets[rpePickerState.setIdx]?.rpe;
+          const RPE_LABELS: Record<number, string> = {
+            1: "매우 쉬움", 2: "쉬움", 3: "가벼움", 4: "편안함", 5: "보통",
+            6: "약간 힘듦", 7: "힘듦", 8: "매우 힘듦", 9: "거의 한계", 10: "한계",
+          };
+          return (
+            <div className="px-6 pt-5 pb-8">
+              <h3 className="text-base font-bold mb-0.5">RPE 설정</h3>
+              <p className="text-xs text-muted mb-4">주관적 운동 강도 척도 — {currentRpe ? RPE_LABELS[currentRpe] : "선택하세요"}</p>
+              <div className="grid grid-cols-5 gap-2 mb-3">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rpe) => (
+                  <button
+                    key={rpe}
+                    type="button"
+                    onClick={() => setSetRpe(rpePickerState.exIdx, rpePickerState.setIdx, rpe)}
+                    className={`h-12 rounded-xl text-base font-extrabold border transition-all active:scale-95 ${
+                      currentRpe === rpe
+                        ? "bg-accent text-background border-accent shadow-md shadow-accent/30"
+                        : rpe >= 8
+                        ? "bg-card border-border text-danger/80"
+                        : rpe >= 6
+                        ? "bg-card border-border text-amber-400"
+                        : "bg-card border-border text-foreground"
+                    }`}
+                  >
+                    {rpe}
+                  </button>
+                ))}
+              </div>
+              {currentRpe && (
+                <button
+                  type="button"
+                  onClick={() => setSetRpe(rpePickerState.exIdx, rpePickerState.setIdx, undefined)}
+                  className="w-full py-3 rounded-xl border border-border text-sm font-semibold text-muted active:scale-95 transition-transform"
+                >
+                  RPE 해제
+                </button>
+              )}
+            </div>
+          );
+        })()}
+      </Drawer>
+
+      {/* 휴식 타이머 설정 Bottom Sheet */}
+      <Drawer open={!!restPickerState} onClose={() => setRestPickerState(null)} height="auto" zIndex={72}>
+        {restPickerState && (() => {
+          const currentRest = exercisesData[restPickerState.exIdx]?.sets[restPickerState.setIdx]?.restTime || DEFAULT_REST;
+          const PRESETS = [30, 60, 90, 120, 150, 180, 210, 240];
+          return (
+            <div className="px-6 pt-5 pb-8">
+              <div className="flex items-center gap-2 mb-1">
+                <Timer size={18} className="text-accent" />
+                <h3 className="text-base font-bold">세트별 휴식 타이머 설정</h3>
+              </div>
+              <p className="text-xs text-muted mb-5">
+                {exercisesData[restPickerState.exIdx]?.name} — {restPickerState.setIdx + 1}세트
+              </p>
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {PRESETS.map((sec) => (
+                  <button
+                    key={sec}
+                    type="button"
+                    onClick={() => setSetRestTimeAbsolute(restPickerState.exIdx, restPickerState.setIdx, sec)}
+                    className={`py-3 rounded-xl text-sm font-bold border transition-all active:scale-95 ${
+                      currentRest === sec
+                        ? "bg-accent text-background border-accent shadow-md shadow-accent/30"
+                        : "bg-card border-border text-foreground hover:border-accent"
+                    }`}
+                  >
+                    {sec}초
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center justify-center gap-4 mb-5">
+                <button
+                  type="button"
+                  onClick={() => setSetRestTimeAbsolute(restPickerState.exIdx, restPickerState.setIdx, currentRest - REST_STEP)}
+                  disabled={currentRest <= REST_STEP}
+                  className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center text-muted disabled:opacity-30 active:scale-90 transition-transform"
+                >
+                  <Minus size={16} />
+                </button>
+                <span className="text-3xl font-extrabold w-24 text-center text-accent">{currentRest}초</span>
+                <button
+                  type="button"
+                  onClick={() => setSetRestTimeAbsolute(restPickerState.exIdx, restPickerState.setIdx, currentRest + REST_STEP)}
+                  disabled={currentRest >= MAX_REST_SECONDS}
+                  className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center text-muted disabled:opacity-30 active:scale-90 transition-transform"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRestPickerState(null)}
+                className="w-full py-4 bg-foreground text-background font-bold rounded-xl active:scale-95 transition-transform"
+              >
+                확인
+              </button>
+            </div>
+          );
+        })()}
+      </Drawer>
+
       {/* Bottom Fixed Area */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-card border-t border-border p-4 pb-safe space-y-3 shadow-2xl">
         {/* 타이머 */}
@@ -960,8 +1147,8 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
               <p className="text-sm font-medium text-muted">지난 기록과 동일해요</p>
             </div>
           ) : (
-            <div className="text-center py-2 px-4 bg-card border border-border rounded-xl">
-              <p className="text-sm font-medium text-muted">이전보다 {Math.abs(summary.volumeDiff)}% 감소했어요</p>
+            <div className="text-center py-2 px-4 bg-danger/10 border border-danger/25 rounded-xl">
+              <p className="text-sm font-bold text-danger">이전보다 {Math.abs(summary.volumeDiff)}% 감소했어요</p>
               <p className="text-xs text-muted mt-0.5">괜찮아요, 다음엔 더 잘할 거예요</p>
             </div>
           )}

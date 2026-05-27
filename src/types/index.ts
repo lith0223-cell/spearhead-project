@@ -12,6 +12,7 @@ export interface SetRecord {
   isCompleted: boolean;
   restTime?: number; // 세트별 휴식 시간(초), 미지정 시 기본값 사용
   weightMode?: WeightMode; // undefined = weighted (기존 데이터 호환)
+  rpe?: number; // Rate of Perceived Exertion 1-10, 미지정 시 표시 안 함
 }
 
 export interface ExerciseRecord {
@@ -52,6 +53,7 @@ export interface ExerciseTemplate {
   id: string;
   name: string;
   category: ExerciseCategory;
+  defaultSets?: RoutineSetTemplate[]; // 기본 세트 설정 (루틴 추가 시 초기값으로 적용)
 }
 
 // 식품 프리셋
