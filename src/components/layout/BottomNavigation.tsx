@@ -112,7 +112,7 @@ export function BottomNavigation() {
   const workoutHref = `/workout/${activeWorkout?.routineId}?resume=true`;
 
   return (
-    <div className="z-50 shrink-0 relative">
+    <div className="fixed bottom-0 left-0 right-0 z-50">
       {/* 이어하기 배너 — absolute로 네비바 위에 부유, 배경 완전 투명 */}
       {activeWorkout && (
         <div className="absolute bottom-full left-0 right-0 px-4 pb-2 pointer-events-none">
@@ -189,7 +189,7 @@ export function BottomNavigation() {
       )}
 
       {/* 내비게이션 */}
-      <div className="bg-card border-t border-border pb-safe relative z-10">
+      <div className="bg-card border-t border-border pb-safe">
         <div className="flex justify-around items-center h-20 max-w-md mx-auto px-4">
           {navItems.map((item) => {
             const Icon = item.icon;
