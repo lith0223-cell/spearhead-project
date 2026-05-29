@@ -61,6 +61,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
 
   const [showStartConfirm, setShowStartConfirm] = useState(false);
   const pendingSetToggleRef = useRef<{ exIdx: number; setIdx: number } | null>(null);
+  const exSwipeRef = useRef<{ x: number; y: number } | null>(null);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showOtherRoutineConflict, setShowOtherRoutineConflict] = useState(false);
@@ -587,6 +588,23 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     }
   };
 
+  const handleExSwipeTouchStart = (e: React.TouchEvent) => {
+    exSwipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const handleExSwipeTouchEnd = (e: React.TouchEvent) => {
+    if (!exSwipeRef.current) return;
+    const deltaX = e.changedTouches[0].clientX - exSwipeRef.current.x;
+    const deltaY = e.changedTouches[0].clientY - exSwipeRef.current.y;
+    exSwipeRef.current = null;
+    if (Math.abs(deltaX) < 60 || Math.abs(deltaY) > Math.abs(deltaX)) return;
+    if (deltaX < 0 && currentExIndex < (routine?.exercises.length ?? 1) - 1) {
+      setCurrentExIndex((i) => i + 1);
+    } else if (deltaX > 0 && currentExIndex > 0) {
+      setCurrentExIndex((i) => i - 1);
+    }
+  };
+
   const todayStats = useMemo(() => {
     const ex = exercisesData[currentExIndex];
     if (!ex) return null;
@@ -679,7 +697,11 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         )}
       </header>
 
-      <main className="flex-1 overflow-y-auto px-6 pb-48">
+      <main
+        className="flex-1 overflow-y-auto px-6 pb-48"
+        onTouchStart={handleExSwipeTouchStart}
+        onTouchEnd={handleExSwipeTouchEnd}
+      >
         <div className="mb-6 flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-extrabold">{currentExercise.name}</h1>
