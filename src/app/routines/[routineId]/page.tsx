@@ -307,7 +307,9 @@ export default function RoutineDetailPage() {
     );
   }
 
-  const floatingBottom = isActive ? "bottom-[8rem]" : "bottom-[5.5rem]";
+  const floatingBottom = isActive
+    ? "calc(8rem + env(safe-area-inset-bottom, 0px))"
+    : "calc(5.5rem + env(safe-area-inset-bottom, 0px))";
 
   return (
     <main
@@ -492,7 +494,7 @@ export default function RoutineDetailPage() {
 
       {/* ── 운동 시작 플로팅 버튼 ── */}
       {!isActive && !isReorderMode && (
-        <div className={`fixed ${floatingBottom} left-0 right-0 max-w-md mx-auto px-4 pb-2 z-40`}>
+        <div className="fixed left-0 right-0 max-w-md mx-auto px-4 pb-2 z-40" style={{ bottom: floatingBottom }}>
           <Link
             href={`/workout/${routineId}`}
             className="flex items-center justify-center gap-2 w-full bg-accent text-background font-bold py-3.5 rounded-2xl shadow-xl shadow-accent/30 hover:bg-accent/90 transition-colors active:scale-[0.97]"

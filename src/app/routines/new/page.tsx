@@ -311,7 +311,9 @@ export default function RoutineNewPage() {
     .sort(searchCat === "전체" ? sortByCategory : () => 0);
 
   const existingNames = new Set(exercises.map((c) => c.name));
-  const floatingBottom = isActive ? "bottom-[8rem]" : "bottom-[5.5rem]";
+  const floatingBottom = isActive
+    ? "calc(8rem + env(safe-area-inset-bottom, 0px))"
+    : "calc(5.5rem + env(safe-area-inset-bottom, 0px))";
 
   return (
     <main
@@ -494,7 +496,7 @@ export default function RoutineNewPage() {
 
       {/* ── 저장 플로팅 버튼 ── */}
       {!isReorderMode && (
-        <div className={`fixed ${floatingBottom} left-0 right-0 max-w-md mx-auto px-4 pb-2 z-40`}>
+        <div className="fixed left-0 right-0 max-w-md mx-auto px-4 pb-2 z-40" style={{ bottom: floatingBottom }}>
           <button
             onClick={handleSave}
             disabled={!routineName.trim() || exercises.filter((c) => c.name.trim()).length === 0}
