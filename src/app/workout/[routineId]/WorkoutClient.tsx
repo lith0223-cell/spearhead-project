@@ -187,13 +187,18 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     if (saved && saved.routineId === routineId) {
       const hasProgress = saved.exercisesData?.some((ex) => ex.sets.some((s) => s.isCompleted));
       if (hasProgress) {
-        savedExDataRef.current = saved.exercisesData;
+        // 현재 루틴 순서에 맞게 세트 데이터 재정렬 (운동 중 종목 순서 변경 대응)
+        const savedMap = new Map((saved.exercisesData as ExerciseRecord[]).map((ex) => [ex.name, ex]));
+        const reorderedData: ExerciseRecord[] = found.exercises.map(
+          (name) => savedMap.get(name) ?? initialData.find((d) => d.name === name)!
+        );
+        savedExDataRef.current = reorderedData;
         savedExIndexRef.current = saved.currentExIndex ?? 0;
         workoutStartTimeRef.current = saved.startTime ?? Date.now();
-        // 같은 루틴이면 항상 자동 복원 (shouldAutoResume 여부 무관)
-        setExercisesData(saved.exercisesData);
+        setExercisesData(reorderedData);
         const clampedIdx = Math.min(startIdx, found.exercises.length - 1);
-        setCurrentExIndex(clampedIdx > 0 ? clampedIdx : (saved.currentExIndex ?? 0));
+        // startIdx 파라미터가 있으면 명시적 인덱스 사용, 없으면 저장된 위치 복원
+        setCurrentExIndex(startIdxParam !== null ? clampedIdx : (saved.currentExIndex ?? 0));
         resumedFromSave = true;
       }
     }
@@ -309,7 +314,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
           ...ex,
           sets: ex.sets.map((s) => ({
             ...s,
-            weight: s.weight > 0 ? Math.round(s.weight * factor) : 0,
+            weight: s.weight > 0 ? parseFloat((s.weight * factor).toFixed(1)) : 0,
           })),
         };
       })
@@ -595,7 +600,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         totalMin: done.reduce((sum, s) => sum + (s.reps || 0), 0),
       };
     }
-    const doneWeighted = done.filter((s) => s.weight > 0);
+    const doneWeighted = done.filter((s) => s.weight > 0 && s.weightMode !== "assisted");
     if (doneWeighted.length === 0) return null;
     const toUnit = (w: number) => unit === "lb" ? Math.round(w * KG_TO_LB) : w;
     return {
@@ -1281,7 +1286,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
           <div className="flex-1 min-w-0">
             <div className="flex justify-between text-xs font-bold mb-1">
               <span className="text-muted">휴식 타이머</span>
-              <span className={isTimerRunning ? "text-accent font-mono text-lg leading-none" : "text-muted"}>
+              <span className={`text-lg font-mono font-bold leading-none ${isTimerRunning ? "text-accent" : "text-muted"}`}>
                 {timerSeconds}초
               </span>
             </div>
