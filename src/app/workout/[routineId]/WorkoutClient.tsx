@@ -38,6 +38,8 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const shouldAutoResume = searchParams.get("resume") === "true";
+  const startIdxParam = searchParams.get("startIdx");
+  const startIdx = startIdxParam !== null ? Math.max(0, parseInt(startIdxParam) || 0) : 0;
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [currentExIndex, setCurrentExIndex] = useState(0);
@@ -57,7 +59,11 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   // 소수점 입력을 위한 draft 상태
   const [inputDrafts, setInputDrafts] = useState<Record<string, string>>({});
 
+  const [showStartConfirm, setShowStartConfirm] = useState(false);
+  const pendingSetToggleRef = useRef<{ exIdx: number; setIdx: number } | null>(null);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+  const [showOtherRoutineConflict, setShowOtherRoutineConflict] = useState(false);
   const [modePickerState, setModePickerState] = useState<{ exIdx: number; setIdx: number; current: WeightMode } | null>(null);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerInitial, setTimerInitial] = useState(0);
@@ -124,7 +130,6 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     const routines = getRoutines();
     const found = routines.find((r) => r.id === routineId);
     if (!found) {
-      alert("루틴을 찾을 수 없습니다.");
       router.push("/routines");
       return;
     }
@@ -170,24 +175,32 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     // 이전 세션 복원 확인
     const saved = getActiveWorkout();
     let resumedFromSave = false;
+
+    // 다른 루틴 진행 중인 경우 → conflict Drawer
+    if (saved && saved.routineId !== routineId) {
+      const hasProgress = saved.exercisesData?.some((ex) => ex.sets.some((s) => s.isCompleted));
+      if (hasProgress) {
+        setShowOtherRoutineConflict(true);
+      }
+    }
+
     if (saved && saved.routineId === routineId) {
       const hasProgress = saved.exercisesData?.some((ex) => ex.sets.some((s) => s.isCompleted));
       if (hasProgress) {
         savedExDataRef.current = saved.exercisesData;
         savedExIndexRef.current = saved.currentExIndex ?? 0;
         workoutStartTimeRef.current = saved.startTime ?? Date.now();
-        if (shouldAutoResume) {
-          // 배너에서 진입 시 프롬프트 없이 즉시 복원
-          setExercisesData(saved.exercisesData);
-          setCurrentExIndex(saved.currentExIndex ?? 0);
-          resumedFromSave = true;
-        } else {
-          setShowResumePrompt(true);
-        }
+        // 같은 루틴이면 항상 자동 복원 (shouldAutoResume 여부 무관)
+        setExercisesData(saved.exercisesData);
+        const clampedIdx = Math.min(startIdx, found.exercises.length - 1);
+        setCurrentExIndex(clampedIdx > 0 ? clampedIdx : (saved.currentExIndex ?? 0));
+        resumedFromSave = true;
       }
     }
     if (!resumedFromSave) {
       setExercisesData(initialData);
+      const clampedIdx = Math.min(startIdx, found.exercises.length - 1);
+      if (clampedIdx > 0) setCurrentExIndex(clampedIdx);
     }
 
     // 이전에 실행 중이던 타이머 복원 (화면 이탈 후 복귀 시)
@@ -265,6 +278,10 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   };
 
   const stopTimer = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     setIsTimerRunning(false);
     setTimerSeconds(0);
     timerEndTimeRef.current = null;
@@ -272,19 +289,37 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     cancelRestNotification();
   };
 
+  // 종목 전환 시 해당 종목의 저장된 unit 로드
+  useEffect(() => {
+    if (exercisesData.length === 0) return;
+    const exName = exercisesData[currentExIndex]?.name;
+    if (!exName) return;
+    const savedUnits = JSON.parse(localStorage.getItem("ph_exercise_unit") || "{}") as Record<string, "kg" | "lb">;
+    setUnit(savedUnits[exName] || "kg");
+  }, [currentExIndex, exercisesData]);
+
   const toggleUnit = () => {
+    const exName = exercisesData[currentExIndex]?.name;
     const newUnit = unit === "kg" ? "lb" : "kg";
     const factor = newUnit === "lb" ? KG_TO_LB : 1 / KG_TO_LB;
     setExercisesData((prev) =>
-      prev.map((ex) => ({
-        ...ex,
-        sets: ex.sets.map((s) => ({
-          ...s,
-          weight: s.weight > 0 ? Math.round(s.weight * factor) : 0,
-        })),
-      }))
+      prev.map((ex, ei) => {
+        if (ei !== currentExIndex) return ex;
+        return {
+          ...ex,
+          sets: ex.sets.map((s) => ({
+            ...s,
+            weight: s.weight > 0 ? Math.round(s.weight * factor) : 0,
+          })),
+        };
+      })
     );
     setUnit(newUnit);
+    if (exName) {
+      const savedUnits = JSON.parse(localStorage.getItem("ph_exercise_unit") || "{}");
+      savedUnits[exName] = newUnit;
+      localStorage.setItem("ph_exercise_unit", JSON.stringify(savedUnits));
+    }
   };
 
   const updateSetRestTime = (exIdx: number, setIdx: number, delta: number) => {
@@ -298,7 +333,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     });
   };
 
-  const handleSetToggle = (exIdx: number, setIdx: number) => {
+  const doSetToggle = (exIdx: number, setIdx: number) => {
     resumeAudioContext(); // iOS: AudioContext 잠금 해제
     if (!notifPermAskedRef.current) {
       notifPermAskedRef.current = true;
@@ -334,6 +369,17 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       }
       return next;
     });
+  };
+
+  const handleSetToggle = (exIdx: number, setIdx: number) => {
+    // 종목 클릭으로 진입(startIdx 파라미터 있음)했고 아직 운동 시작 전일 때만 확인
+    const hasStarted = exercisesData.some((ex) => ex.sets.some((s) => s.isCompleted));
+    if (startIdxParam !== null && !hasStarted) {
+      pendingSetToggleRef.current = { exIdx, setIdx };
+      setShowStartConfirm(true);
+      return;
+    }
+    doSetToggle(exIdx, setIdx);
   };
 
   // ── 루틴 업데이트 헬퍼 ──
@@ -472,13 +518,17 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const finishWorkout = () => {
     if (!routine) return;
     workoutFinishedRef.current = true; // 자동 저장 useEffect 재실행 방지
-    const exercisesInKg = exercisesData.map((ex) => ({
-      ...ex,
-      sets: ex.sets.map((s) => ({
-        ...s,
-        weight: unit === "lb" ? Math.round(s.weight / KG_TO_LB) : s.weight,
-      })),
-    }));
+    const savedUnits = JSON.parse(localStorage.getItem("ph_exercise_unit") || "{}") as Record<string, "kg" | "lb">;
+    const exercisesInKg = exercisesData.map((ex) => {
+      const exUnit = savedUnits[ex.name] || "kg";
+      return {
+        ...ex,
+        sets: ex.sets.map((s) => ({
+          ...s,
+          weight: exUnit === "lb" ? Math.round(s.weight / KG_TO_LB) : s.weight,
+        })),
+      };
+    });
     const allSessions = getWorkoutSessions();
     const session: WorkoutSession = {
       id: crypto.randomUUID(),
@@ -904,6 +954,28 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         )}
       </main>
 
+      {/* 다른 루틴 진행 중 conflict Drawer */}
+      <Drawer open={showOtherRoutineConflict} onClose={() => { setShowOtherRoutineConflict(false); router.back(); }} height="auto" zIndex={50}>
+        <div className="p-6 pb-safe">
+          <h2 className="text-xl font-extrabold mb-2">다른 루틴이 진행 중이에요</h2>
+          <p className="text-sm text-muted mb-6">진행 중인 운동을 중지하고 새 운동을 시작하시겠습니까?</p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => { clearActiveWorkout(); setShowOtherRoutineConflict(false); }}
+              className="w-full py-4 bg-accent text-background rounded-2xl font-extrabold text-base active:scale-95 transition-transform"
+            >
+              중지하고 새로 시작
+            </button>
+            <button
+              onClick={() => { setShowOtherRoutineConflict(false); router.back(); }}
+              className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      </Drawer>
+
       {/* 이전 운동 복원 프롬프트 — Drawer */}
       <Drawer open={showResumePrompt} onClose={() => router.back()} height="auto" zIndex={50}>
         <div className="p-6 pb-safe">
@@ -926,7 +998,34 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         </div>
       </Drawer>
 
-      {/* 운동 마무리 확인 Drawer */}
+      {/* 운동 시작 확인 Drawer (첫 세트 체크 시) */}
+      <Drawer open={showStartConfirm} onClose={() => { setShowStartConfirm(false); pendingSetToggleRef.current = null; }} height="auto" zIndex={50}>
+        <div className="p-6 pb-safe">
+          <h2 className="text-xl font-extrabold mb-2">운동을 시작할까요?</h2>
+          <p className="text-sm text-muted mb-6">{routine?.name} 루틴의 운동을 시작합니다.</p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => {
+                setShowStartConfirm(false);
+                const pending = pendingSetToggleRef.current;
+                pendingSetToggleRef.current = null;
+                if (pending) doSetToggle(pending.exIdx, pending.setIdx);
+              }}
+              className="w-full py-4 bg-accent text-background rounded-2xl font-extrabold text-base active:scale-95 transition-transform shadow-lg shadow-accent/30"
+            >
+              시작하기
+            </button>
+            <button
+              onClick={() => { setShowStartConfirm(false); pendingSetToggleRef.current = null; }}
+              className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      </Drawer>
+
+      {/* 운동 중간 마무리 확인 Drawer (헤더 마무리 버튼) */}
       <Drawer open={showFinishConfirm} onClose={() => setShowFinishConfirm(false)} height="auto" zIndex={50}>
         <div className="p-6 pb-safe">
           <h2 className="text-xl font-extrabold mb-2">지금 마무리할까요?</h2>
@@ -942,6 +1041,30 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
             </button>
             <button
               onClick={() => setShowFinishConfirm(false)}
+              className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
+            >
+              계속하기
+            </button>
+          </div>
+        </div>
+      </Drawer>
+
+      {/* 운동 전체 완료 확인 Drawer (운동 완료하기 버튼) */}
+      <Drawer open={showCompleteConfirm} onClose={() => setShowCompleteConfirm(false)} height="auto" zIndex={50}>
+        <div className="p-6 pb-safe">
+          <h2 className="text-xl font-extrabold mb-2">운동을 완료할까요?</h2>
+          <p className="text-sm text-muted mb-6">
+            모든 종목을 마쳤습니다. 운동 기록을 저장하고 종료합니다.
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => { setShowCompleteConfirm(false); finishWorkout(); }}
+              className="w-full py-4 bg-accent text-background rounded-2xl font-extrabold text-base active:scale-95 transition-transform shadow-lg shadow-accent/30"
+            >
+              완료하기
+            </button>
+            <button
+              onClick={() => setShowCompleteConfirm(false)}
               className="w-full py-4 bg-background border border-border rounded-2xl font-bold text-base active:scale-95 transition-transform"
             >
               계속하기
@@ -1209,7 +1332,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
             </button>
           ) : (
             <button
-              onClick={finishWorkout}
+              onClick={() => setShowCompleteConfirm(true)}
               className="flex-[2] bg-accent text-background py-3.5 rounded-xl font-extrabold flex justify-center items-center gap-1 active:scale-95 transition-transform shadow-lg shadow-accent/30"
             >
               운동 완료하기

@@ -16,6 +16,7 @@ import {
 
 const MEAL_TYPES: MealType[] = ["아침", "점심", "저녁", "간식"];
 const PRESET_LIMIT = 4;
+const LAST_MEAL_TYPE_KEY = "ph_last_meal_type";
 
 export interface DietItemDrawerEditing {
   recordId: string;
@@ -69,7 +70,8 @@ export function DietItemDrawer({ open, onClose, date, editing, defaultMealType =
       setFat(String(editing.fat));
       setDrawerTab("form");
     } else {
-      setMealType(defaultMealType);
+      const saved = typeof window !== "undefined" ? localStorage.getItem(LAST_MEAL_TYPE_KEY) as MealType | null : null;
+      setMealType(saved && MEAL_TYPES.includes(saved) ? saved : defaultMealType);
       setFoodName("");
       setCarbs("");
       setProtein("");
@@ -81,6 +83,7 @@ export function DietItemDrawer({ open, onClose, date, editing, defaultMealType =
   const refreshPresets = () => setPresets(getFoodPresets());
 
   const handleApplyAndRecord = (preset: FoodPreset) => {
+    localStorage.setItem(LAST_MEAL_TYPE_KEY, mealType);
     addItemToDietRecord(date, mealType, {
       id: crypto.randomUUID(),
       name: preset.name,
@@ -142,6 +145,7 @@ export function DietItemDrawer({ open, onClose, date, editing, defaultMealType =
       };
       updateDietItem(editing.recordId, updatedItem);
     } else {
+      localStorage.setItem(LAST_MEAL_TYPE_KEY, mealType);
       addItemToDietRecord(date, mealType, {
         id: crypto.randomUUID(),
         name: foodName,

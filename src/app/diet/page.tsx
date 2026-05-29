@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, Edit, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import { DietItemDrawer, type DietItemDrawerEditing } from "@/components/ui/DietItemDrawer";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import {
@@ -149,10 +149,8 @@ export default function DietPage() {
   };
 
   const handleDeleteItem = (recordId: string, itemId: string) => {
-    if (confirm("정말 삭제하시겠습니까?")) {
-      deleteDietItem(recordId, itemId);
-      refreshRecords();
-    }
+    deleteDietItem(recordId, itemId);
+    refreshRecords();
   };
 
   return (
@@ -277,31 +275,31 @@ export default function DietPage() {
               <div className="space-y-3">
                 {mealRecords.map(record =>
                   record.items.map(item => (
-                    <div key={item.id} className="bg-card p-4 rounded-xl border border-border shadow-sm">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <p className="font-semibold">{item.name}</p>
-                          <p className="text-xs text-muted mt-1">탄 {item.carbs}g • 단 {item.protein}g • 지 {item.fat}g</p>
+                    <div key={item.id} className="bg-card p-4 rounded-2xl border border-border">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate">{item.name}</p>
+                          <p className="text-xs text-muted mt-0.5">탄 {item.carbs}g · 단 {item.protein}g · 지 {item.fat}g</p>
                         </div>
-                        <span className="font-bold text-accent text-sm">
+                        <span className="text-sm font-bold text-accent shrink-0">
                           {calculateCalories(item.carbs, item.protein, item.fat)} kcal
                         </span>
                       </div>
-                      <div className="flex justify-end gap-2 mt-3 pt-2 border-t border-border">
+                      <div className="flex justify-end gap-1 mt-2">
                         <button
                           onClick={() => openEditModal(record.id, item, type as MealType)}
                           aria-label={`${item.name} 수정`}
-                          className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors px-2 py-1"
+                          className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors px-2 py-1 rounded-lg"
                         >
-                          <Edit size={14} />
+                          <Pencil size={13} />
                           수정
                         </button>
                         <button
                           onClick={() => handleDeleteItem(record.id, item.id)}
                           aria-label={`${item.name} 삭제`}
-                          className="flex items-center gap-1 text-xs text-muted hover:text-danger transition-colors px-2 py-1"
+                          className="flex items-center gap-1 text-xs text-muted hover:text-danger transition-colors px-2 py-1 rounded-lg"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                           삭제
                         </button>
                       </div>

@@ -26,6 +26,7 @@ export interface RoutineSetTemplate {
   reps: number;
   restTime: number;
   weightMode?: WeightMode;
+  rpe?: number; // 마지막 운동의 주관적 강도 — 다음 세션 자동 복원용
 }
 
 export interface RoutineExerciseConfig {

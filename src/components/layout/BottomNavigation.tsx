@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Home, Dumbbell, Utensils, CalendarDays, Settings, Pause, Play, ChevronRight } from "lucide-react";
+import { Home, Dumbbell, Utensils, CalendarDays, Settings, Pause, Play, ChevronRight, Square } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { ACTIVE_WORKOUT_EVENT, getActiveWorkout, updateActiveWorkoutStartTime } from "@/utils/storage";
+import { ACTIVE_WORKOUT_EVENT, clearActiveWorkout, getActiveWorkout, updateActiveWorkoutStartTime } from "@/utils/storage";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -24,10 +24,11 @@ const PAUSE_KEY = "ph_workout_pause";
 
 export function BottomNavigation() {
   const pathname = usePathname();
-  const [activeWorkout, setActiveWorkout] = useState<{ routineId: string; routineName: string; startTime?: number } | null>(null);
+  const [activeWorkout, setActiveWorkout] = useState<{ routineId: string; routineName: string; startTime?: number; currentExerciseName?: string } | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [pausedElapsedSec, setPausedElapsedSec] = useState(0);
+  const [showAbortConfirm, setShowAbortConfirm] = useState(false);
 
   useEffect(() => {
     const check = () => {
@@ -35,7 +36,8 @@ export function BottomNavigation() {
       if (data) {
         const hasProgress = data.exercisesData?.some((ex) => ex.sets.some((s) => s.isCompleted));
         if (data.routineId && data.routineName && hasProgress) {
-          setActiveWorkout({ routineId: data.routineId, routineName: data.routineName, startTime: data.startTime });
+          const currentExerciseName = data.exercisesData?.[data.currentExIndex ?? 0]?.name;
+          setActiveWorkout({ routineId: data.routineId, routineName: data.routineName, startTime: data.startTime, currentExerciseName });
           const pausedRaw = localStorage.getItem(PAUSE_KEY);
           if (pausedRaw) {
             const pausedSec = parseInt(pausedRaw);
@@ -72,6 +74,12 @@ export function BottomNavigation() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [activeWorkout?.startTime, isPaused, pausedElapsedSec]);
+
+  const handleAbortWorkout = () => {
+    clearActiveWorkout();
+    localStorage.removeItem(PAUSE_KEY);
+    setShowAbortConfirm(false);
+  };
 
   const handleTogglePause = () => {
     if (isPaused) {
@@ -115,11 +123,17 @@ export function BottomNavigation() {
                 {!isPaused && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />}
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
               </span>
-              <span className="text-sm font-bold truncate">{activeWorkout.routineName} 진행 중</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate leading-tight">{activeWorkout.routineName} 진행 중</p>
+                {activeWorkout.currentExerciseName && (
+                  <p className="text-xs font-medium opacity-75 truncate leading-tight">{activeWorkout.currentExerciseName}</p>
+                )}
+              </div>
             </Link>
             {activeWorkout.startTime && (
               <button
                 onClick={handleTogglePause}
+                aria-label={isPaused ? "운동 재개" : "운동 일시정지"}
                 className="flex items-center gap-1.5 shrink-0 bg-black/15 rounded-lg px-2.5 py-1 active:scale-90 transition-transform"
               >
                 {isPaused
@@ -129,10 +143,47 @@ export function BottomNavigation() {
                 <span className="text-xs font-mono tabular-nums">{formatElapsed(elapsed)}</span>
               </button>
             )}
+            <button
+              onClick={() => setShowAbortConfirm(true)}
+              aria-label="운동 중단"
+              className="shrink-0 flex items-center justify-center w-8 h-8 bg-black/20 rounded-xl active:scale-90 transition-transform"
+            >
+              <Square size={13} fill="currentColor" />
+            </button>
             <Link href={workoutHref} className="shrink-0 flex items-center justify-center w-8 h-8 bg-white/20 rounded-xl active:scale-90 transition-transform">
               <ChevronRight size={16} strokeWidth={3} />
             </Link>
           </div>
+          </div>
+        </div>
+      )}
+
+      {/* 운동 중단 확인 팝업 */}
+      {showAbortConfirm && (
+        <div
+          className="fixed inset-0 z-[200] flex flex-col justify-end bg-black/40"
+          onClick={() => setShowAbortConfirm(false)}
+        >
+          <div
+            className="bg-card border-t border-border rounded-t-3xl p-6 pb-safe max-w-md mx-auto w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-extrabold mb-2">운동을 중단할까요?</h2>
+            <p className="text-sm text-muted mb-6">중단하면 현재까지의 운동 데이터는 저장되지 않습니다.</p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleAbortWorkout}
+                className="w-full py-4 bg-danger text-white rounded-2xl font-extrabold active:scale-95 transition-transform"
+              >
+                운동 중단
+              </button>
+              <button
+                onClick={() => setShowAbortConfirm(false)}
+                className="w-full py-4 bg-background border border-border rounded-2xl font-bold active:scale-95 transition-transform"
+              >
+                계속하기
+              </button>
+            </div>
           </div>
         </div>
       )}

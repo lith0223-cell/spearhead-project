@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ChevronDown, Dumbbell, Utensils, Trash2, Pencil, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Dumbbell, Utensils, Trash2, Pencil, Plus, X, MoreHorizontal } from "lucide-react";
 import {
   getWorkoutSessions,
   getAllDietRecords,
@@ -161,7 +161,6 @@ export default function HistoryPage() {
 
   // ── 운동 CRUD ──
   const handleDeleteSession = (sessionId: string) => {
-    if (!confirm("이 운동 기록을 삭제하시겠습니까?")) return;
     deleteWorkoutSession(sessionId);
     refreshData();
   };
@@ -368,6 +367,10 @@ export default function HistoryPage() {
     deleteDietItem(recordId, itemId);
     refreshData();
   };
+
+  // ── options 상태 (... 메뉴) ──
+  const [workoutMenuSession, setWorkoutMenuSession] = useState<WorkoutSession | null>(null);
+  const [mealTypeMenuState, setMealTypeMenuState] = useState<{ type: MealType; records: DietRecord[] } | null>(null);
 
   // 식단 주간 분석
   const dietWeeklyPoints = useMemo(() => {
@@ -684,11 +687,11 @@ export default function HistoryPage() {
         {/* 캘린더 */}
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <button onClick={prevMonth} className="p-2 text-muted hover:text-foreground active:scale-90 transition-transform">
+            <button onClick={prevMonth} aria-label="이전 달" className="p-2 text-muted hover:text-foreground active:scale-90 transition-transform">
               <ChevronLeft size={20} />
             </button>
             <h2 className="text-lg font-bold">{viewYear}년 {viewMonth + 1}월</h2>
-            <button onClick={nextMonth} className="p-2 text-muted hover:text-foreground active:scale-90 transition-transform">
+            <button onClick={nextMonth} aria-label="다음 달" className="p-2 text-muted hover:text-foreground active:scale-90 transition-transform">
               <ChevronRight size={20} />
             </button>
           </div>
@@ -760,41 +763,38 @@ export default function HistoryPage() {
               {selectedSessions.length > 0 ? (
                 <div>
                   {selectedSessions.map((session, sIdx) => (
-                    <div key={session.id} className={`px-4 py-3 space-y-2 ${sIdx > 0 ? "border-t border-border" : ""}`}>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-foreground">{getRoutineName(session.routineId)}</span>
-                        <div className="flex items-center">
-                          <button onClick={() => openEditModal(session)} className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors px-2 py-1">
-                            <Pencil size={12} />수정
-                          </button>
-                          <button onClick={() => handleDeleteSession(session.id)} className="flex items-center gap-1 text-xs text-muted hover:text-danger transition-colors px-2 py-1">
-                            <Trash2 size={12} />삭제
-                          </button>
-                        </div>
+                    <div key={session.id} className={sIdx > 0 ? "border-t border-border" : ""}>
+                      {/* 루틴명 + ... */}
+                      <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                        <span className="text-sm font-bold text-foreground">{getRoutineName(session.routineId)}</span>
+                        <button
+                          onClick={() => setWorkoutMenuSession(session)}
+                          className="p-1 -mr-1 text-muted hover:text-foreground transition-colors"
+                          aria-label="더보기"
+                        >
+                          <MoreHorizontal size={15} />
+                        </button>
                       </div>
+                      {/* 종목별 */}
                       {session.exercises.map((ex) => {
                         const done = ex.sets.filter((s) => s.isCompleted && (s.weight > 0 || s.reps > 0));
                         if (done.length === 0) return null;
                         const isCardio = isExerciseCardio(session, ex.name);
                         return (
-                          <div key={ex.id} className="bg-background rounded-xl px-3 py-2.5">
-                            <p className="text-xs font-bold text-foreground mb-1.5">{ex.name}</p>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1">
-                              {done.map((s, i) => (
-                                <span key={s.id} className="text-xs text-muted">
-                                  {i + 1}{isCardio ? "구간" : "세트"}{" "}
-                                  <span className="text-foreground font-semibold">
-                                    {isCardio
-                                      ? `${(s.weight || 0).toFixed(1)}km × ${s.reps}분`
-                                      : s.weightMode === "bodyweight"
-                                      ? `${s.reps}회`
-                                      : s.weightMode === "assisted"
-                                      ? `보조 ${s.weight}kg × ${s.reps}회`
-                                      : `${s.weight}kg × ${s.reps}회`}
-                                  </span>
-                                </span>
-                              ))}
-                            </div>
+                          <div key={ex.id} className="px-4 pb-3">
+                            <p className="text-xs font-semibold text-foreground/80 mb-0.5">{ex.name}</p>
+                            <p className="text-xs text-muted leading-relaxed">
+                              {done.map((s, i) => {
+                                const label = isCardio
+                                  ? `${(s.weight || 0).toFixed(1)}km × ${s.reps}분`
+                                  : s.weightMode === "bodyweight"
+                                  ? `${s.reps}회`
+                                  : s.weightMode === "assisted"
+                                  ? `보조 ${s.weight}kg × ${s.reps}회`
+                                  : `${s.weight}kg × ${s.reps}회`;
+                                return `${i + 1}세트 ${label}`;
+                              }).join(" / ")}
+                            </p>
                           </div>
                         );
                       })}
@@ -824,29 +824,29 @@ export default function HistoryPage() {
               {selectedDiets.length > 0 ? (
                 <>
                   {/* 영양 요약 */}
-                  <div className="px-4 pt-3 pb-3 border-b border-border space-y-2">
-                    <div className="flex justify-between items-end">
-                      <span className="text-sm text-muted">총 섭취 칼로리</span>
-                      <span className="text-2xl font-extrabold text-accent">
-                        {totalNutrition.calories} <span className="text-sm font-normal text-muted">kcal</span>
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs font-medium">
-                      <span className="text-muted">탄 {totalNutrition.carbs}g <span className="text-accent font-bold">({totalNutrition.carbsPercent}%)</span></span>
-                      <span className="text-muted">단 {totalNutrition.protein}g <span className="text-accent font-bold">({totalNutrition.proteinPercent}%)</span></span>
-                      <span className="text-muted">지 {totalNutrition.fat}g <span className="text-accent font-bold">({totalNutrition.fatPercent}%)</span></span>
-                    </div>
-                    {totalNutrition.calories > 0 && (
-                      <div className="flex w-full h-2 rounded-full overflow-hidden gap-0.5">
+                  {totalNutrition.calories > 0 && (
+                    <div className="px-4 pt-3 pb-3 border-b border-border space-y-2">
+                      <div className="flex justify-between items-end">
+                        <span className="text-xs text-muted">총 섭취</span>
+                        <span className="text-lg font-extrabold text-accent">
+                          {totalNutrition.calories}<span className="text-xs font-normal text-muted ml-1">kcal</span>
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted">
+                        <span>탄 {totalNutrition.carbs}g</span>
+                        <span>단 {totalNutrition.protein}g</span>
+                        <span>지 {totalNutrition.fat}g</span>
+                      </div>
+                      <div className="flex w-full h-1.5 rounded-full overflow-hidden gap-0.5">
                         <div className="bg-blue-400 rounded-l-full" style={{ width: `${totalNutrition.carbsPercent}%` }} />
                         <div className="bg-emerald-400" style={{ width: `${totalNutrition.proteinPercent}%` }} />
                         <div className="bg-amber-400 rounded-r-full" style={{ width: `${totalNutrition.fatPercent}%` }} />
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
-                  {/* 끼니별 아이템 */}
-                  <div className="px-4">
+                  {/* 끼니별 아이템 — flat */}
+                  <div>
                     {(() => {
                       let mealCount = 0;
                       return MEAL_TYPES.map((type) => {
@@ -854,31 +854,29 @@ export default function HistoryPage() {
                         if (mealsOfType.length === 0) return null;
                         const isFirst = mealCount++ === 0;
                         return (
-                          <div key={type} className={`py-3 space-y-2 ${isFirst ? "" : "border-t border-border"}`}>
-                            <h4 className="font-bold text-sm border-l-4 border-accent pl-2">{type}</h4>
+                          <div key={type} className={isFirst ? "" : "border-t border-border"}>
+                            <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                              <div className="flex items-center gap-2">
+                                <div className="w-0.5 h-3.5 rounded-full bg-accent shrink-0" />
+                                <p className="text-xs font-bold text-foreground">{type}</p>
+                              </div>
+                              <button
+                                onClick={() => setMealTypeMenuState({ type, records: mealsOfType })}
+                                className="p-1 -mr-1 text-muted hover:text-foreground transition-colors"
+                                aria-label="더보기"
+                              >
+                                <MoreHorizontal size={14} />
+                              </button>
+                            </div>
                             {mealsOfType.map((record) =>
                               record.items.map((item) => (
-                                <div key={item.id} className="bg-background rounded-xl px-3 py-2.5 space-y-1.5">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <p className="text-sm font-medium flex-1 min-w-0 truncate">{item.name}</p>
-                                    <span className="text-sm font-bold text-accent shrink-0">
+                                <div key={item.id} className="px-4 pb-3">
+                                  <p className="text-sm font-medium">{item.name}</p>
+                                  <div className="flex items-center justify-between mt-0.5">
+                                    <p className="text-xs text-muted">탄 {item.carbs}g · 단 {item.protein}g · 지 {item.fat}g</p>
+                                    <span className="text-xs font-bold text-accent shrink-0">
                                       {calculateCalories(item.carbs, item.protein, item.fat)}kcal
                                     </span>
-                                  </div>
-                                  <p className="text-xs text-muted">탄 {item.carbs}g • 단 {item.protein}g • 지 {item.fat}g</p>
-                                  <div className="flex justify-end gap-1">
-                                    <button
-                                      onClick={() => openDietEditModal(record, item)}
-                                      className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors px-2 py-1"
-                                    >
-                                      <Pencil size={12} />수정
-                                    </button>
-                                    <button
-                                      onClick={() => handleDietDelete(record.id, item.id)}
-                                      className="flex items-center gap-1 text-xs text-muted hover:text-danger transition-colors px-2 py-1"
-                                    >
-                                      <Trash2 size={12} />삭제
-                                    </button>
                                   </div>
                                 </div>
                               ))
@@ -1149,6 +1147,83 @@ export default function HistoryPage() {
           onSaved={refreshData}
         />
       )}
+
+      {/* 운동 기록 ... 메뉴 Drawer */}
+      <Drawer open={!!workoutMenuSession} onClose={() => setWorkoutMenuSession(null)} height="auto" zIndex={60}>
+        <div className="px-6 pt-5 pb-8 space-y-2">
+          <h3 className="text-base font-bold mb-4">운동 기록</h3>
+          <button
+            onClick={() => {
+              if (!workoutMenuSession) return;
+              openEditModal(workoutMenuSession);
+              setWorkoutMenuSession(null);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3.5 bg-card border border-border rounded-2xl text-sm font-semibold active:scale-[0.98] transition-transform"
+          >
+            <Pencil size={16} className="text-muted" />
+            수정
+          </button>
+          <button
+            onClick={() => {
+              if (!workoutMenuSession) return;
+              const id = workoutMenuSession.id;
+              setWorkoutMenuSession(null);
+              handleDeleteSession(id);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3.5 bg-card border border-danger/30 rounded-2xl text-sm font-semibold text-danger active:scale-[0.98] transition-transform"
+          >
+            <Trash2 size={16} />
+            삭제
+          </button>
+        </div>
+      </Drawer>
+
+      {/* 식단 끼니별 ... 메뉴 Drawer */}
+      <Drawer open={!!mealTypeMenuState} onClose={() => setMealTypeMenuState(null)} height="auto" zIndex={60}>
+        <div className="px-6 pt-5 pb-8">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-0.5 h-4 rounded-full bg-accent shrink-0" />
+            <h3 className="text-base font-bold">{mealTypeMenuState?.type}</h3>
+          </div>
+          <div className="space-y-2">
+            {mealTypeMenuState?.records.flatMap((record) =>
+              record.items.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 bg-background rounded-2xl px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{item.name}</p>
+                    <p className="text-xs text-muted mt-0.5">
+                      탄 {item.carbs}g · 단 {item.protein}g · 지 {item.fat}g · {calculateCalories(item.carbs, item.protein, item.fat)}kcal
+                    </p>
+                  </div>
+                  <div className="flex gap-0.5 shrink-0">
+                    <button
+                      onClick={() => {
+                        openDietEditModal(record, item);
+                        setMealTypeMenuState(null);
+                      }}
+                      className="w-9 h-9 flex items-center justify-center text-muted hover:text-foreground rounded-xl transition-colors"
+                      aria-label="수정"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const rId = record.id, iId = item.id;
+                        setMealTypeMenuState(null);
+                        handleDietDelete(rId, iId);
+                      }}
+                      className="w-9 h-9 flex items-center justify-center text-muted hover:text-danger rounded-xl transition-colors"
+                      aria-label="삭제"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </Drawer>
     </main>
   );
 }

@@ -29,6 +29,8 @@ export default function SettingsPage() {
   });
   const toggle = (id: SectionId) => setOpen(p => ({ ...p, [id]: !p[id] }));
 
+  const [exportSuccess, setExportSuccess] = useState(false);
+  const [importError, setImportError]     = useState<string | null>(null);
   const [currentAccent, setCurrentAccent] = useState<AccentColor>("cyan");
   const [currentMode, setCurrentMode]     = useState<ColorMode>("dark");
   const [beepType, setBeepType]           = useState<BeepType>("single");
@@ -99,14 +101,17 @@ export default function SettingsPage() {
     const a = document.createElement("a");
     a.href = url; a.download = `spearhead-backup-${date}.json`; a.click();
     URL.revokeObjectURL(url);
+    setExportSuccess(true);
+    setTimeout(() => setExportSuccess(false), 2000);
   };
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setImportError(null);
     const reader = new FileReader();
     reader.onload = (ev) => {
       try { importAllData(ev.target?.result as string); location.reload(); }
-      catch { alert("파일 형식이 올바르지 않습니다."); }
+      catch { setImportError("파일 형식이 올바르지 않습니다."); }
     };
     reader.readAsText(file);
     e.target.value = "";
@@ -319,11 +324,13 @@ export default function SettingsPage() {
             <div className="overflow-hidden">
               <div className="border-t border-border divide-y divide-border">
                 <button onClick={handleExport} className="w-full flex items-center gap-3 px-4 py-4 hover:bg-background transition-colors active:scale-[0.98]">
-                  <span className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${exportSuccess ? "bg-accent/20" : "bg-accent/10"}`}>
                     <Download size={15} className="text-accent" />
                   </span>
                   <div className="text-left">
-                    <p className="text-sm font-semibold">데이터 내보내기</p>
+                    <p className={`text-sm font-semibold transition-colors ${exportSuccess ? "text-accent" : ""}`}>
+                      {exportSuccess ? "저장됨 ✓" : "데이터 내보내기"}
+                    </p>
                     <p className="text-xs text-muted mt-0.5">루틴·운동·식단 기록을 JSON 파일로 저장</p>
                   </div>
                 </button>
@@ -338,7 +345,11 @@ export default function SettingsPage() {
                   <input type="file" accept=".json" className="hidden" onChange={handleImport} />
                 </label>
                 <div className="px-4 py-2.5">
-                  <p className="text-xs text-muted">불러오기 시 현재 데이터를 덮어씁니다.</p>
+                  {importError ? (
+                    <p className="text-xs text-danger font-medium">{importError}</p>
+                  ) : (
+                    <p className="text-xs text-muted">불러오기 시 현재 데이터를 덮어씁니다.</p>
+                  )}
                 </div>
               </div>
             </div>

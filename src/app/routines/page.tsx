@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Plus, Play, Trash2, Edit, X, GripVertical, Minus, Search, Check, Copy, Timer } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Trash2, Edit, X, GripVertical, Minus, Search, Check, Copy, Timer, MoreHorizontal, Clock, Flame, Dumbbell, ChevronLeft, Pencil } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
 import { useActiveWorkout } from "@/providers/ActiveWorkoutProvider";
 import {
   getRoutines, saveRoutine, deleteRoutine, saveRoutinesOrder,
   getExerciseLibrary, saveExerciseToLibrary, updateExerciseInLibrary, deleteExerciseFromLibrary,
-  estimateRoutineCalories,
+  estimateRoutineCalories, getWorkoutSessions,
 } from "@/utils/storage";
 import { Routine, RoutineExerciseConfig, RoutineSetTemplate, ExerciseTemplate, ExerciseCategory, WeightMode } from "@/types";
 
@@ -19,17 +20,18 @@ const REST_STEP = 30;
 const CATEGORIES: ExerciseCategory[] = ["가슴", "등", "어깨", "팔", "하체", "코어", "유산소", "기타"];
 
 const CAT_COLORS: Record<ExerciseCategory, string> = {
-  "가슴": "bg-red-500/15 text-red-400",
-  "등":   "bg-blue-500/15 text-blue-400",
-  "어깨": "bg-purple-500/15 text-purple-400",
-  "팔":   "bg-orange-500/15 text-orange-400",
-  "하체": "bg-green-500/15 text-green-400",
-  "코어": "bg-yellow-500/15 text-yellow-400",
-  "유산소": "bg-cyan-500/15 text-cyan-400",
-  "기타": "bg-zinc-500/15 text-zinc-400",
+  "가슴": "bg-red-500/20 text-red-400",
+  "등":   "bg-blue-500/20 text-blue-400",
+  "어깨": "bg-purple-500/20 text-purple-400",
+  "팔":   "bg-orange-500/20 text-orange-400",
+  "하체": "bg-green-500/20 text-green-400",
+  "코어": "bg-yellow-500/20 text-yellow-400",
+  "유산소": "bg-cyan-500/20 text-cyan-400",
+  "기타": "bg-zinc-500/20 text-zinc-400",
 };
 
 export default function RoutinesPage() {
+  const router = useRouter();
   const { isActive } = useActiveWorkout();
   const [activeTab, setActiveTab] = useState<"routines" | "exercises">("routines");
 
@@ -71,12 +73,19 @@ export default function RoutinesPage() {
   const [pickerNewName, setPickerNewName] = useState("");
   const [pickerNewCat, setPickerNewCat] = useState<ExerciseCategory>("기타");
   const [showPickerNewForm, setShowPickerNewForm] = useState(false);
+  const [pickerSelectedSet, setPickerSelectedSet] = useState<Set<string>>(new Set());
 
-  // ── 루틴 카드 드래그앤드롭 ──
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [flashRoutineIdx, setFlashRoutineIdx] = useState<number | null>(null);
-  const touchStartIndexRef = useRef<number | null>(null);
+  // ── 루틴 카드 ... 메뉴 ──
+  const [cardMenuRoutine, setCardMenuRoutine] = useState<Routine | null>(null);
+
+  // ── 루틴 이름 변경 ──
+  const [renameRoutine, setRenameRoutine] = useState<Routine | null>(null);
+  const [renameNameDraft, setRenameNameDraft] = useState("");
+
+  // ── 인라인 에러 상태 ──
+  const [routineAddError, setRoutineAddError] = useState<string | null>(null);
+  const [pickerNewNameError, setPickerNewNameError] = useState<string | null>(null);
+  const [addExError, setAddExError] = useState<string | null>(null);
 
   // ── 종목 드래그앤드롭 (모달 내) ──
   const [exDragIdx, setExDragIdx] = useState<number | null>(null);
@@ -99,36 +108,44 @@ export default function RoutinesPage() {
   useEffect(() => { setConfigInputDrafts({}); }, [configExIdx]);
   useEffect(() => { setLibDetailInputDrafts({}); }, [libDetailEx]);
 
-  // ── 루틴 카드 드래그앤드롭 ──
-  const reorderRoutines = (from: number, to: number) => {
-    if (from === to) return;
-    const next = [...routines];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    saveRoutinesOrder(next);
-    setRoutines(next);
-    setFlashRoutineIdx(to);
-    vibrate([15, 60, 15]);
-    setTimeout(() => setFlashRoutineIdx(null), 700);
-  };
-  const handleDragStart = (e: React.DragEvent, idx: number) => { setDragIndex(idx); e.dataTransfer.effectAllowed = "move"; vibrate(25); };
-  const handleDragOver  = (e: React.DragEvent, idx: number) => { e.preventDefault(); if (dragOverIndex !== idx) setDragOverIndex(idx); };
-  const handleDrop      = (e: React.DragEvent, idx: number) => { e.preventDefault(); if (dragIndex !== null) reorderRoutines(dragIndex, idx); setDragIndex(null); setDragOverIndex(null); };
-  const handleDragEnd   = () => { setDragIndex(null); setDragOverIndex(null); };
-  const handleTouchStart = (e: React.TouchEvent, idx: number) => { touchStartIndexRef.current = idx; setDragIndex(idx); vibrate(25); };
-  const handleTouchMove  = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    Array.from(document.querySelectorAll("[data-ridx]")).forEach((card) => {
-      const rect = card.getBoundingClientRect();
-      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-        const over = parseInt(card.getAttribute("data-ridx") ?? "-1");
-        if (over >= 0 && over !== dragOverIndex) setDragOverIndex(over);
+  // ── 루틴 최근 사용순 정렬 ──
+  const sortRoutinesByRecentUse = (rList: Routine[]): Routine[] => {
+    const sessions = getWorkoutSessions();
+    const lastUsed: Record<string, number> = {};
+    for (const s of sessions) {
+      const t = new Date(s.date).getTime();
+      if (!lastUsed[s.routineId] || t > lastUsed[s.routineId]) {
+        lastUsed[s.routineId] = t;
       }
+    }
+    return [...rList].sort((a, b) => {
+      const ta = lastUsed[a.id] ?? 0;
+      const tb = lastUsed[b.id] ?? 0;
+      return tb - ta;
     });
   };
-  const handleTouchEnd = () => {
-    if (touchStartIndexRef.current !== null && dragOverIndex !== null) reorderRoutines(touchStartIndexRef.current, dragOverIndex);
-    touchStartIndexRef.current = null; setDragIndex(null); setDragOverIndex(null);
+
+  // ── 마지막 운동 날짜 포맷 ──
+  const formatLastDate = (timestamp: number | undefined): string => {
+    if (!timestamp) return "기록 없음";
+    const diff = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
+    if (diff <= 0) return "오늘";
+    if (diff === 1) return "어제";
+    if (diff < 7) return `${diff}일 전`;
+    if (diff < 30) return `${Math.floor(diff / 7)}주 전`;
+    return `${Math.floor(diff / 30)}개월 전`;
+  };
+
+  // ── 소요 시간 추정 (분) ──
+  const estimateRoutineMinutes = (routine: Routine): number => {
+    const configs = routine.exerciseConfigs ?? [];
+    if (configs.length === 0) return 0;
+    let sec = 0;
+    for (const ex of configs) {
+      const sets = ex.sets.length > 0 ? ex.sets : [{ restTime: 60 }, { restTime: 60 }, { restTime: 60 }];
+      for (const s of sets) sec += 30 + (s.restTime ?? 60);
+    }
+    return Math.max(1, Math.round(sec / 60));
   };
 
   // ── 종목 드래그앤드롭 (모달 내) ──
@@ -241,8 +258,12 @@ export default function RoutinesPage() {
 
   // ── 루틴 모달 ──
   const openAddModal = () => {
-    if (routines.length >= 7) { alert("루틴은 최대 7개까지만 생성 가능합니다."); return; }
-    setEditingId(null); setRoutineName(""); setExerciseConfigs([]); setIsModalOpen(true);
+    if (routines.length >= 8) {
+      setRoutineAddError("루틴은 최대 8개까지만 생성 가능합니다.");
+      setTimeout(() => setRoutineAddError(null), 3000);
+      return;
+    }
+    router.push("/routines/new");
   };
   const openEditModal = (routine: Routine) => {
     setEditingId(routine.id);
@@ -254,8 +275,22 @@ export default function RoutinesPage() {
   const handleDelete = (id: string) => {
     if (confirm("정말 삭제하시겠습니까?")) { deleteRoutine(id); setRoutines(getRoutines()); }
   };
+  const openRenameModal = (routine: Routine) => {
+    setRenameRoutine(routine);
+    setRenameNameDraft(routine.name);
+  };
+  const handleRenameConfirm = () => {
+    if (!renameRoutine || !renameNameDraft.trim()) return;
+    saveRoutine({ ...renameRoutine, name: renameNameDraft.trim() });
+    setRoutines(getRoutines());
+    setRenameRoutine(null);
+  };
   const handleCopy = (routine: Routine) => {
-    if (routines.length >= 7) { alert("루틴은 최대 7개까지만 생성 가능합니다."); return; }
+    if (routines.length >= 8) {
+      setRoutineAddError("루틴은 최대 8개까지만 생성 가능합니다.");
+      setTimeout(() => setRoutineAddError(null), 3000);
+      return;
+    }
     saveRoutine({ ...routine, id: crypto.randomUUID(), name: `${routine.name} (복사)` });
     setRoutines(getRoutines());
   };
@@ -279,6 +314,7 @@ export default function RoutinesPage() {
     setPickerTargetIdx(targetIdx);
     setPickerSearch(""); setPickerCat("전체");
     setPickerNewName(""); setPickerNewCat("기타"); setShowPickerNewForm(false);
+    setPickerSelectedSet(new Set());
     setIsPickerOpen(true);
   };
   const handlePickExercise = (ex: ExerciseTemplate) => {
@@ -293,17 +329,41 @@ export default function RoutinesPage() {
     }
     setIsPickerOpen(false); setPickerTargetIdx(null);
   };
+  const confirmPickerAdd = () => {
+    const currentNames = new Set(exerciseConfigs.map((c) => c.name));
+    const toAdd = library
+      .filter((ex) => pickerSelectedSet.has(ex.id) && !currentNames.has(ex.name))
+      .map((ex): RoutineExerciseConfig => ({
+        name: ex.name,
+        category: ex.category,
+        sets: ex.defaultSets ? [...ex.defaultSets] : [],
+      }));
+    if (toAdd.length > 0) setExerciseConfigs((prev) => [...prev, ...toAdd]);
+    setIsPickerOpen(false);
+    setPickerTargetIdx(null);
+  };
+
   const handlePickerAddNew = () => {
     if (!pickerNewName.trim()) return;
     const trimmedName = pickerNewName.trim();
     if (library.some((e) => e.name === trimmedName)) {
-      alert("이미 등록된 종목 이름입니다.");
+      setPickerNewNameError("이미 등록된 종목 이름입니다.");
       return;
     }
+    setPickerNewNameError(null);
     const newEx: ExerciseTemplate = { id: crypto.randomUUID(), name: trimmedName, category: pickerNewCat };
     saveExerciseToLibrary(newEx);
     setLibrary(getExerciseLibrary());
-    handlePickExercise(newEx);
+    if (pickerTargetIdx === -1) {
+      const currentNames = new Set(exerciseConfigs.map((c) => c.name));
+      if (!currentNames.has(trimmedName)) {
+        setExerciseConfigs((prev) => [...prev, { name: trimmedName, category: pickerNewCat, sets: [] }]);
+      }
+      setIsPickerOpen(false);
+      setPickerTargetIdx(null);
+    } else {
+      handlePickExercise(newEx);
+    }
   };
 
   const sortByCategory = (a: ExerciseTemplate, b: ExerciseTemplate) =>
@@ -326,9 +386,10 @@ export default function RoutinesPage() {
     const trimmedName = newExName.trim();
     if (!trimmedName) return;
     if (library.some((e) => e.name === trimmedName)) {
-      alert("이미 등록된 종목 이름입니다.");
+      setAddExError("이미 등록된 종목 이름입니다.");
       return;
     }
+    setAddExError(null);
     const newEx: ExerciseTemplate = { id: crypto.randomUUID(), name: trimmedName, category: newExCat };
     saveExerciseToLibrary(newEx);
     setLibrary(getExerciseLibrary());
@@ -348,7 +409,8 @@ export default function RoutinesPage() {
           <h1 className="text-2xl font-bold">운동</h1>
           <button
             onClick={activeTab === "routines" ? openAddModal : () => setIsAddExOpen(true)}
-            className="w-10 h-10 bg-foreground text-background rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+            className="p-2 -mr-1 text-muted hover:text-foreground transition-colors"
+            aria-label={activeTab === "routines" ? "루틴 추가" : "종목 추가"}
           >
             <Plus size={22} />
           </button>
@@ -362,7 +424,7 @@ export default function RoutinesPage() {
                 activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted"
               }`}
             >
-              {tab === "routines" ? `루틴 (${routines.length}/7)` : "종목"}
+              {tab === "routines" ? `루틴 (${routines.length}/8)` : "종목"}
             </button>
           ))}
         </div>
@@ -370,65 +432,13 @@ export default function RoutinesPage() {
 
       {/* ── 루틴 탭 ── */}
       {activeTab === "routines" && (
-        <div className={`flex-1 overflow-y-auto p-6 space-y-4 ${isActive ? "pb-24" : "pb-8"}`}>
-          {routines.map((routine, idx) => {
-            const kcal = estimateRoutineCalories(routine, userWeight);
-            return (
-              <div
-                key={routine.id}
-                data-ridx={idx}
-                draggable
-                onDragStart={(e) => handleDragStart(e, idx)}
-                onDragOver={(e) => handleDragOver(e, idx)}
-                onDrop={(e) => handleDrop(e, idx)}
-                onDragEnd={handleDragEnd}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                className={`bg-card border rounded-2xl p-5 shadow-sm transition-all duration-150 select-none ${
-                  flashRoutineIdx === idx
-                    ? "border-accent bg-accent/10 shadow-lg shadow-accent/25"
-                    : dragIndex === idx
-                    ? "opacity-20 scale-95 border-border shadow-none"
-                    : dragOverIndex === idx && dragIndex !== idx
-                    ? "border-accent bg-accent/10 scale-[1.02] shadow-xl shadow-accent/20"
-                    : "border-border"
-                }`}
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <button
-                    className="text-muted hover:text-foreground p-1 -ml-1 cursor-grab active:cursor-grabbing touch-none"
-                    onTouchStart={(e) => handleTouchStart(e, idx)}
-                    aria-label="순서 변경"
-                  >
-                    <GripVertical size={20} />
-                  </button>
-                  <h2 className="flex-1 text-xl font-bold ml-2">{routine.name}</h2>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleCopy(routine)} className="text-muted hover:text-foreground p-1" title="복사"><Copy size={16} /></button>
-                    <button onClick={() => openEditModal(routine)} className="text-muted hover:text-foreground p-1"><Edit size={18} /></button>
-                    <button onClick={() => handleDelete(routine.id)} className="text-muted hover:text-danger p-1"><Trash2 size={18} /></button>
-                  </div>
-                </div>
-                {(() => {
-                  const tSets = routine.exerciseConfigs?.reduce((s, c) => s + c.sets.length, 0) ?? 0;
-                  const parts = [
-                    `${routine.exercises.length}종목`,
-                    ...(tSets > 0 ? [`${tSets}세트`] : []),
-                    ...(kcal > 0 ? [`약 ${kcal}kcal`] : []),
-                  ];
-                  return <p className="text-xs text-muted mb-4 ml-7">{parts.join(" · ")}</p>;
-                })()}
-                <Link
-                  href={`/workout/${routine.id}`}
-                  className="flex items-center justify-center gap-2 w-full bg-accent text-background font-bold py-3 rounded-xl hover:bg-accent-hover transition-colors active:scale-95"
-                >
-                  <Play size={20} fill="currentColor" />
-                  운동 시작
-                </Link>
-              </div>
-            );
-          })}
-          {routines.length === 0 && (
+        <div className={`flex-1 overflow-y-auto px-4 pt-4 ${isActive ? "pb-24" : "pb-8"}`}>
+          {routineAddError && (
+            <div className="mb-3 px-4 py-2.5 bg-danger/10 text-danger text-xs font-semibold rounded-xl border border-danger/20">
+              {routineAddError}
+            </div>
+          )}
+          {routines.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-muted h-64 text-center gap-4">
               <div>
                 <p className="font-semibold">루틴이 없습니다.</p>
@@ -441,6 +451,87 @@ export default function RoutinesPage() {
                 <Plus size={16} />
                 새 루틴 만들기
               </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {(() => {
+                const allSessions = getWorkoutSessions();
+                const lastUsedMap: Record<string, number> = {};
+                for (const s of allSessions) {
+                  const t = new Date(s.date).getTime();
+                  if (!lastUsedMap[s.routineId] || t > lastUsedMap[s.routineId]) {
+                    lastUsedMap[s.routineId] = t;
+                  }
+                }
+                return sortRoutinesByRecentUse(routines).map((routine) => {
+                const kcal = estimateRoutineCalories(routine, userWeight);
+                const mins = estimateRoutineMinutes(routine);
+                const tSets = routine.exerciseConfigs?.reduce((s, c) => s + c.sets.length, 0) ?? 0;
+                const uniqueCats = [...new Set(
+                  routine.exerciseConfigs?.map((c) => c.category).filter(Boolean) ?? []
+                )].slice(0, 3) as string[];
+                return (
+                  <div
+                    key={routine.id}
+                    onClick={() => router.push(`/routines/${routine.id}`)}
+                    className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-2 cursor-pointer active:scale-[0.97] transition-transform select-none"
+                  >
+                    {/* 이름 + ... 버튼 */}
+                    <div className="flex items-start justify-between gap-1">
+                      <h2 className="text-sm font-bold leading-snug flex-1 min-w-0 line-clamp-2">{routine.name}</h2>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setCardMenuRoutine(routine); }}
+                        className="p-1 -mr-1 -mt-0.5 text-muted hover:text-foreground shrink-0"
+                        aria-label="추가 옵션"
+                      >
+                        <MoreHorizontal size={16} />
+                      </button>
+                    </div>
+
+                    {/* 카테고리 태그 */}
+                    {uniqueCats.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {uniqueCats.map((cat) => (
+                          <span key={cat} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${CAT_COLORS[cat as ExerciseCategory]}`}>
+                            {cat}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 통계 */}
+                    <div className="flex flex-col gap-1 mt-auto">
+                      <div className="flex items-center gap-1.5 text-xs text-muted">
+                        <Dumbbell size={11} className="shrink-0" />
+                        <span>{routine.exercises.length}종목</span>
+                      </div>
+                      {mins > 0 && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted">
+                          <Clock size={11} className="shrink-0" />
+                          <span>{mins}분</span>
+                        </div>
+                      )}
+                      {kcal > 0 && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted">
+                          <Flame size={11} className="shrink-0" />
+                          <span>{kcal}kcal</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 세트 수 + 마지막 운동 날짜 */}
+                    <div className="flex items-center justify-between gap-1 mt-0.5">
+                      {tSets > 0 && (
+                        <p className="text-[10px] text-muted/70">{tSets}세트</p>
+                      )}
+                      <p className="text-[10px] text-muted/60 ml-auto">
+                        {formatLastDate(lastUsedMap[routine.id])}
+                      </p>
+                    </div>
+                  </div>
+                );
+              });
+              })()}
             </div>
           )}
         </div>
@@ -501,28 +592,30 @@ export default function RoutinesPage() {
 
       {/* ── 루틴 Drawer ── */}
       <Drawer open={isModalOpen} onClose={() => setIsModalOpen(false)} height="85vh" zIndex={60}>
-        <div className="flex justify-between items-center px-6 pt-4 pb-4 shrink-0">
-          <h2 className="text-xl font-bold">{editingId ? "루틴 수정" : "새 루틴 만들기"}</h2>
-          <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={24} /></button>
-        </div>
+        <header className="shrink-0 border-b border-border px-4 pt-5 pb-3 flex items-center gap-2">
+          <button onClick={() => setIsModalOpen(false)} className="p-2 -ml-2 text-muted hover:text-foreground transition-colors">
+            <ChevronLeft size={24} />
+          </button>
+          <input
+            type="text"
+            value={routineName}
+            onChange={(e) => setRoutineName(e.target.value)}
+            placeholder={editingId ? "루틴 이름" : "새 루틴 이름"}
+            className="flex-1 text-lg font-bold bg-transparent focus:outline-none placeholder:text-muted/50 placeholder:font-normal truncate"
+          />
+          <button
+            type="button"
+            onClick={() => openPicker(-1)}
+            className="p-2 -mr-1 text-muted hover:text-foreground transition-colors"
+            aria-label="종목 추가"
+          >
+            <Plus size={22} />
+          </button>
+        </header>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-5">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted">루틴 이름</label>
-            <input
-              type="text"
-              required
-              value={routineName}
-              onChange={(e) => setRoutineName(e.target.value)}
-              placeholder="예: 가슴/삼두"
-              className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted">운동 종목</label>
-            <div ref={exerciseListRef} className="space-y-2">
+          <div className="flex-1 overflow-y-auto px-6 pb-2 pt-4 space-y-3">
+            <div ref={exerciseListRef} className="divide-y divide-border/50 border border-border/50 rounded-xl overflow-hidden">
               {exerciseConfigs.map((config, idx) => (
                 <div
                   key={idx}
@@ -534,14 +627,14 @@ export default function RoutinesPage() {
                   onDragEnd={exDragEnd}
                   onTouchMove={exTouchMove}
                   onTouchEnd={exTouchEnd}
-                  className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 transition-all duration-150 select-none ${
+                  className={`flex items-center gap-2 px-3 py-3 transition-all duration-150 select-none bg-card ${
                     flashExIdx === idx
-                      ? "bg-accent/10 border-accent shadow-md shadow-accent/20"
+                      ? "bg-accent/10"
                       : exDragIdx === idx
-                      ? "opacity-20 scale-95 border-border bg-card shadow-none"
+                      ? "opacity-20"
                       : exDragOverIdx === idx && exDragIdx !== idx
-                      ? "bg-accent/10 border-accent scale-[1.02] shadow-lg shadow-accent/15"
-                      : "bg-card border-border shadow-sm"
+                      ? "bg-accent/10"
+                      : ""
                   }`}
                 >
                   <button
@@ -584,16 +677,9 @@ export default function RoutinesPage() {
                 </div>
               ))}
             </div>
-
-            <button
-              type="button"
-              onClick={() => openPicker(-1)}
-              className="w-full py-2.5 border-2 border-dashed border-border rounded-xl text-sm font-medium text-muted hover:text-foreground hover:border-muted transition-colors"
-            >
-              + 종목 추가
-            </button>
-          </div>
-
+            {exerciseConfigs.length === 0 && (
+              <p className="text-center text-xs text-muted py-6">상단 + 버튼으로 종목을 추가하세요.</p>
+            )}
           </div>
           <div className="shrink-0 px-6 pb-6 pt-2 flex gap-3">
             <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 font-bold text-muted hover:text-foreground transition-colors">
@@ -601,7 +687,7 @@ export default function RoutinesPage() {
             </button>
             <button
               type="submit"
-              disabled={exerciseConfigs.filter((c) => c.name.trim()).length === 0}
+              disabled={!routineName.trim() || exerciseConfigs.filter((c) => c.name.trim()).length === 0}
               className="flex-1 bg-foreground text-background font-bold py-4 rounded-xl active:scale-95 transition-transform disabled:opacity-30"
             >
               저장
@@ -645,18 +731,50 @@ export default function RoutinesPage() {
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-3 space-y-1.5">
+        {pickerTargetIdx === -1 && pickerSelectedSet.size > 0 && (
+          <div className="px-6 pb-2 shrink-0">
+            <p className="text-xs text-accent font-semibold">{pickerSelectedSet.size}개 선택됨</p>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-6 pb-3 space-y-0.5">
           {pickerFiltered.map((ex) => {
             const alreadyAdded = addedNames.has(ex.name);
+            const isMulti = pickerTargetIdx === -1;
+            const isChosen = pickerSelectedSet.has(ex.id);
             return (
               <button
                 key={ex.id}
-                onClick={() => handlePickExercise(ex)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-background transition-colors text-left"
+                onClick={() => {
+                  if (isMulti) {
+                    if (alreadyAdded) return;
+                    setPickerSelectedSet((prev) => {
+                      const next = new Set(prev);
+                      next.has(ex.id) ? next.delete(ex.id) : next.add(ex.id);
+                      return next;
+                    });
+                  } else {
+                    handlePickExercise(ex);
+                  }
+                }}
+                disabled={isMulti && alreadyAdded}
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors text-left ${
+                  isMulti
+                    ? isChosen ? "bg-accent/10" : alreadyAdded ? "opacity-40" : "hover:bg-background active:bg-background"
+                    : "hover:bg-background"
+                }`}
               >
+                {isMulti && (
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                    isChosen ? "bg-accent border-accent" : alreadyAdded ? "border-border bg-border" : "border-border"
+                  }`}>
+                    {(isChosen || alreadyAdded) && <Check size={11} className="text-background" strokeWidth={3} />}
+                  </div>
+                )}
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${CAT_COLORS[ex.category]}`}>{ex.category}</span>
                 <span className="flex-1 text-sm font-medium">{ex.name}</span>
-                {alreadyAdded && <Check size={15} className="text-accent shrink-0" />}
+                {isMulti && alreadyAdded && <span className="text-[10px] text-muted shrink-0">추가됨</span>}
+                {!isMulti && alreadyAdded && <Check size={15} className="text-accent shrink-0" />}
               </button>
             );
           })}
@@ -672,10 +790,13 @@ export default function RoutinesPage() {
                 autoFocus
                 type="text"
                 value={pickerNewName}
-                onChange={(e) => setPickerNewName(e.target.value)}
+                onChange={(e) => { setPickerNewName(e.target.value); if (pickerNewNameError) setPickerNewNameError(null); }}
                 placeholder="종목명 입력"
-                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-accent"
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-colors ${pickerNewNameError ? "border-danger focus:border-danger" : "border-border focus:border-accent"}`}
               />
+              {pickerNewNameError && (
+                <p className="text-xs text-danger font-medium px-1">{pickerNewNameError}</p>
+              )}
               <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5">
                 {CATEGORIES.map((cat) => (
                   <button
@@ -702,12 +823,23 @@ export default function RoutinesPage() {
               </div>
             </div>
           ) : (
-            <button
-              onClick={() => setShowPickerNewForm(true)}
-              className="w-full py-2.5 border-2 border-dashed border-border rounded-xl text-sm font-medium text-muted hover:text-foreground hover:border-muted transition-colors"
-            >
-              + 새 종목 만들기
-            </button>
+            <>
+              <button
+                onClick={() => setShowPickerNewForm(true)}
+                className="w-full py-2.5 border-2 border-dashed border-border rounded-xl text-sm font-medium text-muted hover:text-foreground hover:border-muted transition-colors"
+              >
+                + 새 종목 만들기
+              </button>
+              {pickerTargetIdx === -1 && (
+                <button
+                  onClick={confirmPickerAdd}
+                  disabled={pickerSelectedSet.size === 0}
+                  className="w-full mt-2 py-3.5 bg-foreground text-background font-bold rounded-xl active:scale-95 transition-transform disabled:opacity-30"
+                >
+                  {pickerSelectedSet.size > 0 ? `${pickerSelectedSet.size}개 추가하기` : "종목을 선택하세요"}
+                </button>
+              )}
+            </>
           )}
         </div>
       </Drawer>
@@ -719,14 +851,19 @@ export default function RoutinesPage() {
           <button onClick={() => setIsAddExOpen(false)} className="p-2 -mr-2 text-muted hover:text-foreground"><X size={22} /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 space-y-4">
-          <input
-            autoFocus
-            type="text"
-            value={newExName}
-            onChange={(e) => setNewExName(e.target.value)}
-            placeholder="종목명 입력"
-            className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors"
-          />
+          <div className="space-y-1.5">
+            <input
+              autoFocus
+              type="text"
+              value={newExName}
+              onChange={(e) => { setNewExName(e.target.value); if (addExError) setAddExError(null); }}
+              placeholder="종목명 입력"
+              className={`w-full bg-background border rounded-xl px-4 py-3 focus:outline-none transition-colors ${addExError ? "border-danger focus:border-danger" : "border-border focus:border-accent"}`}
+            />
+            {addExError && (
+              <p className="text-xs text-danger font-medium px-1">{addExError}</p>
+            )}
+          </div>
           <div>
             <p className="text-sm font-medium text-muted mb-2">카테고리</p>
             <div className="flex flex-wrap gap-2">
@@ -1214,6 +1351,78 @@ export default function RoutinesPage() {
             })}
           </div>
         </div>
+      </Drawer>
+
+      {/* ── 루틴 카드 ... 메뉴 ── */}
+      <Drawer open={!!cardMenuRoutine} onClose={() => setCardMenuRoutine(null)} height="auto" zIndex={60}>
+        {cardMenuRoutine && (
+          <div className="px-6 pt-4 pb-8">
+            <p className="text-base font-bold mb-4 truncate">{cardMenuRoutine.name}</p>
+            <div className="space-y-2">
+              <button
+                onClick={() => { openRenameModal(cardMenuRoutine); setCardMenuRoutine(null); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-background text-foreground font-semibold text-sm active:scale-95 transition-transform"
+              >
+                <Pencil size={16} />
+                루틴 이름 변경
+              </button>
+              <button
+                onClick={() => { router.push(`/routines/${cardMenuRoutine.id}/edit`); setCardMenuRoutine(null); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-background text-foreground font-semibold text-sm active:scale-95 transition-transform"
+              >
+                <Edit size={16} />
+                루틴 수정
+              </button>
+              <button
+                onClick={() => { handleCopy(cardMenuRoutine); setCardMenuRoutine(null); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-background text-foreground font-semibold text-sm active:scale-95 transition-transform"
+              >
+                <Copy size={16} />
+                복사
+              </button>
+              <button
+                onClick={() => { handleDelete(cardMenuRoutine.id); setCardMenuRoutine(null); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-background text-danger font-semibold text-sm active:scale-95 transition-transform"
+              >
+                <Trash2 size={16} />
+                삭제
+              </button>
+            </div>
+          </div>
+        )}
+      </Drawer>
+
+      {/* ── 루틴 이름 변경 Drawer ── */}
+      <Drawer open={!!renameRoutine} onClose={() => setRenameRoutine(null)} height="auto" zIndex={70}>
+        {renameRoutine && (
+          <div className="px-6 pt-4 pb-8">
+            <h2 className="text-lg font-bold mb-4">루틴 이름 변경</h2>
+            <input
+              autoFocus
+              type="text"
+              value={renameNameDraft}
+              onChange={(e) => setRenameNameDraft(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleRenameConfirm()}
+              placeholder="루틴 이름"
+              className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base focus:outline-none focus:border-accent transition-colors mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRenameRoutine(null)}
+                className="flex-1 py-4 font-bold text-muted"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleRenameConfirm}
+                disabled={!renameNameDraft.trim()}
+                className="flex-[2] py-4 bg-foreground text-background font-bold rounded-xl disabled:opacity-30"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        )}
       </Drawer>
     </main>
   );

@@ -93,7 +93,7 @@ export default function Home() {
               <p className="text-xs font-semibold text-muted">오늘의 식단</p>
             </div>
             <Link href="/diet" className="text-xs text-accent hover:text-accent/70 transition-colors">
-              상세보기 →
+              상세보기 +
             </Link>
           </div>
 
@@ -201,11 +201,10 @@ export default function Home() {
         {/* 운동 시작 CTA */}
         <Link
           href="/routines"
-          className="group relative flex items-center justify-center gap-3 w-full bg-foreground text-background py-5 rounded-2xl font-bold text-lg overflow-hidden shadow-xl hover:shadow-accent/20 transition-all active:scale-95"
+          className="flex items-center justify-center gap-3 w-full bg-accent text-background py-5 rounded-2xl font-bold text-lg shadow-lg shadow-accent/30 hover:bg-accent/90 transition-all active:scale-95"
         >
-          <div className="absolute inset-0 bg-accent translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 ease-in-out" />
-          <Dumbbell size={24} className="relative z-10 group-hover:text-background transition-colors" />
-          <span className="relative z-10 group-hover:text-background transition-colors">오늘의 운동 시작하기</span>
+          <Dumbbell size={24} />
+          <span>오늘의 운동 시작하기</span>
         </Link>
       </div>
     </main>

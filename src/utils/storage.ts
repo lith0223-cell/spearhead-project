@@ -1,4 +1,4 @@
-import { BodyWeightRecord, DietRecord, ExerciseRecord, ExerciseTemplate, FoodPreset, MealItem, MealType, Routine, SetRecord, WorkoutSession } from "@/types";
+import { BodyWeightRecord, DietRecord, ExerciseRecord, ExerciseTemplate, FoodPreset, MealItem, MealType, Routine, SetRecord, WeightUnit, WorkoutSession } from "@/types";
 import { DUMMY_DIET_RECORDS, DUMMY_ROUTINES, DUMMY_WORKOUT_SESSIONS } from "./dummyData";
 
 const STORAGE_KEYS = {
@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   FOOD_PRESETS: "ph_food_presets",
   WEIGHTS: "ph_weights",
   ACTIVE_WORKOUT: "ph_active_workout",
+  EXERCISE_UNITS: "ph_exercise_units", // 종목명 → "kg"|"lb" 매핑
 };
 
 export const ACTIVE_WORKOUT_EVENT = "ph:active-workout-changed";
@@ -391,9 +392,24 @@ export const importAllData = (json: string) => {
   if (!data || typeof data !== "object") {
     throw new Error("백업 파일 형식이 올바르지 않습니다.");
   }
+  // ph_로 시작하는 모든 키는 일단 제거 (덮어쓰기 보장)
+  const existingKeys = Object.keys(localStorage).filter(k => k.startsWith("ph_"));
+  for (const k of existingKeys) localStorage.removeItem(k);
+
+  let imported = 0;
   for (const [k, v] of Object.entries(data)) {
-    if (k.startsWith("ph_") && typeof v === "string") localStorage.setItem(k, v);
+    if (k.startsWith("ph_") && typeof v === "string") {
+      localStorage.setItem(k, v);
+      imported++;
+    }
   }
+  if (imported === 0) {
+    throw new Error("백업 파일에 복원할 데이터가 없습니다.");
+  }
+  // 백업 시점의 더미 데이터 버전이 현재와 다르면, 더미 초기화가 가져온 데이터를 다시 덮어쓸 위험이 있다.
+  // 사용자의 실제 데이터를 보호하기 위해 강제로 현재 버전으로 마킹한다.
+  localStorage.setItem(STORAGE_KEYS.HAS_INITIALIZED, DUMMY_DATA_VERSION);
+
   // 데이터 갱신을 다른 컴포넌트에 알림
   window.dispatchEvent(new Event(ACTIVE_WORKOUT_EVENT));
 };
@@ -450,4 +466,24 @@ export const saveWeightRecord = (dateStr: string, weight: number) => {
     records.push({ date: dateStr, weight });
   }
   localStorage.setItem(STORAGE_KEYS.WEIGHTS, JSON.stringify(records));
+};
+
+// --- Per-Exercise Unit ---
+// 종목별 표시 단위(kg/lb)는 사용자가 마지막으로 본 단위 그대로 다음 운동에도 유지된다.
+// 기본값은 kg이며 변환 자체는 표시용. ExerciseRecord/Session의 weight는 항상 kg으로 저장한다.
+export const getExerciseUnits = (): Record<string, WeightUnit> =>
+  safeParse<Record<string, WeightUnit>>(STORAGE_KEYS.EXERCISE_UNITS, {});
+
+export const getExerciseUnit = (exerciseName: string): WeightUnit => {
+  const map = getExerciseUnits();
+  return map[exerciseName] === "lb" ? "lb" : "kg";
+};
+
+export const setExerciseUnit = (exerciseName: string, unit: WeightUnit) => {
+  if (typeof window === "undefined") return;
+  if (!exerciseName) return;
+  const map = getExerciseUnits();
+  if (map[exerciseName] === unit) return;
+  map[exerciseName] = unit;
+  localStorage.setItem(STORAGE_KEYS.EXERCISE_UNITS, JSON.stringify(map));
 };
