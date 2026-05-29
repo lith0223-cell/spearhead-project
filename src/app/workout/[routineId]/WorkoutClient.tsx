@@ -1286,7 +1286,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
           <div className="flex-1 min-w-0">
             <div className="flex justify-between text-xs font-bold mb-1">
               <span className="text-muted">휴식 타이머</span>
-              <span className={`text-lg font-mono font-bold leading-none ${isTimerRunning ? "text-accent" : "text-muted"}`}>
+              <span className={`text-lg font-bold leading-none ${isTimerRunning ? "text-accent" : "text-muted"}`}>
                 {timerSeconds}초
               </span>
             </div>
