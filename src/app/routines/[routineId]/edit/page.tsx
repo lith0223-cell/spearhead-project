@@ -232,8 +232,10 @@ export default function RoutineEditPage() {
   };
   const confirmAdd = () => {
     const existingNames = new Set(exercises.map((c) => c.name));
-    const toAdd = library
-      .filter((ex) => selectedAddSet.has(ex.id) && !existingNames.has(ex.name))
+    const libMap = new Map(library.map((ex) => [ex.id, ex]));
+    const toAdd = [...selectedAddSet]
+      .map((id) => libMap.get(id))
+      .filter((ex): ex is ExerciseTemplate => !!ex && !existingNames.has(ex.name))
       .map((ex) => ({
         name: ex.name,
         category: ex.category,
