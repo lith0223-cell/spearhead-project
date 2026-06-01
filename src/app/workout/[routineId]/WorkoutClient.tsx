@@ -118,10 +118,12 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       timerEndTimeRef.current = null;
       lastCountdownSecRef.current = null;
       localStorage.removeItem(TIMER_STORAGE_KEY);
-      cancelRestNotification(); // 앱이 포그라운드이므로 SW 알림 취소 후 비프음으로 대체
-      // 백그라운드/잠금 상태에서 도달했을 가능성 → 일단 재생 시도, 포그라운드 복귀 시 보정
-      pendingBeepRef.current = document.visibilityState !== "visible";
-      playBeep(beepSettingsRef.current.type, beepSettingsRef.current.volume);
+      cancelRestNotification();
+      // 항상 pending으로 표시 — 재생 성공 시 false로 클리어, 실패 시 visibilitychange에서 재시도
+      pendingBeepRef.current = true;
+      playBeep(beepSettingsRef.current.type, beepSettingsRef.current.volume)
+        .then(() => { pendingBeepRef.current = false; })
+        .catch(() => { /* pending 유지 — 포그라운드 복귀 시 보정 */ });
     }
   };
 
