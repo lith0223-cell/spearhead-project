@@ -18,7 +18,7 @@ import {
   clearActiveWorkout,
 } from "@/utils/storage";
 import { requestWakeLock, releaseWakeLock } from "@/utils/wakeLock";
-import { playBeep, playCountdownTick, resumeAudioContext, type BeepType } from "@/utils/audio";
+import { resumeAudioContext } from "@/utils/audio";
 import {
   scheduleRestNotification,
   cancelRestNotification,
@@ -73,9 +73,6 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const timerEndTimeRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 비프음 설정 — stale closure 없이 최신값 보장
-  const beepSettingsRef = useRef<{ type: BeepType; volume: number }>({ type: "single", volume: 0.7 });
-
   // 현재 운동명 ref (알림 메시지용)
   const currentExNameRef = useRef<string>("");
   // 알림 권한 요청 여부 (세션 내 중복 요청 방지)
@@ -85,29 +82,17 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const workoutStartTimeRef = useRef<number | null>(null);
   // 운동 완료 후 자동저장 useEffect 재실행 방지
   const workoutFinishedRef = useRef(false);
-  // 3·2·1초 카운트다운 중복 트리거 방지
-  const lastCountdownSecRef = useRef<number | null>(null);
-  // iOS AudioContext suspended 상태에서 종료 비프음이 무음 처리된 경우 보정용
-  const pendingBeepRef = useRef(false);
-  // 백그라운드 복귀 시 비프음 억제 (푸시 알림으로 이미 알림 받았으므로 불필요)
-  const suppressNextBeepRef = useRef(false);
   // SW keepalive interval — SW idle 종료 방지
   const keepaliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 타이머 tick — ref 기반이므로 stale closure 없음
+  // 타이머 tick — 화면 표시 + 자체 state cleanup만 담당.
+  // 비프음/카운트다운 강조음/cancelRestNotification은 GlobalTimerOverlay가 전역 처리.
   const tick = () => {
     if (timerEndTimeRef.current === null) return;
     const remaining = Math.max(0, Math.round((timerEndTimeRef.current - Date.now()) / 1000));
     setTimerSeconds(remaining);
 
-    // 3초 전 카운트다운 강조음 (3·2·1초, 같은 초가 두 번 울리지 않도록 가드)
-    if (remaining >= 1 && remaining <= 3 && lastCountdownSecRef.current !== remaining) {
-      lastCountdownSecRef.current = remaining;
-      playCountdownTick(beepSettingsRef.current.volume);
-    }
-
     if (remaining === 0) {
-      // interval 즉시 정리 (setIsTimerRunning(false) 후 useEffect가 정리하기 전에도 빠르게 멈춤)
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -118,16 +103,6 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       }
       setIsTimerRunning(false);
       timerEndTimeRef.current = null;
-      lastCountdownSecRef.current = null;
-      localStorage.removeItem(TIMER_STORAGE_KEY);
-      cancelRestNotification();
-      if (!suppressNextBeepRef.current) {
-        pendingBeepRef.current = true;
-        playBeep(beepSettingsRef.current.type, beepSettingsRef.current.volume)
-          .then(() => { pendingBeepRef.current = false; })
-          .catch(() => { /* pending 유지 — 포그라운드 복귀 시 보정 */ });
-      }
-      suppressNextBeepRef.current = false;
     }
   };
 
@@ -153,19 +128,11 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     };
   }, [isTimerRunning]);
 
-  // 탭/앱이 포그라운드로 돌아올 때 즉시 재계산 + 백그라운드 종료 보정
+  // 탭/앱이 포그라운드로 돌아올 때 화면 즉시 재계산.
+  // 비프음 억제/QStash 취소는 GlobalTimerOverlay가 전역 처리.
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      // iOS AudioContext가 suspended 상태일 가능성 → unlock 시도
-      resumeAudioContext();
-      // 백그라운드 복귀 시 타이머가 완료됐으면:
-      // 1) QStash 취소 (중복 알림 방지)
-      // 2) 비프음 억제 (푸시 알림으로 이미 알림 받음 → 비프음 불필요)
-      if (timerEndTimeRef.current !== null && Date.now() >= timerEndTimeRef.current) {
-        suppressNextBeepRef.current = true;
-        cancelRestNotification();
-      }
       tick();
     };
     document.addEventListener("visibilitychange", onVisible);
@@ -191,11 +158,6 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
 
     setRoutine(found);
     requestWakeLock();
-
-    // 비프음 설정 로드
-    const beepType = (localStorage.getItem("ph_beep_type") as BeepType) || "single";
-    const beepVolume = parseFloat(localStorage.getItem("ph_beep_volume") || "0.7");
-    beepSettingsRef.current = { type: beepType, volume: beepVolume };
 
     // 현재 운동명 초기화
     currentExNameRef.current = found.exercises[0] ?? "";
@@ -273,7 +235,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         setTimerSeconds(remaining);
         setTimerInitial(remaining);
         setIsTimerRunning(true);
-        scheduleRestNotification(endTime, found.exercises[0] ?? "운동");
+        scheduleRestNotification(endTime, found.exercises[0] ?? "운동", routineId);
       } else {
         localStorage.removeItem(TIMER_STORAGE_KEY);
       }
@@ -323,9 +285,6 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     const clamped = Math.min(seconds, MAX_REST_SECONDS);
     const endTime = Date.now() + clamped * 1000;
     timerEndTimeRef.current = endTime;
-    lastCountdownSecRef.current = null;
-    pendingBeepRef.current = false;
-    suppressNextBeepRef.current = false;
     resumeAudioContext(); // iOS: 타이머 시작 시점에 AudioContext unlock
     localStorage.setItem(TIMER_STORAGE_KEY, String(endTime));
     setTimerSeconds(clamped);
@@ -343,7 +302,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         }
       } catch { /* ignore */ }
     }, 25000);
-    scheduleRestNotification(endTime, exerciseName ?? currentExNameRef.current);
+    scheduleRestNotification(endTime, exerciseName ?? currentExNameRef.current, routineId);
   };
 
   const adjustTimer = (delta: number) => {
@@ -355,7 +314,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     localStorage.setItem(TIMER_STORAGE_KEY, String(newEndTime));
     setTimerSeconds(remaining);
     if (remaining > timerInitial) setTimerInitial(remaining);
-    scheduleRestNotification(newEndTime, currentExNameRef.current);
+    scheduleRestNotification(newEndTime, currentExNameRef.current, routineId);
   };
 
   const stopTimer = () => {
@@ -370,8 +329,6 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     setIsTimerRunning(false);
     setTimerSeconds(0);
     timerEndTimeRef.current = null;
-    lastCountdownSecRef.current = null;
-    pendingBeepRef.current = false;
     localStorage.removeItem(TIMER_STORAGE_KEY);
     cancelRestNotification();
   };

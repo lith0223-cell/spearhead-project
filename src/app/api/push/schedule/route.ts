@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 
   try {
-    const { subscription, endTime, exerciseName, cancelMessageId } = await req.json();
+    const { subscription, endTime, exerciseName, routineId, cancelMessageId } = await req.json();
 
     if (!subscription || !endTime) {
       return NextResponse.json({ error: "subscription과 endTime이 필요합니다" }, { status: 400 });
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const response = await qstash.publishJSON({
       url: `${APP_URL}/api/push/send`,
       delay: delaySec,
-      body: { subscription, exerciseName: exerciseName ?? "운동" },
+      body: { subscription, exerciseName: exerciseName ?? "운동", routineId },
     });
 
     return NextResponse.json({ ok: true, messageId: response.messageId });

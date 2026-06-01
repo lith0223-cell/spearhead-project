@@ -57,7 +57,7 @@ export async function getPushSubscription(): Promise<PushSubscription | null> {
 // ── 서버 스케줄 기반 알림 ──────────────────────────────────────────────────
 
 // Web Push 서버 예약 — 앱이 백그라운드여도 OS 레벨 알림 발송
-async function schedulePushNotification(endTime: number, exerciseName: string): Promise<void> {
+async function schedulePushNotification(endTime: number, exerciseName: string, routineId?: string): Promise<void> {
   const subscription = await getPushSubscription();
   if (!subscription) return;
 
@@ -71,6 +71,7 @@ async function schedulePushNotification(endTime: number, exerciseName: string): 
         subscription: subscription.toJSON(),
         endTime,
         exerciseName,
+        routineId,
         cancelMessageId,
       }),
     });
@@ -102,14 +103,14 @@ async function cancelPushNotification(): Promise<void> {
 
 // ── 공개 인터페이스 ───────────────────────────────────────────────────────
 
-export function scheduleRestNotification(endTime: number, exerciseName: string): void {
-  // 1. SW fallback (포그라운드 상태일 때 빠른 알림)
+export function scheduleRestNotification(endTime: number, exerciseName: string, routineId?: string): void {
+  // 1. SW fallback (백그라운드 상태일 때 SW 자체 setTimeout으로 발화 — visibility 체크 포함)
   const sw = getController();
-  if (sw) sw.postMessage({ type: 'TIMER_START', endTime, exerciseName });
+  if (sw) sw.postMessage({ type: 'TIMER_START', endTime, exerciseName, routineId });
 
-  // 2. Web Push 서버 예약 (백그라운드/종료 상태 대응)
+  // 2. Web Push 서버 예약 (앱이 종료된 경우 OS 레벨 알림)
   if (Notification.permission === 'granted') {
-    schedulePushNotification(endTime, exerciseName);
+    schedulePushNotification(endTime, exerciseName, routineId);
   }
 }
 
