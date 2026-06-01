@@ -89,6 +89,8 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const lastCountdownSecRef = useRef<number | null>(null);
   // iOS AudioContext suspended 상태에서 종료 비프음이 무음 처리된 경우 보정용
   const pendingBeepRef = useRef(false);
+  // 백그라운드 복귀 시 비프음 억제 (푸시 알림으로 이미 알림 받았으므로 불필요)
+  const suppressNextBeepRef = useRef(false);
   // SW keepalive interval — SW idle 종료 방지
   const keepaliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -119,11 +121,13 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       lastCountdownSecRef.current = null;
       localStorage.removeItem(TIMER_STORAGE_KEY);
       cancelRestNotification();
-      // 항상 pending으로 표시 — 재생 성공 시 false로 클리어, 실패 시 visibilitychange에서 재시도
-      pendingBeepRef.current = true;
-      playBeep(beepSettingsRef.current.type, beepSettingsRef.current.volume)
-        .then(() => { pendingBeepRef.current = false; })
-        .catch(() => { /* pending 유지 — 포그라운드 복귀 시 보정 */ });
+      if (!suppressNextBeepRef.current) {
+        pendingBeepRef.current = true;
+        playBeep(beepSettingsRef.current.type, beepSettingsRef.current.volume)
+          .then(() => { pendingBeepRef.current = false; })
+          .catch(() => { /* pending 유지 — 포그라운드 복귀 시 보정 */ });
+      }
+      suppressNextBeepRef.current = false;
     }
   };
 
@@ -155,12 +159,14 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       if (document.visibilityState !== "visible") return;
       // iOS AudioContext가 suspended 상태일 가능성 → unlock 시도
       resumeAudioContext();
-      tick();
-      // 백그라운드에서 타이머가 종료되어 비프음이 무음 처리된 경우 즉시 재생
-      if (pendingBeepRef.current) {
-        pendingBeepRef.current = false;
-        playBeep(beepSettingsRef.current.type, beepSettingsRef.current.volume);
+      // 백그라운드 복귀 시 타이머가 완료됐으면:
+      // 1) QStash 취소 (중복 알림 방지)
+      // 2) 비프음 억제 (푸시 알림으로 이미 알림 받음 → 비프음 불필요)
+      if (timerEndTimeRef.current !== null && Date.now() >= timerEndTimeRef.current) {
+        suppressNextBeepRef.current = true;
+        cancelRestNotification();
       }
+      tick();
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
@@ -319,6 +325,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     timerEndTimeRef.current = endTime;
     lastCountdownSecRef.current = null;
     pendingBeepRef.current = false;
+    suppressNextBeepRef.current = false;
     resumeAudioContext(); // iOS: 타이머 시작 시점에 AudioContext unlock
     localStorage.setItem(TIMER_STORAGE_KEY, String(endTime));
     setTimerSeconds(clamped);

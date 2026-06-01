@@ -60,7 +60,6 @@ export function BottomNavigation() {
       setIsPaused(false);
     };
     check();
-    // 같은 탭의 변경은 커스텀 이벤트로, 다른 탭은 storage 이벤트로 감지
     window.addEventListener(ACTIVE_WORKOUT_EVENT, check);
     window.addEventListener("storage", check);
     return () => {
@@ -98,14 +97,12 @@ export function BottomNavigation() {
 
   const handleTogglePause = () => {
     if (isPaused) {
-      // 재개: startTime을 현재 기준으로 재계산
       const newStartTime = Date.now() - pausedElapsedSec * 1000;
       updateActiveWorkoutStartTime(newStartTime);
       setActiveWorkout((prev) => prev ? { ...prev, startTime: newStartTime } : null);
       localStorage.removeItem(PAUSE_KEY);
       setIsPaused(false);
     } else {
-      // 일시정지
       const cur = activeWorkout?.startTime ? Math.floor((Date.now() - activeWorkout.startTime) / 1000) : elapsed;
       setPausedElapsedSec(cur);
       setElapsed(cur);

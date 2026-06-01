@@ -57,7 +57,7 @@ html[data-accent="purple"] {
 }
 
 body {
-  background-color: var(--color-background);
+  background-color: var(--color-card);
   color: var(--color-foreground);
   font-family: var(--font-sans, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;

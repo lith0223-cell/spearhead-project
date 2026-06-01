@@ -76,7 +76,6 @@ export default function RootLayout({
             {children}
           </div>
           <BottomNavigation />
-          {/* Fixed BottomNavigation 공간 확보 — content가 nav 뒤에 숨겨지지 않도록 */}
           <div
             className="shrink-0 bg-card"
             style={{ height: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}
