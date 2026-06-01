@@ -432,7 +432,7 @@ export default function RoutinesPage() {
 
       {/* ── 루틴 탭 ── */}
       {activeTab === "routines" && (
-        <div className={`flex-1 overflow-y-auto px-4 pt-4 ${isActive ? "pb-24" : "pb-8"}`}>
+        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-24">
           {routineAddError && (
             <div className="mb-3 px-4 py-2.5 bg-danger/10 text-danger text-xs font-semibold rounded-xl border border-danger/20">
               {routineAddError}
@@ -539,7 +539,7 @@ export default function RoutinesPage() {
 
       {/* ── 종목 라이브러리 탭 ── */}
       {activeTab === "exercises" && (
-        <div className={`flex-1 overflow-y-auto ${isActive ? "pb-24" : "pb-8"}`}>
+        <div className="flex-1 overflow-y-auto pb-24">
           {/* 카테고리 필터 */}
           <div className="flex gap-2 px-6 py-3 overflow-x-auto scrollbar-none">
             {(["전체", ...CATEGORIES] as const).map((cat) => (

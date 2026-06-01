@@ -124,7 +124,10 @@ export function BottomNavigation() {
   const workoutHref = `/workout/${activeWorkout?.routineId}?resume=true`;
 
   return (
-    <div className="relative shrink-0 z-50">
+    <div
+      className="relative shrink-0 z-50"
+      style={{ height: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}
+    >
       {/* 이어하기 배너 — absolute로 네비바 위에 부유, 배경 완전 투명 */}
       {activeWorkout && (
         <div className="absolute bottom-full left-0 right-0 px-4 pb-2 pointer-events-none">
@@ -202,8 +205,8 @@ export function BottomNavigation() {
         </div>
       )}
 
-      {/* 내비게이션 */}
-      <div className="bg-card border-t border-border pb-safe">
+      {/* 내비게이션 — outer height와 정확히 일치 (banner 유무 무관 동일 위치) */}
+      <div className="h-full bg-card border-t border-border pb-safe">
         <div className="flex justify-around items-center h-20 max-w-md mx-auto px-4">
           {navItems.map((item) => {
             const Icon = item.icon;
