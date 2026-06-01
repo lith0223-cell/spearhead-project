@@ -86,6 +86,8 @@ export function GlobalTimerOverlay() {
         beepFiredRef.current = true;
         localStorage.removeItem(TIMER_KEY);
         cancelRestNotification();
+        // 앱 포그라운드에서 직접 처리했음을 SW에 알려 Web Push 알림 억제
+        navigator.serviceWorker?.controller?.postMessage({ type: 'TIMER_HANDLED' });
         if (!suppressNextBeepRef.current) {
           playBeep(beepSettingsRef.current.type, beepSettingsRef.current.volume).catch(() => {
             /* AudioContext suspended 등 무음 처리 */

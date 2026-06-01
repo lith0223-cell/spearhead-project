@@ -1,6 +1,7 @@
 // Service Worker — 휴식 타이머 푸시 알림
 
 let timerTimeout = null;
+let timerHandledAt = 0; // 앱 포그라운드에서 타이머 처리 시각 (TIMER_HANDLED 수신)
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
@@ -22,10 +23,10 @@ self.addEventListener('message', (event) => {
       : self.location.origin;
 
     timerTimeout = setTimeout(() => {
-      // 발화 시점에 클라이언트가 visible(앱 포그라운드)이면 알림 표시 안 함
-      // → 앱 내부에서는 비프음/카운트다운으로 처리되므로 푸시 알림 불필요
+      timerTimeout = null;
+      const recentlyHandled = (Date.now() - timerHandledAt) < 10000;
+      if (recentlyHandled) return;
       isAnyClientVisible().then((visible) => {
-        timerTimeout = null;
         if (visible) return;
         self.registration.showNotification('⏰ 휴식 종료!', {
           body: `${exerciseName ?? '운동'} 다음 세트를 시작하세요!`,
@@ -45,6 +46,10 @@ self.addEventListener('message', (event) => {
       clearTimeout(timerTimeout);
       timerTimeout = null;
     }
+  }
+
+  if (type === 'TIMER_HANDLED') {
+    timerHandledAt = Date.now();
   }
 
   // SW idle 종료 방지용 ping — 수신 자체가 SW를 활성 상태로 유지
@@ -67,8 +72,9 @@ self.addEventListener('push', (event) => {
   }
   event.waitUntil(
     isAnyClientVisible().then((visible) => {
-      // 앱이 포그라운드(visible)에 있으면 알림 표시 안 함 — 앱 내 비프음으로 처리됨
-      if (visible) return;
+      // 앱 포그라운드이거나, 최근 10초 이내 앱에서 타이머를 직접 처리했으면 알림 표시 안 함
+      const recentlyHandled = (Date.now() - timerHandledAt) < 10000;
+      if (visible || recentlyHandled) return;
       return self.registration.showNotification(data.title, {
         body: data.body,
         icon: '/icon-192x192.png',
