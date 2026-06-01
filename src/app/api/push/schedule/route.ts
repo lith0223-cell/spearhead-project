@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "QStash not configured" }, { status: 503 });
   }
 
-  const qstash = new Client({ token: process.env.QSTASH_TOKEN });
+  const qstash = new Client({ token: process.env.QSTASH_TOKEN, baseUrl: process.env.QSTASH_URL });
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 
   try {
@@ -45,7 +45,7 @@ export async function DELETE(req: NextRequest) {
   if (!process.env.QSTASH_TOKEN) {
     return NextResponse.json({ ok: true });
   }
-  const qstash = new Client({ token: process.env.QSTASH_TOKEN });
+  const qstash = new Client({ token: process.env.QSTASH_TOKEN, baseUrl: process.env.QSTASH_URL });
   try {
     const { messageId } = await req.json();
     if (messageId) {
