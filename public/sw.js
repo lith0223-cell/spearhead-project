@@ -31,6 +31,11 @@ self.addEventListener('message', (event) => {
       timerTimeout = null;
     }
   }
+
+  // SW idle 종료 방지용 ping — 수신 자체가 SW를 활성 상태로 유지
+  if (type === 'KEEPALIVE') {
+    // 응답 불필요 — message 수신으로 SW 유지
+  }
 });
 
 self.addEventListener('notificationclick', (event) => {

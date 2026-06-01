@@ -89,6 +89,8 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const lastCountdownSecRef = useRef<number | null>(null);
   // iOS AudioContext suspended 상태에서 종료 비프음이 무음 처리된 경우 보정용
   const pendingBeepRef = useRef(false);
+  // SW keepalive interval — SW idle 종료 방지
+  const keepaliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 타이머 tick — ref 기반이므로 stale closure 없음
   const tick = () => {
@@ -103,6 +105,15 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     }
 
     if (remaining === 0) {
+      // interval 즉시 정리 (setIsTimerRunning(false) 후 useEffect가 정리하기 전에도 빠르게 멈춤)
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      if (keepaliveIntervalRef.current) {
+        clearInterval(keepaliveIntervalRef.current);
+        keepaliveIntervalRef.current = null;
+      }
       setIsTimerRunning(false);
       timerEndTimeRef.current = null;
       lastCountdownSecRef.current = null;
@@ -115,15 +126,24 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   };
 
   // isTimerRunning 변경 시 interval 시작/정지
+  // startTimer에서 직접 interval을 시작하므로 중복 방지
   useEffect(() => {
     if (isTimerRunning) {
-      tick();
-      intervalRef.current = setInterval(tick, 500);
+      if (!intervalRef.current) {
+        tick();
+        intervalRef.current = setInterval(tick, 500);
+      }
     } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     }
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
   }, [isTimerRunning]);
 
@@ -287,6 +307,11 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   };
 
   const startTimer = (seconds: number, exerciseName?: string) => {
+    // 기존 interval 즉시 정리 — isTimerRunning이 이미 true여도 확실히 새로 시작
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     const clamped = Math.min(seconds, MAX_REST_SECONDS);
     const endTime = Date.now() + clamped * 1000;
     timerEndTimeRef.current = endTime;
@@ -297,6 +322,18 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     setTimerSeconds(clamped);
     setTimerInitial(clamped);
     setIsTimerRunning(true);
+    // isTimerRunning이 이미 true이면 useEffect가 재실행되지 않으므로 직접 interval 시작
+    tick();
+    intervalRef.current = setInterval(tick, 500);
+    // SW keepalive — SW idle 종료 방지 (25초마다 ping)
+    if (keepaliveIntervalRef.current) clearInterval(keepaliveIntervalRef.current);
+    keepaliveIntervalRef.current = setInterval(() => {
+      try {
+        if (navigator.serviceWorker?.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'KEEPALIVE' });
+        }
+      } catch { /* ignore */ }
+    }, 25000);
     scheduleRestNotification(endTime, exerciseName ?? currentExNameRef.current);
   };
 
@@ -316,6 +353,10 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
+    }
+    if (keepaliveIntervalRef.current) {
+      clearInterval(keepaliveIntervalRef.current);
+      keepaliveIntervalRef.current = null;
     }
     setIsTimerRunning(false);
     setTimerSeconds(0);
@@ -1336,19 +1377,11 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
             {isTimerRunning ? <Square size={18} fill="currentColor" /> : <Timer size={18} />}
           </button>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex justify-between text-xs font-bold mb-1">
-              <span className="text-muted">휴식 타이머</span>
-              <span className={`text-lg font-bold leading-none ${isTimerRunning ? "text-accent" : "text-muted"}`}>
-                {timerSeconds}초
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-background rounded-full overflow-hidden">
-              <div
-                className={`h-full transition-all duration-500 ease-linear ${isTimerRunning ? "bg-accent" : "bg-transparent"}`}
-                style={{ width: `${timerInitial > 0 ? (timerSeconds / timerInitial) * 100 : 0}%` }}
-              />
-            </div>
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <span className="text-xs font-bold text-muted">휴식 타이머</span>
+            <span className={`ml-auto text-lg font-bold leading-none tabular-nums ${isTimerRunning ? "text-accent" : "text-muted"}`}>
+              {timerSeconds}초
+            </span>
           </div>
 
           <div className="flex gap-1 shrink-0">
@@ -1399,6 +1432,18 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         </div>
       </div>
     </div>
+
+    {/* 카운트다운 3·2·1 오버레이 */}
+    {isTimerRunning && timerSeconds >= 1 && timerSeconds <= 3 && (
+      <div className="fixed inset-0 z-[90] flex items-center justify-center pointer-events-none">
+        <span
+          key={timerSeconds}
+          className="text-[160px] font-extrabold leading-none text-accent animate-in zoom-in-75 duration-150 drop-shadow-[0_0_40px_var(--accent)]"
+        >
+          {timerSeconds}
+        </span>
+      </div>
+    )}
 
     {/* 운동 완료 요약 */}
 

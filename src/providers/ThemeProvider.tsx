@@ -30,6 +30,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const savedMode = (localStorage.getItem("ph_mode") as ColorMode) || "dark";
     setAccentState(savedAccent);
     setModeState(savedMode);
+    // inline script가 실행되지 않거나 캐시된 HTML이 제공된 경우에도 테마 확실히 적용
+    document.documentElement.setAttribute("data-accent", savedAccent);
+    document.documentElement.setAttribute("data-mode", savedMode);
   }, []);
 
   const setAccent = (a: AccentColor) => {
