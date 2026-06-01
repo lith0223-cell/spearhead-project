@@ -38,6 +38,27 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// Web Push 수신 — 앱이 백그라운드/종료 상태에서도 알림 표시
+self.addEventListener('push', (event) => {
+  let data = { title: '⏰ 휴식 종료!', body: '다음 세트를 시작하세요!' };
+  try {
+    data = event.data?.json() ?? data;
+  } catch {
+    // ignore parse error
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-192x192.png',
+      badge: '/icon-192x192.png',
+      vibrate: [200, 100, 200, 100, 200],
+      tag: 'rest-timer',
+      requireInteraction: true,
+      data: { url: self.location.origin },
+    })
+  );
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
