@@ -60,7 +60,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} h-dvh flex flex-col overflow-hidden bg-background text-foreground selection:bg-accent selection:text-black`}>
+      <body className={`${inter.className} h-dvh flex flex-col overflow-hidden bg-card text-foreground selection:bg-accent selection:text-black`}>
         <ThemeProvider>
           <ActiveWorkoutProvider>
           <SplashScreen />
@@ -70,7 +70,7 @@ export default function RootLayout({
             className="fixed top-0 left-0 right-0 z-[200] bg-card pointer-events-none"
             style={{ height: "env(safe-area-inset-top, 0px)" }}
           />
-          <div className="flex-1 min-h-0 max-w-md mx-auto w-full relative pt-safe">
+          <div className="flex-1 min-h-0 max-w-md mx-auto w-full relative pt-safe bg-background">
             {children}
           </div>
           <BottomNavigation />

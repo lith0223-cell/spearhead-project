@@ -18,7 +18,7 @@ import {
   clearActiveWorkout,
 } from "@/utils/storage";
 import { requestWakeLock, releaseWakeLock } from "@/utils/wakeLock";
-import { playBeep, resumeAudioContext, type BeepType } from "@/utils/audio";
+import { playBeep, playCountdownTick, resumeAudioContext, type BeepType } from "@/utils/audio";
 import {
   scheduleRestNotification,
   cancelRestNotification,
@@ -85,17 +85,31 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const workoutStartTimeRef = useRef<number | null>(null);
   // 운동 완료 후 자동저장 useEffect 재실행 방지
   const workoutFinishedRef = useRef(false);
+  // 3·2·1초 카운트다운 중복 트리거 방지
+  const lastCountdownSecRef = useRef<number | null>(null);
+  // iOS AudioContext suspended 상태에서 종료 비프음이 무음 처리된 경우 보정용
+  const pendingBeepRef = useRef(false);
 
   // 타이머 tick — ref 기반이므로 stale closure 없음
   const tick = () => {
     if (timerEndTimeRef.current === null) return;
     const remaining = Math.max(0, Math.round((timerEndTimeRef.current - Date.now()) / 1000));
     setTimerSeconds(remaining);
+
+    // 3초 전 카운트다운 강조음 (3·2·1초, 같은 초가 두 번 울리지 않도록 가드)
+    if (remaining >= 1 && remaining <= 3 && lastCountdownSecRef.current !== remaining) {
+      lastCountdownSecRef.current = remaining;
+      playCountdownTick(beepSettingsRef.current.volume);
+    }
+
     if (remaining === 0) {
       setIsTimerRunning(false);
       timerEndTimeRef.current = null;
+      lastCountdownSecRef.current = null;
       localStorage.removeItem(TIMER_STORAGE_KEY);
       cancelRestNotification(); // 앱이 포그라운드이므로 SW 알림 취소 후 비프음으로 대체
+      // 백그라운드/잠금 상태에서 도달했을 가능성 → 일단 재생 시도, 포그라운드 복귀 시 보정
+      pendingBeepRef.current = document.visibilityState !== "visible";
       playBeep(beepSettingsRef.current.type, beepSettingsRef.current.volume);
     }
   };
@@ -113,13 +127,25 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     };
   }, [isTimerRunning]);
 
-  // 탭/앱이 포그라운드로 돌아올 때 즉시 재계산
+  // 탭/앱이 포그라운드로 돌아올 때 즉시 재계산 + 백그라운드 종료 보정
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible") tick();
+      if (document.visibilityState !== "visible") return;
+      // iOS AudioContext가 suspended 상태일 가능성 → unlock 시도
+      resumeAudioContext();
+      tick();
+      // 백그라운드에서 타이머가 종료되어 비프음이 무음 처리된 경우 즉시 재생
+      if (pendingBeepRef.current) {
+        pendingBeepRef.current = false;
+        playBeep(beepSettingsRef.current.type, beepSettingsRef.current.volume);
+      }
     };
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, []);
 
   // 운동 전환 시 입력 draft 초기화 (소수점 입력 버그 방지)
@@ -264,6 +290,9 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     const clamped = Math.min(seconds, MAX_REST_SECONDS);
     const endTime = Date.now() + clamped * 1000;
     timerEndTimeRef.current = endTime;
+    lastCountdownSecRef.current = null;
+    pendingBeepRef.current = false;
+    resumeAudioContext(); // iOS: 타이머 시작 시점에 AudioContext unlock
     localStorage.setItem(TIMER_STORAGE_KEY, String(endTime));
     setTimerSeconds(clamped);
     setTimerInitial(clamped);
@@ -291,6 +320,8 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     setIsTimerRunning(false);
     setTimerSeconds(0);
     timerEndTimeRef.current = null;
+    lastCountdownSecRef.current = null;
+    pendingBeepRef.current = false;
     localStorage.removeItem(TIMER_STORAGE_KEY);
     cancelRestNotification();
   };

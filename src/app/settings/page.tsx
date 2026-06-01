@@ -274,12 +274,15 @@ export default function SettingsPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">볼륨</span>
-                    <span className="text-sm font-bold text-accent">{volumePct}%</span>
+                    <span className={`text-sm font-bold ${volumePct > 100 ? "text-danger" : "text-accent"}`}>{volumePct}%</span>
                   </div>
-                  <input type="range" min={0} max={100} value={volumePct}
+                  <input type="range" min={0} max={200} value={volumePct}
                     onChange={(e) => handleVolumeChange(Number(e.target.value) / 100)}
                     style={{ accentColor: "var(--color-accent)" }}
                     className="w-full h-2 rounded-full cursor-pointer" />
+                  <p className="text-[11px] text-muted leading-tight">
+                    100% 초과 시 컴프레서로 음압을 부스트해 시끄러운 환경에서도 잘 들립니다. 다만 음질이 다소 왜곡될 수 있습니다.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   {BEEP_TYPES.map(({ id, label, desc }) => {
