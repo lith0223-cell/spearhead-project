@@ -497,7 +497,7 @@ export default function HistoryPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div className={`flex-1 overflow-y-auto ${isActive ? "pb-40" : "pb-24"}`}>
       {activeTab === "analytics" ? (
         <div className="p-4 space-y-4">
           {allExerciseNames.length === 0 ? (

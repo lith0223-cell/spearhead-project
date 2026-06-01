@@ -123,7 +123,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">설정</h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
+      <div className={`flex-1 overflow-y-auto p-4 space-y-3 ${isActive ? "pb-40" : "pb-24"}`}>
 
         {/* 프로필 */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
