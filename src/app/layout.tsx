@@ -76,10 +76,6 @@ export default function RootLayout({
             {children}
           </div>
           <BottomNavigation />
-          <div
-            className="shrink-0 bg-card"
-            style={{ height: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}
-          />
           </ActiveWorkoutProvider>
         </ThemeProvider>
       </body>

@@ -124,7 +124,7 @@ export function BottomNavigation() {
   const workoutHref = `/workout/${activeWorkout?.routineId}?resume=true`;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50">
+    <div className="relative shrink-0 z-50">
       {/* 이어하기 배너 — absolute로 네비바 위에 부유, 배경 완전 투명 */}
       {activeWorkout && (
         <div className="absolute bottom-full left-0 right-0 px-4 pb-2 pointer-events-none">
