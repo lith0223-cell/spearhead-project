@@ -1433,18 +1433,6 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       </div>
     </div>
 
-    {/* 카운트다운 3·2·1 오버레이 */}
-    {isTimerRunning && timerSeconds >= 1 && timerSeconds <= 3 && (
-      <div className="fixed inset-0 z-[90] flex items-center justify-center pointer-events-none">
-        <span
-          key={timerSeconds}
-          className="text-[160px] font-extrabold leading-none text-accent animate-in zoom-in-75 duration-150 drop-shadow-[0_0_40px_var(--accent)]"
-        >
-          {timerSeconds}
-        </span>
-      </div>
-    )}
-
     {/* 운동 완료 요약 */}
 
     {summary && (

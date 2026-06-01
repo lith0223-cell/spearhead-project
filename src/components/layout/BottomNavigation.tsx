@@ -22,6 +22,8 @@ function formatElapsed(seconds: number): string {
 
 const PAUSE_KEY = "ph_workout_pause";
 
+const TIMER_KEY = "ph_timer_end";
+
 export function BottomNavigation() {
   const pathname = usePathname();
   const [activeWorkout, setActiveWorkout] = useState<{ routineId: string; routineName: string; startTime?: number; currentExerciseName?: string } | null>(null);
@@ -29,6 +31,7 @@ export function BottomNavigation() {
   const [isPaused, setIsPaused] = useState(false);
   const [pausedElapsedSec, setPausedElapsedSec] = useState(0);
   const [showAbortConfirm, setShowAbortConfirm] = useState(false);
+  const [restSeconds, setRestSeconds] = useState<number | null>(null);
 
   useEffect(() => {
     const check = () => {
@@ -74,6 +77,18 @@ export function BottomNavigation() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [activeWorkout?.startTime, isPaused, pausedElapsedSec]);
+
+  useEffect(() => {
+    const tick = () => {
+      const endStr = localStorage.getItem(TIMER_KEY);
+      if (!endStr) { setRestSeconds(null); return; }
+      const remaining = Math.max(0, Math.round((parseInt(endStr) - Date.now()) / 1000));
+      setRestSeconds(remaining > 0 ? remaining : null);
+    };
+    tick();
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, []);
 
   const handleAbortWorkout = () => {
     clearActiveWorkout();
@@ -125,9 +140,11 @@ export function BottomNavigation() {
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold truncate leading-tight">{activeWorkout.routineName} 진행 중</p>
-                {activeWorkout.currentExerciseName && (
+                {restSeconds !== null ? (
+                  <p className="text-xs font-medium opacity-90 truncate leading-tight">휴식 중 · {restSeconds}초</p>
+                ) : activeWorkout.currentExerciseName ? (
                   <p className="text-xs font-medium opacity-75 truncate leading-tight">{activeWorkout.currentExerciseName}</p>
-                )}
+                ) : null}
               </div>
             </Link>
             {activeWorkout.startTime && (

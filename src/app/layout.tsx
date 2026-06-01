@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ActiveWorkoutProvider } from "@/providers/ActiveWorkoutProvider";
 import { SwRegister } from "@/components/SwRegister";
 import { SplashScreen } from "@/components/SplashScreen";
+import { GlobalTimerOverlay } from "@/components/GlobalTimerOverlay";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -65,6 +66,7 @@ export default function RootLayout({
           <ActiveWorkoutProvider>
           <SplashScreen />
           <SwRegister />
+          <GlobalTimerOverlay />
           {/* iOS 상단 Safe Area 배경 채우기 (헤더 색상과 일치) */}
           <div
             className="fixed top-0 left-0 right-0 z-[200] bg-card pointer-events-none"
