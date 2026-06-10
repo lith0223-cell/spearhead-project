@@ -125,8 +125,8 @@ export function BottomNavigation() {
 
   return (
     <div
-      className="relative shrink-0 z-50"
-      style={{ height: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}
+      className="relative shrink-0 z-50 bg-card"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       {/* 이어하기 배너 — absolute로 네비바 위에 부유, 배경 완전 투명 */}
       {activeWorkout && (
@@ -206,7 +206,7 @@ export function BottomNavigation() {
       )}
 
       {/* 내비게이션 — outer height와 정확히 일치 (banner 유무 무관 동일 위치) */}
-      <div className="h-full bg-card border-t border-border pb-safe">
+      <div className="bg-card border-t border-border">
         <div className="flex justify-around items-center h-20 max-w-md mx-auto px-4">
           {navItems.map((item) => {
             const Icon = item.icon;

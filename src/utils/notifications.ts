@@ -22,6 +22,10 @@ function getController(): ServiceWorker | null {
 
 const PUSH_SUB_KEY = "ph_push_subscription";
 const PUSH_MSG_KEY = "ph_push_message_id";
+const PUSH_SCHEDULE_DEBOUNCE_MS = 500;
+
+let pushScheduleTimeout: ReturnType<typeof setTimeout> | null = null;
+let pushScheduleVersion = 0;
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -56,8 +60,20 @@ export async function getPushSubscription(): Promise<PushSubscription | null> {
 
 // ── 서버 스케줄 기반 알림 ──────────────────────────────────────────────────
 
+async function deleteScheduledPush(messageId: string): Promise<void> {
+  try {
+    await fetch('/api/push/schedule', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId }),
+    });
+  } catch {
+    // 무시 — 이미 발송됐거나 만료된 경우
+  }
+}
+
 // Web Push 서버 예약 — 앱이 백그라운드여도 OS 레벨 알림 발송
-async function schedulePushNotification(endTime: number, exerciseName: string, routineId?: string): Promise<void> {
+async function schedulePushNotification(endTime: number, exerciseName: string, routineId: string | undefined, version: number): Promise<void> {
   const subscription = await getPushSubscription();
   if (!subscription) return;
 
@@ -78,7 +94,11 @@ async function schedulePushNotification(endTime: number, exerciseName: string, r
     if (res.ok) {
       const data = await res.json();
       if (data.messageId) {
-        localStorage.setItem(PUSH_MSG_KEY, data.messageId);
+        if (version === pushScheduleVersion) {
+          localStorage.setItem(PUSH_MSG_KEY, data.messageId);
+        } else {
+          await deleteScheduledPush(data.messageId);
+        }
       }
     }
   } catch {
@@ -86,19 +106,26 @@ async function schedulePushNotification(endTime: number, exerciseName: string, r
   }
 }
 
+function queuePushNotification(endTime: number, exerciseName: string, routineId?: string): void {
+  pushScheduleVersion += 1;
+  const version = pushScheduleVersion;
+  if (pushScheduleTimeout) clearTimeout(pushScheduleTimeout);
+  pushScheduleTimeout = setTimeout(() => {
+    pushScheduleTimeout = null;
+    schedulePushNotification(endTime, exerciseName, routineId, version);
+  }, PUSH_SCHEDULE_DEBOUNCE_MS);
+}
+
 async function cancelPushNotification(): Promise<void> {
+  pushScheduleVersion += 1;
+  if (pushScheduleTimeout) {
+    clearTimeout(pushScheduleTimeout);
+    pushScheduleTimeout = null;
+  }
   const messageId = localStorage.getItem(PUSH_MSG_KEY);
   if (!messageId) return;
   localStorage.removeItem(PUSH_MSG_KEY);
-  try {
-    await fetch('/api/push/schedule', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messageId }),
-    });
-  } catch {
-    // 무시 — 이미 발송됐거나 만료된 경우
-  }
+  await deleteScheduledPush(messageId);
 }
 
 // ── 공개 인터페이스 ───────────────────────────────────────────────────────
@@ -110,7 +137,7 @@ export function scheduleRestNotification(endTime: number, exerciseName: string, 
 
   // 2. Web Push 서버 예약 (앱이 종료된 경우 OS 레벨 알림)
   if (Notification.permission === 'granted') {
-    schedulePushNotification(endTime, exerciseName, routineId);
+    queuePushNotification(endTime, exerciseName, routineId);
   }
 }
 
