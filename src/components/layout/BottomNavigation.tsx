@@ -125,7 +125,7 @@ export function BottomNavigation() {
 
   return (
     <div
-      className="relative shrink-0 z-50 bg-card"
+      className="fixed inset-x-0 bottom-0 z-50 bg-card"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       {/* 이어하기 배너 — absolute로 네비바 위에 부유, 배경 완전 투명 */}

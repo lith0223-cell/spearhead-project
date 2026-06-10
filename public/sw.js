@@ -13,13 +13,14 @@ function isAnyClientVisible() {
 }
 
 self.addEventListener('message', (event) => {
-  const { type, endTime, exerciseName, routineId } = event.data || {};
+  const { type, endTime, exerciseName, routineId, exerciseIndex } = event.data || {};
 
   if (type === 'TIMER_START') {
     if (timerTimeout) clearTimeout(timerTimeout);
     const delay = Math.max(0, endTime - Date.now());
+    const startIdxParam = Number.isInteger(exerciseIndex) ? `&startIdx=${exerciseIndex}` : '';
     const targetUrl = routineId
-      ? `${self.location.origin}/workout/${routineId}?resume=true`
+      ? `${self.location.origin}/workout/${routineId}?resume=true&restDone=true${startIdxParam}`
       : self.location.origin;
 
     timerTimeout = setTimeout(() => {
@@ -91,8 +92,12 @@ self.addEventListener('push', (event) => {
 // 알림 클릭 시 해당 운동 페이지로 진입
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  timerHandledAt = Date.now();
+  if (timerTimeout) {
+    clearTimeout(timerTimeout);
+    timerTimeout = null;
+  }
   const targetUrl = event.notification.data?.url || self.location.origin;
-  const targetPath = new URL(targetUrl, self.location.origin).pathname + new URL(targetUrl, self.location.origin).search;
 
   event.waitUntil(
     self.clients

@@ -25,14 +25,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const { subscription, exerciseName, routineId } = JSON.parse(body);
+  const { subscription, exerciseName, routineId, exerciseIndex } = JSON.parse(body);
 
   if (!subscription) {
     return NextResponse.json({ error: "subscription이 없습니다" }, { status: 400 });
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const targetUrl = routineId ? `${appUrl}/workout/${routineId}?resume=true` : appUrl;
+  const targetUrl = routineId
+    ? `${appUrl}/workout/${routineId}?resume=true&restDone=true${Number.isInteger(exerciseIndex) ? `&startIdx=${exerciseIndex}` : ""}`
+    : appUrl;
 
   try {
     await webpush.sendNotification(

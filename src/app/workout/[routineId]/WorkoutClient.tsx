@@ -38,6 +38,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const shouldAutoResume = searchParams.get("resume") === "true";
+  const isRestNotificationReturn = searchParams.get("restDone") === "true";
   const startIdxParam = searchParams.get("startIdx");
   const startIdx = startIdxParam !== null ? Math.max(0, parseInt(startIdxParam) || 0) : 0;
 
@@ -225,9 +226,15 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       if (clampedIdx > 0) setCurrentExIndex(clampedIdx);
     }
 
+    if (isRestNotificationReturn) {
+      localStorage.removeItem(TIMER_STORAGE_KEY);
+      cancelRestNotification();
+      navigator.serviceWorker?.controller?.postMessage({ type: 'TIMER_HANDLED' });
+    }
+
     // 이전에 실행 중이던 타이머 복원 (화면 이탈 후 복귀 시)
     const storedEnd = localStorage.getItem(TIMER_STORAGE_KEY);
-    if (storedEnd) {
+    if (storedEnd && !isRestNotificationReturn) {
       const endTime = parseInt(storedEnd);
       const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
       if (remaining > 0) {
@@ -235,7 +242,8 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         setTimerSeconds(remaining);
         setTimerInitial(remaining);
         setIsTimerRunning(true);
-        scheduleRestNotification(endTime, found.exercises[0] ?? "운동", routineId);
+        const restoredIdx = startIdxParam !== null ? Math.min(startIdx, found.exercises.length - 1) : (saved?.currentExIndex ?? 0);
+        scheduleRestNotification(endTime, found.exercises[restoredIdx] ?? "운동", routineId, restoredIdx);
       } else {
         localStorage.removeItem(TIMER_STORAGE_KEY);
       }
@@ -245,7 +253,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
       releaseWakeLock();
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [routineId, router, shouldAutoResume]);
+  }, [routineId, router, shouldAutoResume, isRestNotificationReturn]);
 
   // 진행 중 운동 세션 자동 저장
   useEffect(() => {
@@ -276,7 +284,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     setShowResumePrompt(false);
   };
 
-  const startTimer = (seconds: number, exerciseName?: string) => {
+  const startTimer = (seconds: number, exerciseName?: string, exerciseIndex = currentExIndex) => {
     // 기존 interval 즉시 정리 — isTimerRunning이 이미 true여도 확실히 새로 시작
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -302,7 +310,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
         }
       } catch { /* ignore */ }
     }, 25000);
-    scheduleRestNotification(endTime, exerciseName ?? currentExNameRef.current, routineId);
+    scheduleRestNotification(endTime, exerciseName ?? currentExNameRef.current, routineId, exerciseIndex);
   };
 
   const adjustTimer = (delta: number) => {
@@ -314,7 +322,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     localStorage.setItem(TIMER_STORAGE_KEY, String(newEndTime));
     setTimerSeconds(remaining);
     if (remaining > timerInitial) setTimerInitial(remaining);
-    scheduleRestNotification(newEndTime, currentExNameRef.current, routineId);
+    scheduleRestNotification(newEndTime, currentExNameRef.current, routineId, currentExIndex);
   };
 
   const stopTimer = () => {
@@ -338,6 +346,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
     if (exercisesData.length === 0) return;
     const exName = exercisesData[currentExIndex]?.name;
     if (!exName) return;
+    currentExNameRef.current = exName;
     const savedUnits = JSON.parse(localStorage.getItem("ph_exercise_unit") || "{}") as Record<string, "kg" | "lb">;
     setUnit(savedUnits[exName] || "kg");
   }, [currentExIndex, exercisesData]);
@@ -396,7 +405,7 @@ export default function WorkoutClient({ routineId }: { routineId: string }) {
               const isLastEx = exIdx === prev.length - 1;
               const willFinishEx = ex.sets.every((s2, si2) => si2 === setIdx || s2.isCompleted);
               if (!(isLastEx && willFinishEx)) {
-                startTimer(toggled.restTime || DEFAULT_REST, ex.name);
+                startTimer(toggled.restTime || DEFAULT_REST, ex.name, exIdx);
               }
             }
             return toggled;

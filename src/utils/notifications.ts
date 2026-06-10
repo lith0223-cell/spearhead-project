@@ -73,7 +73,13 @@ async function deleteScheduledPush(messageId: string): Promise<void> {
 }
 
 // Web Push 서버 예약 — 앱이 백그라운드여도 OS 레벨 알림 발송
-async function schedulePushNotification(endTime: number, exerciseName: string, routineId: string | undefined, version: number): Promise<void> {
+async function schedulePushNotification(
+  endTime: number,
+  exerciseName: string,
+  routineId: string | undefined,
+  exerciseIndex: number | undefined,
+  version: number
+): Promise<void> {
   const subscription = await getPushSubscription();
   if (!subscription) return;
 
@@ -88,6 +94,7 @@ async function schedulePushNotification(endTime: number, exerciseName: string, r
         endTime,
         exerciseName,
         routineId,
+        exerciseIndex,
         cancelMessageId,
       }),
     });
@@ -106,13 +113,13 @@ async function schedulePushNotification(endTime: number, exerciseName: string, r
   }
 }
 
-function queuePushNotification(endTime: number, exerciseName: string, routineId?: string): void {
+function queuePushNotification(endTime: number, exerciseName: string, routineId?: string, exerciseIndex?: number): void {
   pushScheduleVersion += 1;
   const version = pushScheduleVersion;
   if (pushScheduleTimeout) clearTimeout(pushScheduleTimeout);
   pushScheduleTimeout = setTimeout(() => {
     pushScheduleTimeout = null;
-    schedulePushNotification(endTime, exerciseName, routineId, version);
+    schedulePushNotification(endTime, exerciseName, routineId, exerciseIndex, version);
   }, PUSH_SCHEDULE_DEBOUNCE_MS);
 }
 
@@ -130,14 +137,14 @@ async function cancelPushNotification(): Promise<void> {
 
 // ── 공개 인터페이스 ───────────────────────────────────────────────────────
 
-export function scheduleRestNotification(endTime: number, exerciseName: string, routineId?: string): void {
+export function scheduleRestNotification(endTime: number, exerciseName: string, routineId?: string, exerciseIndex?: number): void {
   // 1. SW fallback (백그라운드 상태일 때 SW 자체 setTimeout으로 발화 — visibility 체크 포함)
   const sw = getController();
-  if (sw) sw.postMessage({ type: 'TIMER_START', endTime, exerciseName, routineId });
+  if (sw) sw.postMessage({ type: 'TIMER_START', endTime, exerciseName, routineId, exerciseIndex });
 
   // 2. Web Push 서버 예약 (앱이 종료된 경우 OS 레벨 알림)
   if (Notification.permission === 'granted') {
-    queuePushNotification(endTime, exerciseName, routineId);
+    queuePushNotification(endTime, exerciseName, routineId, exerciseIndex);
   }
 }
 
